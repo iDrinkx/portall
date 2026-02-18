@@ -246,10 +246,10 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
 
     const result = {
       joinedAt,
-      lastActivity: userInfo.lastActivityAt || null,
+      lastActivity: userInfo?.lastActivityAt || null,
       sessionCount: sessionData.sessionCount,
       lastSessionTimestamp: sessionData.lastSessionTimestamp,
-      watchStats: sessionData.stats // { totalHours, movieHours, movieCount, episodeHours, episodeCount }
+      watchStats: sessionData.watchStats // watchStats du scan global
     };
     
     // Sauvegarder en cache
