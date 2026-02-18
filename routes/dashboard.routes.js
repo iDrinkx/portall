@@ -175,56 +175,75 @@ router.get("/api/overseerr-debug", requireAuth, async (req, res) => {
   try {
     const baseUrl = process.env.OVERSEERR_URL;
     const apiKey = process.env.OVERSEERR_API_KEY;
-    const userEmail = req.session.user?.email;
 
     const tests = [];
 
-    // Test 1: GET /user sans params
+    // Test 1: GET /user (list all users)
     try {
       const r1 = await fetch(`${baseUrl}/api/v1/user`, {
         headers: { "X-API-Key": apiKey, "Accept": "application/json" }
       });
       const d1 = await r1.json();
+      const users = Array.isArray(d1) ? d1 : (d1.results || d1.data || []);
       tests.push({
-        name: "GET /user (no params)",
+        name: "GET /user",
         status: r1.status,
         ok: r1.ok,
-        response_type: typeof d1,
-        is_array: Array.isArray(d1),
-        has_results: d1.results ? true : false,
-        has_data: d1.data ? true : false,
-        user_count: Array.isArray(d1) ? d1.length : (d1.results?.length || d1.data?.length || 0),
-        first_user: Array.isArray(d1) ? d1[0] : (d1.results?.[0] || d1.data?.[0]),
-        all_users: Array.isArray(d1) ? d1.map(u => ({ id: u.id, displayName: u.displayName, username: u.username })) : (d1.results || d1.data || []).map(u => ({ id: u.id, displayName: u.displayName, username: u.username }))
+        user_count: users.length
       });
     } catch (e) {
       tests.push({ name: "GET /user", error: e.message });
     }
 
-    // Test 2: GET /auth/me
+    // Test 2: GET /user/39/requests sans paramètres
     try {
-      const r2 = await fetch(`${baseUrl}/api/v1/auth/me`, {
+      const r2 = await fetch(`${baseUrl}/api/v1/user/39/requests`, {
         headers: { "X-API-Key": apiKey, "Accept": "application/json" }
       });
-      const d2 = await r2.json();
+      const d2 = await r2.text();
       tests.push({
-        name: "GET /auth/me",
+        name: "GET /user/39/requests (no params)",
         status: r2.status,
         ok: r2.ok,
-        user: d2
+        response_preview: d2.substring(0, 300)
       });
     } catch (e) {
-      tests.push({ name: "GET /auth/me", error: e.message });
+      tests.push({ name: "GET /user/39/requests", error: e.message });
     }
 
-    res.json({
-      config: {
-        overseerr_url: baseUrl,
-        user_email: userEmail,
-        has_api_key: !!apiKey
-      },
-      tests
-    });
+    // Test 3: GET /user/39/requests?skip=0&take=50
+    try {
+      const r3 = await fetch(`${baseUrl}/api/v1/user/39/requests?skip=0&take=50`, {
+        headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+      });
+      const d3 = await r3.text();
+      tests.push({
+        name: "GET /user/39/requests?skip=0&take=50",
+        status: r3.status,
+        ok: r3.ok,
+        response_preview: d3.substring(0, 300)
+      });
+    } catch (e) {
+      tests.push({ name: "GET /user/39/requests?skip=0&take=50", error: e.message });
+    }
+
+    // Test 4: GET /request (all requests)
+    try {
+      const r4 = await fetch(`${baseUrl}/api/v1/request`, {
+        headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+      });
+      const d4 = await r4.text();
+      tests.push({
+        name: "GET /request (all requests)",
+        status: r4.status,
+        ok: r4.ok,
+        response_preview: d4.substring(0, 300)
+      });
+    } catch (e) {
+      tests.push({ name: "GET /request", error: e.message });
+    }
+
+    res.json({ tests });
   } catch (err) {
     console.error("Debug error:", err.message);
     res.status(500).json({ error: err.message });
