@@ -1,6 +1,11 @@
-<h1 class="dashboard-title">
-  Bienvenue <%= user.username %>
-</h1>
+<div class="dashboard-header">
+  <% if (user.thumb) { %>
+    <img src="<%= user.thumb %>" alt="<%= user.username %>" class="user-avatar" />
+  <% } %>
+  <div class="header-text">
+    <h1 class="dashboard-title">Bienvenue <%= user.username %></h1>
+  </div>
+</div>
 
 <div class="cards-grid">
 
