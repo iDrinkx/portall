@@ -16,36 +16,73 @@ async function findOverseerrUserByEmail(email, OVERSEERR_URL, OVERSEERR_API_KEY,
 
     console.debug(`[Overseerr] Searching for user with email: ${email}${username ? ` or username: ${username}` : ""}`);
 
-    // Récupérer tous les utilisateurs Overseerr (l'endpoint retourne tous les users d'une fois)
-    const url = `${OVERSEERR_URL}/api/v1/user`;
-
-    const res = await fetch(url, {
-      headers: {
-        "X-API-Key": OVERSEERR_API_KEY,
-        "Accept": "application/json"
-      }
-    });
-
-    if (!res.ok) {
-      console.warn(`[Overseerr] Could not fetch users list: ${res.status} ${res.statusText}`);
-      return null;
-    }
-
-    const json = await res.json();
-
-    // Extraire les utilisateurs selon le format de réponse
+    // Récupérer TOUS les utilisateurs Overseerr avec pagination
     let allUsers = [];
-    if (Array.isArray(json)) {
-      allUsers = json;
-    } else if (Array.isArray(json.results)) {
-      allUsers = json.results;
-    } else if (Array.isArray(json.data)) {
-      allUsers = json.data;
-    } else if (Array.isArray(json.users)) {
-      allUsers = json.users;
+    let page = 0;  // Overseerr commence à 0
+    let hasMore = true;
+    let pageInfo = null;
+
+    while (hasMore) {
+      // Essayer différents formats de paramètres de pagination
+      const url = new URL(`${OVERSEERR_URL}/api/v1/user`);
+      url.searchParams.set('skip', page * 50);
+      url.searchParams.set('take', 50);
+
+      console.debug(`[Overseerr] Fetching users: skip=${page * 50}, take=50`);
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          "X-API-Key": OVERSEERR_API_KEY,
+          "Accept": "application/json"
+        }
+      });
+
+      if (!res.ok) {
+        console.warn(`[Overseerr] Could not fetch users page ${page}: ${res.status} ${res.statusText}`);
+        break;
+      }
+
+      const json = await res.json();
+      pageInfo = json.pageInfo;
+
+      // Extraire les utilisateurs selon le format de réponse
+      let users = [];
+      if (Array.isArray(json)) {
+        users = json;
+      } else if (Array.isArray(json.results)) {
+        users = json.results;
+      } else if (Array.isArray(json.data)) {
+        users = json.data;
+      } else if (Array.isArray(json.users)) {
+        users = json.users;
+      }
+
+      if (users.length === 0) {
+        console.debug(`[Overseerr] No users on page ${page}, stopping pagination`);
+        break;
+      }
+
+      allUsers = allUsers.concat(users);
+      console.debug(`[Overseerr] Page ${page}: ${users.length} users (total so far: ${allUsers.length})`);
+
+      // Vérifier s'il y a d'autres pages
+      if (pageInfo) {
+        console.debug(`[Overseerr] pageInfo:`, pageInfo);
+        if (pageInfo.pages && page + 1 >= pageInfo.pages) {
+          hasMore = false;
+        }
+      }
+
+      page++;
     }
 
     console.debug(`[Overseerr] Total users fetched: ${allUsers.length}`);
+
+    // Debug: afficher TOUS les utilisateurs
+    const allUsersList = allUsers
+      .map(u => `ID ${u.id}: displayName="${u.displayName}", username="${u.username}", email="${u.email}"`)
+      .join("\n  ");
+    console.debug(`[Overseerr] All users in system:\n  ${allUsersList}`);
 
     // Chercher l'utilisateur avec cet email
     let found = allUsers.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());

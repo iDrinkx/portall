@@ -184,44 +184,34 @@ router.get("/api/overseerr-debug", requireAuth, async (req, res) => {
       const r1 = await fetch(`${baseUrl}/api/v1/user`, {
         headers: { "X-API-Key": apiKey, "Accept": "application/json" }
       });
-      const d1 = await r1.text();
+      const d1 = await r1.json();
       tests.push({
         name: "GET /user (no params)",
         status: r1.status,
         ok: r1.ok,
-        preview: d1.substring(0, 200)
+        response_type: typeof d1,
+        is_array: Array.isArray(d1),
+        has_results: d1.results ? true : false,
+        has_data: d1.data ? true : false,
+        user_count: Array.isArray(d1) ? d1.length : (d1.results?.length || d1.data?.length || 0),
+        first_user: Array.isArray(d1) ? d1[0] : (d1.results?.[0] || d1.data?.[0]),
+        all_users: Array.isArray(d1) ? d1.map(u => ({ id: u.id, displayName: u.displayName, username: u.username })) : (d1.results || d1.data || []).map(u => ({ id: u.id, displayName: u.displayName, username: u.username }))
       });
     } catch (e) {
       tests.push({ name: "GET /user", error: e.message });
     }
 
-    // Test 2: GET /user?page=1&perPage=50
+    // Test 2: GET /auth/me
     try {
-      const r2 = await fetch(`${baseUrl}/api/v1/user?page=1&perPage=50`, {
+      const r2 = await fetch(`${baseUrl}/api/v1/auth/me`, {
         headers: { "X-API-Key": apiKey, "Accept": "application/json" }
       });
-      const d2 = await r2.text();
-      tests.push({
-        name: "GET /user?page=1&perPage=50",
-        status: r2.status,
-        ok: r2.ok,
-        preview: d2.substring(0, 200)
-      });
-    } catch (e) {
-      tests.push({ name: "GET /user?page=1&perPage=50", error: e.message });
-    }
-
-    // Test 3: GET /auth/me
-    try {
-      const r3 = await fetch(`${baseUrl}/api/v1/auth/me`, {
-        headers: { "X-API-Key": apiKey, "Accept": "application/json" }
-      });
-      const d3 = await r3.json();
+      const d2 = await r2.json();
       tests.push({
         name: "GET /auth/me",
-        status: r3.status,
-        ok: r3.ok,
-        user: d3
+        status: r2.status,
+        ok: r2.ok,
+        user: d2
       });
     } catch (e) {
       tests.push({ name: "GET /auth/me", error: e.message });
