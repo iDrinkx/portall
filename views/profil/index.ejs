@@ -632,8 +632,20 @@
         console.log("[STATS] Cache hit");
       }
 
-      if (!data || (!data.joinedAt && !data.lastActivity && !data.sessionCount)) {
-        console.warn("[STATS] ⚠️ Données invalides:", data);
+      if (!data) {
+        console.warn("[STATS] ⚠️ Données null");
+        return null;
+      }
+      
+      // Accepter AUSSI les objets avec status="computing" (en attente de résultats)
+      if (data.status === "computing") {
+        console.log("[STATS] ✅ Calcul en cours - retour du status");
+        return data;
+      }
+      
+      // Pour les données complètes, vérifier qu'il y a au moins une donnée valide
+      if (!data.joinedAt && !data.lastActivity && !data.sessionCount) {
+        console.warn("[STATS] ⚠️ Données incomplètes:", data);
         return null;
       }
 
