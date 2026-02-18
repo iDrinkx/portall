@@ -1,0 +1,614 @@
+/* =========================
+   RESET
+========================= */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body { height: 100%; }
+
+:root{
+  --bg0:#0e0e0e;
+  --bg1:#121212;
+  --bg2:#1f1f1f;
+  --panel:#181818;
+  --panel2:#1a1a1a;
+  --line:#222;
+  --text:#fff;
+  --muted:#bbb;
+  --plex:#e5a00d;
+  --plex2:#ffb800;
+
+  --nav-h: 86px;
+  --nav-pad: 40px;
+
+  /* NAVBAR LOGO */
+  --logo-nav-h: 54px;
+  --logo-nav-maxw: 220px;
+
+  /* LOGIN LOGO */
+  --logo-login-h: 110px;
+  --logo-login-maxw: 380px;
+}
+
+body {
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: radial-gradient(circle at top, var(--bg2) 0%, var(--bg1) 40%, var(--bg0) 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================
+   NAVBAR (connecté uniquement)
+========================= */
+.nav-center {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.nav-link {
+  color: #bbb;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  position: relative;
+  transition: 0.2s ease;
+}
+
+.nav-link:hover {
+  color: #fff;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 0%;
+  height: 2px;
+  background: var(--plex);
+  transition: width 0.2s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+.navbar{
+  height: var(--nav-h);
+  padding: 0 var(--nav-pad);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #111;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand{
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.brand-logo{
+  height: var(--logo-nav-h);
+  max-height: var(--logo-nav-h);
+  width: auto;
+  max-width: var(--logo-nav-maxw);
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(0,0,0,.5));
+}
+
+.nav-right{
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.username{
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.logout-btn{
+  background: var(--plex);
+  color: #000;
+  padding: 8px 18px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: .2s ease;
+}
+
+.logout-btn:hover{
+  background: var(--plex2);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 20px rgba(229,160,13,.35);
+}
+
+/* =========================
+   CONTENT
+========================= */
+.content{
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
+}
+
+/* =========================
+   LOGIN PAGE
+========================= */
+
+.login-page{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 28px; /* 🔥 espace contrôlé logo → card */
+  padding: 40px 20px;
+}
+
+/* Logo login */
+.login-logo img{
+  height: var(--logo-login-h);
+  max-height: var(--logo-login-h);
+  width: auto;
+  max-width: var(--logo-login-maxw);
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,.45));
+}
+
+/* Carte login */
+.login-card{
+  width: min(440px, 100%);
+  padding: 40px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+}
+
+.login-card h1{
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.plex-btn{
+  display: inline-block;
+  background: var(--plex);
+  color: #000;
+  padding: 14px 30px;
+  border-radius: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: .2s ease;
+}
+
+.plex-btn:hover{
+  background: var(--plex2);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 25px rgba(229,160,13,.35);
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+.dashboard-title{
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 28px;
+}
+
+.cards-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 22px;
+}
+
+.card{
+  background: var(--panel2);
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  transition: .25s ease;
+}
+
+.card:hover{
+  transform: translateY(-4px);
+  border-color: #333;
+  box-shadow: 0 15px 50px rgba(0,0,0,.45);
+}
+
+.card h3{
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.card p{
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ===== DASHBOARD SUBSCRIPTION PREVIEW ===== */
+
+.dashboard-card {
+  text-decoration: none;
+  color: inherit;
+  transition: all .25s ease;
+  cursor: pointer;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  border-color: #333;
+  box-shadow: 0 15px 40px rgba(0,0,0,.45);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.status-mini {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* couleurs dynamiques */
+
+.status-mini.active {
+  background: #1f3d1f;
+  color: #4caf50;
+}
+
+.status-mini.warning {
+  background: #3d2f1f;
+  color: #ff9800;
+}
+
+.status-mini.expired {
+  background: #3d1f1f;
+  color: #f44336;
+}
+
+.status-mini.unlimited {
+  background: #1f2d3d;
+  color: #2196f3;
+}
+
+.status-mini.loading {
+  background: #2a2a2a;
+  color: #aaa;
+}
+
+.subscription-days {
+  font-size: 15px;
+  margin-top: 8px;
+}
+
+.subscription-expired {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.subscription-unlimited {
+  color: #2196f3;
+  font-weight: 600;
+}
+
+/* =========================
+   ABONNEMENT
+========================= */
+
+.subscription-card {
+  max-width: 600px;
+  padding: 28px;
+  position: relative;
+}
+
+/* Layout ligne label / valeur */
+.subscription-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.subscription-row .label {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.subscription-row .value {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* Badge */
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .5px;
+}
+
+.card.loading {
+  opacity: 0.7;
+}
+
+.card.active h3 { color: #4caf50; }
+.card.warning h3 { color: #ff9800; }
+.card.expired h3 { color: #f44336; }
+
+
+/* Bordure latérale selon statut */
+.subscription-card.active {
+  border-left: 5px solid #4caf50;
+}
+
+.subscription-card.warning {
+  border-left: 5px solid #ff9800;
+}
+
+.subscription-card.expired {
+  border-left: 5px solid #f44336;
+}
+
+.subscription-card.unlimited {
+  border-left: 5px solid #2196f3;
+}
+
+.subscription-card.not_found {
+  border-left: 5px solid #777;
+}
+
+/* Couleurs badge */
+.status-badge.active {
+  background: #1f3d1f;
+  color: #4caf50;
+}
+
+.status-badge.warning {
+  background: #3d2f1f;
+  color: #ff9800;
+}
+
+.status-badge.expired {
+  background: #3d1f1f;
+  color: #f44336;
+}
+
+.status-badge.unlimited {
+  background: #1f2d3d;
+  color: #2196f3;
+}
+
+.status-badge.not_found {
+  background: #2a2a2a;
+  color: #aaa;
+}
+
+/* ===== PROGRESS BAR ===== */
+
+.progress-wrapper {
+  margin-top: 20px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #222;
+  border-radius: 8px;
+  margin-top: 15px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.4s ease;
+}
+
+/* Couleur dynamique selon statut */
+.subscription-card.active .progress {
+  background: linear-gradient(90deg, #4caf50, #66bb6a);
+}
+
+.subscription-card.warning .progress {
+  background: linear-gradient(90deg, #ff9800, #ffb74d);
+}
+
+.subscription-card.expired .progress {
+  background: linear-gradient(90deg, #f44336, #e57373);
+}
+
+.subscription-card.unlimited .progress {
+  background: linear-gradient(90deg, #2196f3, #42a5f5);
+}
+
+.subscription-card.not_found .progress {
+  background: #555;
+}
+
+/* =========================
+   MOBILE VERSION PREMIUM
+========================= */
+
+@media (max-width: 768px){
+
+  .navbar{
+    height:65px;
+    padding:0 16px;
+  }
+
+  .brand-logo{
+    height:40px;
+    max-width:150px;
+  }
+
+  .nav-center{
+    gap:16px;
+  }
+
+  .nav-link{
+    font-size:14px;
+  }
+
+  .logout-btn{
+    padding:6px 12px;
+    font-size:13px;
+  }
+
+  .content{
+    padding:30px 18px;
+  }
+
+  .dashboard-title{
+    font-size:22px;
+    margin-bottom:24px;
+  }
+
+  .cards-grid{
+    grid-template-columns:1fr;
+    gap:18px;
+  }
+
+  .card{
+    padding:20px;
+  }
+
+  .card h3{
+    font-size:16px;
+  }
+
+  .card p{
+    font-size:13px;
+  }
+
+  .subscription-row{
+    flex-direction:column;
+    gap:6px;
+  }
+
+}
+
+/* ======================================================
+   MOBILE NAVIGATION PRO
+====================================================== */
+
+.desktop-menu {
+  display: flex;
+}
+
+.burger {
+  display: none;
+  font-size: 26px;
+  cursor: pointer;
+  color: white;
+}
+
+/* Overlay */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: .3s ease;
+  z-index: 998;
+}
+
+.overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Mobile Menu */
+
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 250px;
+  height: 100vh;
+  background: #111;
+  border-left: 1px solid #222;
+  display: flex;
+  flex-direction: column;
+  padding: 100px 24px;
+  gap: 24px;
+  transition: right .3s ease;
+  z-index: 999;
+}
+
+.mobile-menu a {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.mobile-menu a:hover {
+  color: var(--plex);
+}
+
+.mobile-menu.open {
+  right: 0;
+}
+
+.logout-mobile {
+  background: var(--plex);
+  color: black !important;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ======================================================
+   RESPONSIVE
+====================================================== */
+
+@media (max-width: 768px){
+  .desktop-menu {
+    display: none;
+  }
+
+  .burger {
+    display: block;
+  }
+}
+
+.stats-preview strong {
+  font-size: 18px;
+  color: #4caf50;
+}
+
+.stats-preview.loading {
+  opacity: 0.6;
+}

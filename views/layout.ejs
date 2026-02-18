@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <title>Plex-Portal</title>
+</head>
+<body>
+
+<% if (user) { %>
+  <nav class="navbar">
+
+    <!-- Logo -->
+    <a href="/dashboard" class="brand">
+      <img class="brand-logo" src="/img/logo.png" alt="MonPlex"/>
+    </a>
+
+    <!-- Desktop Menu -->
+    <div class="nav-center desktop-menu">
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/abonnement" class="nav-link">Abonnement</a>
+      <a href="/statistiques" class="nav-link">Statistiques</a>
+    </div>
+
+    <!-- Desktop Logout -->
+    <div class="nav-right desktop-menu">
+      <a class="logout-btn" href="/logout">Déconnexion</a>
+    </div>
+
+    <!-- Burger Mobile -->
+    <div class="burger" id="burger">☰</div>
+
+  </nav>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/abonnement">Abonnement</a>
+    <a href="/statistiques">Statistiques</a>
+    <a href="/logout" class="logout-mobile">Déconnexion</a>
+  </div>
+
+<% } %>
+
+<main class="content">
+  <%- body %>
+</main>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+
+    const burger = document.getElementById("burger");
+    const mobileMenu = document.getElementById("mobileMenu");
+    const overlay = document.getElementById("overlay");
+
+    if (!burger || !mobileMenu || !overlay) return;
+
+    const openMenu = () => {
+      mobileMenu.classList.add("open");
+      overlay.classList.add("active");
+      document.body.style.overflow = "hidden"; // bloque le scroll
+    };
+
+    const closeMenu = () => {
+      mobileMenu.classList.remove("open");
+      overlay.classList.remove("active");
+      document.body.style.overflow = "";
+    };
+
+    // Toggle burger
+    burger.addEventListener("click", () => {
+      if (mobileMenu.classList.contains("open")) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    });
+
+    // Click overlay
+    overlay.addEventListener("click", closeMenu);
+
+    // Ferme le menu quand on clique sur un lien
+    document.querySelectorAll(".mobile-menu a").forEach(link => {
+      link.addEventListener("click", closeMenu);
+    });
+
+  });
+</script>
+
+
+</body>
+</html>

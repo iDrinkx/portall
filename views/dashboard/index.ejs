@@ -1,0 +1,13 @@
+<h1 class="dashboard-title">
+  Bienvenue <%= user.username %>
+</h1>
+
+<div class="cards-grid">
+
+  <%- include("_subscription") %>
+  <%- include("_stats") %>
+  <%- include("_activity") %>
+
+</div>
+
+<script src="/js/dashboard.js"></script>
