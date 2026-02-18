@@ -199,15 +199,20 @@ async function getOverseerrStats(userEmail, username, OVERSEERR_URL, OVERSEERR_A
     const userIdNum = overseerrUser.id;
     console.debug(`[Overseerr] Fetching requests for Overseerr user ID: ${userIdNum}`);
 
-    // Récupérer TOUTES les demandes en paginant
+    // Récupérer TOUTES les demandes en paginant avec skip/take
     let allRequests = [];
-    let page = 1;
+    let skip = 0;
+    const take = 50;
     let hasMore = true;
 
     while (hasMore) {
-      const url = `${OVERSEERR_URL}/api/v1/user/${userIdNum}/requests?page=${page}&perPage=50`;
+      const url = new URL(`${OVERSEERR_URL}/api/v1/user/${userIdNum}/requests`);
+      url.searchParams.set('skip', skip);
+      url.searchParams.set('take', take);
 
-      const res = await fetch(url, {
+      console.debug(`[Overseerr] Fetching requests: skip=${skip}, take=${take}`);
+
+      const res = await fetch(url.toString(), {
         headers: {
           "X-API-Key": OVERSEERR_API_KEY,
           "Accept": "application/json"
@@ -216,24 +221,35 @@ async function getOverseerrStats(userEmail, username, OVERSEERR_URL, OVERSEERR_A
 
       if (!res.ok) {
         console.error(`[Overseerr] API error: ${res.status} for user ID ${userIdNum}`);
+        console.error(`[Overseerr] URL was: ${url.toString()}`);
         break;
       }
 
       const json = await res.json();
 
-      if (!json?.results || !Array.isArray(json.results)) {
-        console.warn(`[Overseerr] No results on page ${page}`);
+      // Essayer différents formats de réponse
+      let requests = [];
+      if (Array.isArray(json)) {
+        requests = json;
+      } else if (Array.isArray(json.results)) {
+        requests = json.results;
+      } else if (Array.isArray(json.data)) {
+        requests = json.data;
+      }
+
+      if (requests.length === 0) {
+        console.debug(`[Overseerr] No requests on skip=${skip}`);
         break;
       }
 
-      allRequests = allRequests.concat(json.results);
-      console.debug(`[Overseerr] Page ${page}: ${json.results.length} results (total so far: ${allRequests.length})`);
+      allRequests = allRequests.concat(requests);
+      console.debug(`[Overseerr] Skip ${skip}: ${requests.length} results (total so far: ${allRequests.length})`);
 
-      // Vérifier s'il y a d'autres pages
-      if (!json.pageInfo || page >= json.pageInfo.pages) {
+      // Vérifier s'il y a d'autres résultats
+      if (requests.length < take) {
         hasMore = false;
       } else {
-        page++;
+        skip += take;
       }
     }
 
