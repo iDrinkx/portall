@@ -29,4 +29,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/iDrinkx/plex-portal:latest
+          tags: ghcr.io/idrinkx/plex-portal:latest
