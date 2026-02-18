@@ -4,14 +4,7 @@
   <% } %>
   <div class="header-text">
     <h1 class="dashboard-title">Bienvenue <%= user.username %></h1>
+    <p style="color: #aaa; margin-top: 10px;">Accédez à votre profil pour toutes les informations détaillées</p>
+    <a href="<%= basePath %>/profil" class="plex-btn" style="display: inline-block; margin-top: 15px;">Voir mon profil</a>
   </div>
 </div>
-
-<div class="cards-grid">
-
-  <%- include("_subscription") %>
-  <%- include("_stats") %>
-
-</div>
-
-<script src="<%= basePath %>/js/dashboard.js"></script>

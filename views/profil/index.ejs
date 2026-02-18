@@ -559,27 +559,84 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     const basePath = window.APP_BASE_PATH || "";
+    const CACHE_DURATION = 30000; // 30 secondes
+
+    // Récupérer l'ID utilisateur depuis le body
+    const userId = document.body.getAttribute("data-user-id") || "guest";
+
+    /* ===============================
+       💾 CACHE UTILITIES
+    =============================== */
+
+    const cacheManager = {
+      get(key) {
+        const cacheKey = `${key}:${userId}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        const time = sessionStorage.getItem(`${cacheKey}:time`);
+        const now = Date.now();
+
+        if (cached && time && now - parseInt(time) < CACHE_DURATION) {
+          return JSON.parse(cached);
+        }
+        
+        sessionStorage.removeItem(cacheKey);
+        sessionStorage.removeItem(`${cacheKey}:time`);
+        return null;
+      },
+
+      set(key, data) {
+        const cacheKey = `${key}:${userId}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(`${cacheKey}:time`, Date.now());
+      }
+    };
 
     renderBadges();
 
     // Charger les données
     try {
-      const statsRes = await fetch(basePath + "/api/stats");
-      const overseerrRes = await fetch(basePath + "/api/overseerr");
-      const subscriptionRes = await fetch(basePath + "/api/subscription");
+      // Charger Tracearr stats avec cache
+      let stats = cacheManager.get("statsCache");
+      if (!stats) {
+        const statsRes = await fetch("/api/stats");
+        if (statsRes.ok) {
+          stats = await statsRes.json();
+          cacheManager.set("statsCache", stats);
+        } else {
+          stats = {};
+        }
+      }
 
-      const stats = statsRes.ok ? await statsRes.json() : {};
-      const overseerr = overseerrRes.ok ? await overseerrRes.json() : { total: 0, pending: 0, approved: 0, available: 0, unavailable: 0 };
-      const subscription = subscriptionRes.ok ? await subscriptionRes.json() : {};
+      // Charger Overseerr avec cache
+      let overseerr = cacheManager.get("overseerrCache");
+      if (!overseerr) {
+        const overseerrRes = await fetch("/api/overseerr");
+        if (overseerrRes.ok) {
+          overseerr = await overseerrRes.json();
+          cacheManager.set("overseerrCache", overseerr);
+        } else {
+          overseerr = { total: 0, pending: 0, approved: 0, available: 0, unavailable: 0 };
+        }
+      }
+
+      // Charger subscription avec cache
+      let subscription = cacheManager.get("subscriptionCache");
+      if (!subscription) {
+        const subscriptionRes = await fetch("/api/subscription");
+        if (subscriptionRes.ok) {
+          subscription = await subscriptionRes.json();
+          cacheManager.set("subscriptionCache", subscription);
+        } else {
+          subscription = {};
+        }
+      }
 
       // Afficher les stats
       document.getElementById("joinedDate").textContent = stats.joinedAt ? formatFullDate(stats.joinedAt) : "N/A";
       document.getElementById("lastActivity").textContent = stats.lastActivity ? formatRelativeTime(stats.lastActivity) : "Aucune";
 
-      // Note: sessionCount nécessite une requête API supplémentaire à Tracearr
-      // Pour maintenant on met une placeholder
+      // Session count
       const tracearrSessionCount = stats.sessionCount || 0;
-      
       document.getElementById("sessionCount").textContent = tracearrSessionCount;
       document.getElementById("sessionCount2").textContent = tracearrSessionCount + " sessions";
 
@@ -629,16 +686,22 @@
       document.getElementById("totalXpFormula").textContent = `${totalXp} XP`;
 
       // Afficher abonnement
-      if (subscription.status) {
+      if (subscription && subscription.status) {
         const subHtml = `
           <div class="stat-row">
             <span class="stat-label">Statut</span>
-            <span class="stat-value">${subscription.status}</span>
+            <span class="stat-value">${subscription.label || subscription.status}</span>
           </div>
           ${subscription.daysLeft ? `
           <div class="stat-row">
             <span class="stat-label">Jours restants</span>
             <span class="stat-value">${subscription.daysLeft}</span>
+          </div>
+          ` : ''}
+          ${subscription.expiresAt ? `
+          <div class="stat-row">
+            <span class="stat-label">Expire le</span>
+            <span class="stat-value">${subscription.expiresAt}</span>
           </div>
           ` : ''}
         `;
