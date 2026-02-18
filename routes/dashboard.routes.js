@@ -163,6 +163,44 @@ router.get("/api/overseerr", requireAuth, async (req, res) => {
 });
 
 /* ===============================
+   🔍 API OVERSEERR DEBUG
+=============================== */
+
+router.get("/api/overseerr-debug", requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const url = `${process.env.OVERSEERR_URL}/api/v1/user/${userId}/requests`;
+    
+    console.log(`[Debug] Overseerr request to: ${url}`);
+
+    const rawRes = await fetch(url, {
+      headers: {
+        "X-API-Key": process.env.OVERSEERR_API_KEY,
+        "Accept": "application/json"
+      }
+    });
+
+    const text = await rawRes.text();
+
+    res.json({
+      status: rawRes.status,
+      ok: rawRes.ok,
+      headers: Object.fromEntries(rawRes.headers),
+      body: text ? (text.startsWith("{") ? JSON.parse(text) : text) : null,
+      config: {
+        url,
+        userId,
+        hasUrl: !!process.env.OVERSEERR_URL,
+        hasKey: !!process.env.OVERSEERR_API_KEY
+      }
+    });
+  } catch (err) {
+    console.error("Debug error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ===============================
    🗑️ CACHE INVALIDATION
 =============================== */
 
