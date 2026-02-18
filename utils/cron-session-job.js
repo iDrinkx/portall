@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { updateAllUsersSessionCache } = require('./tracearr');
+const { updateAllUsersSessionCache, updateTracearrAllUsers } = require('./tracearr');
 const SessionStatsCache = require('./session-stats-cache');
 
 /**
@@ -12,12 +12,13 @@ function startSessionCronJob(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKE
     console.log("\n========== [CRON-JOB] DEBUT - Mise a jour du cache sessions ==========");
     console.log("[CRON-JOB] Timestamp:", new Date().toISOString());
 
-    if (!userList || userList.length === 0) {
-      console.log("[CRON-JOB] Aucun utilisateur a mettre a jour");
-      return;
+    // Priorite 1: Utiliser updateTracearrAllUsers pour scanner TOUS les utilisateurs Tracearr
+    if (TRACEARR_URL && TRACEARR_API_KEY) {
+      console.log("[CRON-JOB] Precalcul pour tous les utilisateurs Tracearr");
+      await updateTracearrAllUsers(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN);
+    } else {
+      console.log("[CRON-JOB] Tracearr URL ou API Key manquants");
     }
-
-    await updateAllUsersSessionCache(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN, userList);
     
     console.log("========== [CRON-JOB] FIN ==========\n");
   });
@@ -26,9 +27,9 @@ function startSessionCronJob(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKE
   
   // Si le cache est vide, faire un pre-calcul au démarrage
   const cacheKeys = SessionStatsCache.getKeys();
-  if (cacheKeys.length === 0 && userList.length > 0) {
+  if (cacheKeys.length === 0 && TRACEARR_URL && TRACEARR_API_KEY) {
     console.log("[CRON] Cache vide - pré-calcul des stats au démarrage...");
-    updateAllUsersSessionCache(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN, userList)
+    updateTracearrAllUsers(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN)
       .then(() => console.log("[CRON] Pré-calcul au démarrage termine"))
       .catch(err => console.error("[CRON] Erreur pré-calcul:", err.message));
   } else {

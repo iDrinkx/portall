@@ -232,6 +232,103 @@ async function updateUserSessionCache(username, TRACEARR_URL, TRACEARR_API_KEY, 
 }
 
 /**
+ * Fetche TOUS les utilisateurs Tracearr et pré-calcule leurs stats
+ * (Indépendant - ne dépend pas d'une liste passée en paramètre)
+ */
+async function updateTracearrAllUsers(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN) {
+  try {
+    console.log("[TRACEARR-PRECOMPUTE] Début - Fetch tous les utilisateurs Tracearr");
+    
+    const users = [];
+    let page = 1;
+    let totalPages = 1;
+    const pageSize = 50;
+    
+    // Fetcher tous les utilisateurs Tracearr
+    while (page <= totalPages) {
+      try {
+        const resp = await fetch(
+          `${TRACEARR_URL}/api/v1/public/users?page=${page}&pageSize=${pageSize}`,
+          {
+            headers: {
+              Authorization: `Bearer ${TRACEARR_API_KEY}`,
+              Accept: "application/json"
+            }
+          }
+        );
+        
+        if (!resp.ok) {
+          console.error("[TRACEARR-PRECOMPUTE] ❌ Erreur fetch page", page, ":", resp.status);
+          break;
+        }
+        
+        const json = await resp.json();
+        const meta = json.meta || {};
+        totalPages = Math.ceil((meta.total || 0) / pageSize);
+        
+        if (json.data && Array.isArray(json.data)) {
+          users.push(...json.data);
+          console.log("[TRACEARR-PRECOMPUTE] Page", page, ':', json.data.length, 'utilisateurs');
+        }
+        
+        page++;
+      } catch (err) {
+        console.error("[TRACEARR-PRECOMPUTE] Erreur fetch page", page, ":", err.message);
+        break;
+      }
+    }
+    
+    console.log("[TRACEARR-PRECOMPUTE] ✅ Total:", users.length, "utilisateurs trouvés");
+    
+    // Mettre en cache les stats de chaque utilisateur
+    const startTime = Date.now();
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (const user of users) {
+      try {
+        const username = user.username || user.title || user.email;
+        console.log("[TRACEARR-PRECOMPUTE] Traitement:", username);
+        
+        const sessionData = await countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY);
+        
+        // Obtenir la date d'inscription Plex
+        let joinedAt = null;
+        try {
+          joinedAt = await getPlexJoinDate(user.email, PLEX_URL, PLEX_TOKEN);
+        } catch (e) {
+          console.warn("[TRACEARR-PRECOMPUTE] Impossible obtenir joinedAt pour", username);
+        }
+        
+        // Sauvegarder en cache
+        SessionStatsCache.set(username, {
+          joinedAt,
+          lastActivity: sessionData.lastSessionTimestamp ? new Date(sessionData.lastSessionTimestamp * 1000).toISOString() : null,
+          sessionCount: sessionData.sessionCount,
+          watchStats: sessionData.stats,
+          lastSessionTimestamp: sessionData.lastSessionTimestamp,
+          lastUpdated: Date.now()
+        });
+        
+        console.log("[TRACEARR-PRECOMPUTE] ✅", username, '-', sessionData.sessionCount, 'sessions');
+        successCount++;
+      } catch (err) {
+        console.error("[TRACEARR-PRECOMPUTE] ❌ Erreur pour user:", err.message);
+        failureCount++;
+      }
+    }
+    
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.log("[TRACEARR-PRECOMPUTE] FIN - Succès:", successCount, "Échecs:", failureCount, "Durée:", duration, 's');
+    
+    return { successCount, failureCount, totalUsers: users.length, duration };
+  } catch (err) {
+    console.error("[TRACEARR-PRECOMPUTE] ❌ Erreur globale:", err.message);
+    return { successCount: 0, failureCount: 0, totalUsers: 0, duration: 0 };
+  }
+}
+
+/**
  * Mettre à jour les stats pour TOUS les utilisateurs du serveur
  * @param {Array} userList - Liste des utilisateurs avec {username, id, joinedAtTimestamp}
  */
@@ -266,4 +363,4 @@ async function updateAllUsersSessionCache(TRACEARR_URL, TRACEARR_API_KEY, PLEX_U
   return { successCount, failureCount, duration };
 }
 
-module.exports = { getTracearrStats, countSessionsOptimized, updateUserSessionCache, updateAllUsersSessionCache };
+module.exports = { getTracearrStats, countSessionsOptimized, updateUserSessionCache, updateAllUsersSessionCache, updateTracearrAllUsers };
