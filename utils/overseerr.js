@@ -2,14 +2,17 @@ const fetch = require("node-fetch");
 
 /**
  * Récupère les statistiques Overseerr pour un utilisateur donné
- * @param {string|number} userId - ID utilisateur Plex
+ * @param {string|number} userId - ID utilisateur Overseerr (pas Plex!)
  * @param {string} OVERSEERR_URL - URL de base d'Overseerr
  * @param {string} OVERSEERR_API_KEY - Clé API Overseerr
  * @returns {Promise<Object|null>} Stats avec pending, approved, available, unavailable
  */
 async function getOverseerrStats(userId, OVERSEERR_URL, OVERSEERR_API_KEY) {
   try {
-    if (!OVERSEERR_URL || !OVERSEERR_API_KEY) return null;
+    if (!OVERSEERR_URL || !OVERSEERR_API_KEY) {
+      console.warn("Overseerr config missing:", { hasUrl: !!OVERSEERR_URL, hasKey: !!OVERSEERR_API_KEY });
+      return null;
+    }
 
     // ID utilisateur doit être un nombre
     const userIdNum = parseInt(userId);
@@ -18,15 +21,13 @@ async function getOverseerrStats(userId, OVERSEERR_URL, OVERSEERR_API_KEY) {
       return null;
     }
 
-    // Récupérer les demandes filtrées par utilisateur
-    // L'API d'Overseerr permet de filtrer par requestedBy (user ID)
-    const url = new URL(`${OVERSEERR_URL}/api/v1/request`);
-    url.searchParams.set("filter", "all");
-    url.searchParams.set("sort", "updated");
-    url.searchParams.set("page", "1");
-    url.searchParams.set("perPage", "50");
+    console.debug(`[Overseerr] Fetching requests for userId: ${userIdNum}`);
 
-    const res = await fetch(url.toString(), {
+    // Récupérer les demandes de l'utilisateur via l'endpoint dédié
+    // GET /user/{userId}/requests selon la documentation API
+    const url = `${OVERSEERR_URL}/api/v1/user/${userIdNum}/requests`;
+
+    const res = await fetch(url, {
       headers: {
         "X-API-Key": OVERSEERR_API_KEY,
         "Accept": "application/json"
@@ -34,13 +35,14 @@ async function getOverseerrStats(userId, OVERSEERR_URL, OVERSEERR_API_KEY) {
     });
 
     if (!res.ok) {
-      console.error(`Overseerr API error: ${res.status}`);
+      console.error(`[Overseerr] API error: ${res.status} for userId ${userIdNum}`);
       return null;
     }
 
     const json = await res.json();
 
     if (!json?.results || !Array.isArray(json.results)) {
+      console.warn(`[Overseerr] No results or invalid format for userId ${userIdNum}`, json);
       return {
         pending: 0,
         approved: 0,
@@ -50,22 +52,17 @@ async function getOverseerrStats(userId, OVERSEERR_URL, OVERSEERR_API_KEY) {
       };
     }
 
-    // Compter les demandes par statut pour cet utilisateur
+    console.debug(`[Overseerr] Found ${json.results.length} requests for userId ${userIdNum}`);
+
+    // Compter par statut
     let pending = 0;
     let approved = 0;
     let available = 0;
     let unavailable = 0;
 
     json.results.forEach(req => {
-      // Vérifier si la demande appartient à cet utilisateur
-      if (req.requestedBy?.id !== userIdNum) {
-        return;
-      }
-
-      // Statut possibles dans Overseerr:
-      // 1 = PENDING
-      // 2 = APPROVED
-      // 3 = DECLINED
+      // Status: 1=PENDING, 2=APPROVED, 3=DECLINED
+      // mediaStatus: 1=UNKNOWN, 2=PENDING, 3=PROCESSING, 4=PARTIALLY_AVAILABLE, 5=AVAILABLE
       if (req.status === 1) {
         pending++;
       } else if (req.status === 2) {
@@ -75,22 +72,25 @@ async function getOverseerrStats(userId, OVERSEERR_URL, OVERSEERR_API_KEY) {
       }
 
       // Vérifier si le contenu est disponible
-      // media.status: 5 = AVAILABLE
       if (req.media?.status === 5) {
         available++;
       }
     });
 
-    return {
+    const result = {
       pending,
-      approved: approved > available ? approved - available : 0,
+      approved: approved - available,
       available,
       unavailable,
-      total: pending + approved + unavailable
+      total: json.results.length
     };
 
+    console.debug(`[Overseerr] Stats for userId ${userIdNum}:`, result);
+
+    return result;
+
   } catch (err) {
-    console.error("Overseerr error:", err.message);
+    console.error("[Overseerr] Error:", err.message);
     return null;
   }
 }

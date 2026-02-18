@@ -138,6 +138,11 @@ router.get("/api/overseerr", requireAuth, async (req, res) => {
   try {
     const cacheKey = `overseerr:${req.session.user.id}`;
     
+    console.log(`[Overseerr] Fetching for user ${req.session.user.id}`, {
+      url: process.env.OVERSEERR_URL,
+      hasKey: !!process.env.OVERSEERR_API_KEY
+    });
+    
     const overseerr = await cache.getOrSet(
       cacheKey,
       () => getOverseerrStats(
@@ -147,6 +152,8 @@ router.get("/api/overseerr", requireAuth, async (req, res) => {
       ),
       60 * 1000 // 60 secondes
     );
+
+    console.log(`[Overseerr] Result:`, overseerr);
 
     res.json(overseerr || {});
   } catch (err) {
