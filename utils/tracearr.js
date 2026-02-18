@@ -45,7 +45,9 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
       );
 
       if (foundUser) {
-        console.log("[TRACEARR] Utilisateur trouvé:", foundUser.username, "sessionCount:", foundUser.sessionCount);
+        console.log("[TRACEARR] Utilisateur trouvé:", foundUser.username);
+        console.log("[TRACEARR] Donnees completes:", JSON.stringify(foundUser, null, 2));
+        console.log("[TRACEARR] sessionCount field:", foundUser.sessionCount);
         break;
       }
 
