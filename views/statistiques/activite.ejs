@@ -1,12 +1,8 @@
 <h1 class="dashboard-title">🎬 Activité</h1>
 
 <div class="activity-container">
-  <div id="activityInfo" class="activity-header">
-    Chargement de l'activité...
-  </div>
-
   <div id="activityList" class="activity-list">
-    <!-- Les activités seront insérées ici -->
+    Chargement de l'activité...
   </div>
 </div>
 
@@ -15,25 +11,6 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-  }
-
-  .activity-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
-    border-radius: 12px;
-    color: white;
-    text-align: center;
-  }
-
-  .activity-header h2 {
-    margin: 10px 0;
-    font-size: 24px;
-  }
-
-  .activity-header p {
-    margin: 5px 0;
-    font-size: 14px;
-    opacity: 0.9;
   }
 
   .activity-list {
@@ -160,23 +137,9 @@
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
 
-      const headerDiv = document.getElementById("activityInfo");
       const listDiv = document.getElementById("activityList");
 
-      if (!data || !data.user) {
-        headerDiv.innerHTML = `<div class="activity-error">❌ Impossible de récupérer les informations d'activité</div>`;
-        return;
-      }
-
-      // Afficher les infos utilisateur
-      headerDiv.innerHTML = `
-        <h2>🎬 ${data.user.username}</h2>
-        <p>📅 Inscrit depuis le ${formatFullDate(data.user.createdAt)}</p>
-        ${data.user.lastActivityAt ? `<p>⏱️ Dernière activité: ${formatRelativeTime(data.user.lastActivityAt)}</p>` : ''}
-      `;
-
-      // Afficher l'historique d'activité
-      if (!data.activities || data.activities.length === 0) {
+      if (!data || !data.activities || data.activities.length === 0) {
         listDiv.innerHTML = `<div class="activity-empty"><p>Aucune activité enregistrée</p></div>`;
         return;
       }
@@ -210,7 +173,7 @@
 
     } catch (err) {
       console.error("Activity load error:", err);
-      document.getElementById("activityInfo").innerHTML = `<div class="activity-error">❌ Erreur lors du chargement de l'activité: ${err.message}</div>`;
+      document.getElementById("activityList").innerHTML = `<div class="activity-error">❌ Erreur lors du chargement de l'activité</div>`;
     }
   });
 </script>

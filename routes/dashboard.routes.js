@@ -105,7 +105,6 @@ router.get("/api/subscription", requireAuth, async (req, res) => {
 
     res.json(subscription);
   } catch (err) {
-    console.error("Subscription API error:", err.message);
     res.status(500).json({ error: "Failed to fetch subscription" });
   }
 });
@@ -134,7 +133,6 @@ router.get("/api/stats", requireAuth, async (req, res) => {
 
     res.json(stats);
   } catch (err) {
-    console.error("Stats API error:", err.message);
     res.status(500).json({ error: "Failed to fetch stats" });
   }
 });
@@ -158,21 +156,17 @@ router.get("/api/overseerr", requireAuth, async (req, res) => {
     
     const overseerr = await cache.getOrSet(
       cacheKey,
-      () => {
-        console.debug(`[Dashboard] Fetching Overseerr for Plex user ${plexUserId} (${userEmail})`);
-        return getOverseerrStats(
-          userEmail,
-          username,
-          process.env.OVERSEERR_URL,
-          process.env.OVERSEERR_API_KEY
-        );
-      },
+      () => getOverseerrStats(
+        userEmail,
+        username,
+        process.env.OVERSEERR_URL,
+        process.env.OVERSEERR_API_KEY
+      ),
       60 * 1000 // 60 secondes
     );
 
     res.json(overseerr || {});
   } catch (err) {
-    console.error("Overseerr API error:", err.message);
     res.status(500).json({ error: "Failed to fetch overseerr data" });
   }
 });
@@ -197,7 +191,6 @@ router.get("/api/activity", requireAuth, async (req, res) => {
 
     res.json(activity || { user: null, activities: [] });
   } catch (err) {
-    console.error("Activity API error:", err.message);
     res.status(500).json({ error: "Failed to fetch activity data" });
   }
 });

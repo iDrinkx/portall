@@ -57,21 +57,25 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
     };
 
   } catch (err) {
-    console.error("Tracearr error:", err.message);
     return null;
   }
 }
 
 async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
   try {
-    if (!TRACEARR_URL || !TRACEARR_API_KEY) return null;
+    if (!TRACEARR_URL || !TRACEARR_API_KEY) {
+      console.log("[Tracearr] Missing URL or API key");
+      return null;
+    }
 
+    console.log(`[Tracearr] Searching for user: ${username}`);
     let page = 1;
     let totalPages = 1;
     let foundUser = null;
 
     // Trouver l'utilisateur
     while (page <= totalPages) {
+      console.log(`[Tracearr] Fetching users page ${page}/${totalPages}`);
       const res = await fetch(
         `${TRACEARR_URL}/api/v1/public/users?page=${page}&pageSize=50`,
         {
@@ -82,25 +86,39 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
         }
       );
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.log(`[Tracearr] Failed to fetch users: ${res.status} ${res.statusText}`);
+        return null;
+      }
 
       const json = await res.json();
-      if (!json?.data) return null;
+      if (!json?.data) {
+        console.log("[Tracearr] No data in response");
+        return null;
+      }
 
+      console.log(`[Tracearr] Got ${json.data.length} users on page ${page}`);
       totalPages = Math.ceil(json.meta.total / json.meta.pageSize);
 
       foundUser = json.data.find(
         u => u.username?.toLowerCase() === username.toLowerCase()
       );
 
-      if (foundUser) break;
+      if (foundUser) {
+        console.log(`[Tracearr] Found user with ID: ${foundUser.id}`);
+        break;
+      }
 
       page++;
     }
 
-    if (!foundUser) return null;
+    if (!foundUser) {
+      console.log(`[Tracearr] User ${username} not found`);
+      return null;
+    }
 
     // Récupérer l'historique d'activité de l'utilisateur
+    console.log(`[Tracearr] Fetching activity for user ${foundUser.id}`);
     const activityRes = await fetch(
       `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}/activity?pageSize=100`,
       {
@@ -112,6 +130,7 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
     );
 
     if (!activityRes.ok) {
+      console.log(`[Tracearr] Activity endpoint returned ${activityRes.status} ${activityRes.statusText}`);
       // Fallback: retourner juste l'info utilisateur sans historique
       return {
         user: {
@@ -128,6 +147,8 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
     const activityData = await activityRes.json();
     const activities = Array.isArray(activityData) ? activityData : (activityData.data || []);
 
+    console.log(`[Tracearr] Got ${activities.length} activities`);
+
     return {
       user: {
         id: foundUser.id,
@@ -140,7 +161,7 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
     };
 
   } catch (err) {
-    console.error("Tracearr activity error:", err.message);
+    console.log(`[Tracearr] Error: ${err.message}`);
     return null;
   }
 }
