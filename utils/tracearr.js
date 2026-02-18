@@ -186,9 +186,22 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
       };
     }
 
-    console.log("[TRACEARR] Pas de cache - fetch depuis API");
+    console.log("[TRACEARR] Pas de cache - appel SCAN INTELLIGENT global");
 
-    // Récupérer l'utilisateur pour ses infos de base
+    // 🚀 APPELER LE SCAN GLOBAL INTELLIGENT au lieu de refaire un per-user!
+    const allUserStats = await scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY);
+    
+    // Chercher cet user dans les résultats du scan global
+    const sessionData = allUserStats[username];
+    
+    if (!sessionData) {
+      console.log("[TRACEARR] Utilisateur non trouvé dans le scan global");
+      return null;
+    }
+
+    console.log("[TRACEARR] Utilisateur trouve dans scan global:", username);
+    
+    // Récupérer les infos de base de l'utilisateur (joinedAt, etc)
     let page = 1;
     let totalPages = 1;
     let userInfo = null;
@@ -215,14 +228,9 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
     }
 
     if (!userInfo) {
-      console.log("[TRACEARR] Utilisateur non trouve");
-      return null;
+      console.log("[TRACEARR] Infos de base non trouvées");
+      // On a quand même les stats du scan global, on continue
     }
-
-    console.log("[TRACEARR] Utilisateur trouve:", userInfo.username);
-
-    // Compter les sessions (optimisé avec delta)
-    const sessionData = await countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY);
 
     // Prioriser Plex pour une date plus fiable
     let joinedAt = null;
@@ -424,6 +432,9 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
           episodeCount: stats.episodeCount
         }
       };
+      
+      // 💾 METTRE EN CACHE IMMÉDIATEMENT pour cet user
+      SessionStatsCache.set(username, finalStats[username]);
     }
 
     const duration = Math.round((Date.now() - scanStartTime) / 1000);
