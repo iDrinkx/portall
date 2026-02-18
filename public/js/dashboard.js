@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
 
     invalidateAll() {
-      ["subscriptionCache", "statsCache"].forEach(key => this.invalidate(key));
+      ["subscriptionCache", "statsCache", "overseerrCache"].forEach(key => this.invalidate(key));
     }
   };
 
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* =====================================
-     📊 STATS (Tracearr)
+     📊 STATS (Tracearr + Overseerr)
   ===================================== */
 
   async function loadStats() {
@@ -78,45 +78,56 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contentEl = document.getElementById("statsContent");
 
     try {
-      // Vérifier cache local (30s)
-      let data = cacheManager.get("statsCache");
-
-      if (!data) {
+      // Charger Tracearr stats
+      let tracearrData = cacheManager.get("statsCache");
+      if (!tracearrData) {
         const res = await fetch(basePath + "/api/stats", {
           headers: { "Accept": "application/json" }
         });
-
         if (!res.ok) throw new Error("stats_api_error");
-        data = await res.json();
-        cacheManager.set("statsCache", data);
+        tracearrData = await res.json();
+        cacheManager.set("statsCache", tracearrData);
       }
 
-      if (!data || (!data.joinedAt && !data.lastActivity)) {
+      // Charger Overseerr stats
+      let overseerrData = cacheManager.get("overseerrCache");
+      if (!overseerrData) {
+        const res = await fetch(basePath + "/api/overseerr", {
+          headers: { "Accept": "application/json" }
+        });
+        if (!res.ok) throw new Error("overseerr_api_error");
+        overseerrData = await res.json();
+        cacheManager.set("overseerrCache", overseerrData);
+      }
+
+      // Vérifier si on a au moins une donnée
+      const hasTracearrData = tracearrData && (tracearrData.joinedAt || tracearrData.lastActivity);
+      const hasOverseerrData = overseerrData && overseerrData.total > 0;
+
+      if (!hasTracearrData && !hasOverseerrData) {
         statusEl.className = "status-mini loading";
         statusEl.textContent = "Indispo";
         contentEl.innerHTML = `<p class="subscription-loading">Données indisponibles.</p>`;
         return;
       }
 
-      const joined = data.joinedAt
-        ? new Date(data.joinedAt).toLocaleDateString("fr-FR")
-        : "Inconnu";
-
-      const last = data.lastActivity
-        ? new Date(data.lastActivity).toLocaleString("fr-FR")
-        : "Aucune";
-
       statusEl.className = "status-mini active";
       statusEl.textContent = "OK";
 
-      contentEl.innerHTML = `
-        <p style="font-size:14px; margin-bottom:6px;">
-          📅 Membre depuis : <strong>${joined}</strong>
-        </p>
-        <p style="color:#bbb; font-size:13px;">
-          🕒 Dernière activité : ${last}
-        </p>
-      `;
+      let html = "";
+
+      // Afficher derniere activité Tracearr
+      if (hasTracearrData && tracearrData.lastActivity) {
+        const last = new Date(tracearrData.lastActivity).toLocaleString("fr-FR");
+        html += `<p style="font-size:14px; margin-bottom:6px;">🕒 Dernière activité : <strong>${last}</strong></p>`;
+      }
+
+      // Afficher nombre de demandes Overseerr
+      if (hasOverseerrData) {
+        html += `<p style="color:#bbb; font-size:13px;">🎬 Demandes : ${overseerrData.total}</p>`;
+      }
+
+      contentEl.innerHTML = html;
 
     } catch (err) {
       console.error("Stats load error:", err);

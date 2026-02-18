@@ -4,6 +4,7 @@ const fetch = require("node-fetch");
 
 const { computeSubscription } = require("../utils/wizarr");
 const { getTracearrStats } = require("../utils/tracearr");
+const { getOverseerrStats } = require("../utils/overseerr");
 const CacheManager = require("../utils/cache");
 
 /* ===============================
@@ -130,6 +131,31 @@ router.get("/api/stats", requireAuth, async (req, res) => {
 });
 
 /* ===============================
+   🎬 API OVERSEERR
+=============================== */
+
+router.get("/api/overseerr", requireAuth, async (req, res) => {
+  try {
+    const cacheKey = `overseerr:${req.session.user.id}`;
+    
+    const overseerr = await cache.getOrSet(
+      cacheKey,
+      () => getOverseerrStats(
+        req.session.user.id,
+        process.env.OVERSEERR_URL,
+        process.env.OVERSEERR_API_KEY
+      ),
+      60 * 1000 // 60 secondes
+    );
+
+    res.json(overseerr || {});
+  } catch (err) {
+    console.error("Overseerr API error:", err.message);
+    res.status(500).json({ error: "Failed to fetch overseerr data" });
+  }
+});
+
+/* ===============================
    🗑️ CACHE INVALIDATION
 =============================== */
 
@@ -140,6 +166,7 @@ router.post("/api/cache/invalidate", requireAuth, (req, res) => {
     // Invalide tous les caches de l'utilisateur
     cache.invalidate(`subscription:${userId}`);
     cache.invalidate(`stats:${userId}`);
+    cache.invalidate(`overseerr:${userId}`);
     
     res.json({ 
       message: "Cache invalidated", 

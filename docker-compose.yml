@@ -26,6 +26,8 @@ services:
       # WIZARR_API_KEY: "your-key"
       # TRACEARR_URL: "http://tracearr.local"
       # TRACEARR_API_KEY: "your-key"
+      # OVERSEERR_URL: "http://overseerr.local"
+      # OVERSEERR_API_KEY: "your-key"
     
     volumes:
       # Logo et fichiers de config
