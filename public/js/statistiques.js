@@ -4,33 +4,39 @@ document.addEventListener("DOMContentLoaded", async () => {
   const container = document.getElementById("statsContainer");
   const CACHE_DURATION = 30000; // 30 secondes
 
+  // Récupérer l'ID utilisateur depuis le body
+  const userId = document.body.getAttribute("data-user-id") || "guest";
+
   /* ===============================
      💾 CACHE UTILITIES
   =============================== */
 
   const cacheManager = {
     get(key) {
-      const cached = sessionStorage.getItem(key);
-      const time = sessionStorage.getItem(`${key}:time`);
+      const cacheKey = `${key}:${userId}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      const time = sessionStorage.getItem(`${cacheKey}:time`);
       const now = Date.now();
 
       if (cached && time && now - parseInt(time) < CACHE_DURATION) {
         return JSON.parse(cached);
       }
       
-      sessionStorage.removeItem(key);
-      sessionStorage.removeItem(`${key}:time`);
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(`${cacheKey}:time`);
       return null;
     },
 
     set(key, data) {
-      sessionStorage.setItem(key, JSON.stringify(data));
-      sessionStorage.setItem(`${key}:time`, Date.now());
+      const cacheKey = `${key}:${userId}`;
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(`${cacheKey}:time`, Date.now());
     },
 
     invalidate(key) {
-      sessionStorage.removeItem(key);
-      sessionStorage.removeItem(`${key}:time`);
+      const cacheKey = `${key}:${userId}`;
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(`${cacheKey}:time`);
     }
   };
 
