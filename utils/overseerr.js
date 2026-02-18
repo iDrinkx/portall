@@ -41,7 +41,8 @@ async function findOverseerrUserByEmail(email, OVERSEERR_URL, OVERSEERR_API_KEY)
       users = json.results;
     } else if (Array.isArray(json.data)) {
       users = json.data;
-    } else if (Array.isArray(json.users)) {\n      users = json.users;
+    } else if (Array.isArray(json.users)) {
+      users = json.users;
     } else {
       console.warn(`[Overseerr] Unexpected response format. Raw data:`, JSON.stringify(json).substring(0, 500));
       return null;
