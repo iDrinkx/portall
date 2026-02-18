@@ -81,11 +81,11 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
     if (lastSessionTimestamp && previousCount > 0) {
       // On a trouvé uniquement les NOUVELLES
       totalSessionCount = previousCount + newSessionCount;
-      console.log("[TRACEARR] Delta mode - precedent:', previousCount, '+ nouveau:', newSessionCount, '= total:', totalSessionCount);
+      console.log("[TRACEARR] Delta mode - precedent:", previousCount, "+ nouveau:", newSessionCount, "= total:", totalSessionCount);
     } else {
       // Premier passage ou cache expiré - c'est le vrai count
       totalSessionCount = newSessionCount;
-      console.log("[TRACEARR] Full scan mode - count total:', totalSessionCount);
+      console.log("[TRACEARR] Full scan mode - count total:", totalSessionCount);
     }
 
     console.log("[TRACEARR] Total sessions pour", username, ":", totalSessionCount);
