@@ -34,7 +34,11 @@ async function getWizarrSubscription(user) {
     const wizarrUrl = process.env.WIZARR_URL;
     const apiKey = process.env.WIZARR_API_KEY;
 
+    console.log("[WIZARR] Fetch subscription pour:", user?.username || user?.email);
+    console.log("[WIZARR] URL:", wizarrUrl, "API Key present:", !!apiKey);
+
     if (!wizarrUrl || !apiKey) {
+      console.log("[WIZARR] ❌ WIZARR_URL ou WIZARR_API_KEY manquant");
       return computeSubscription(null);
     }
 
@@ -45,9 +49,16 @@ async function getWizarrSubscription(user) {
       }
     });
 
-    if (!resp.ok) throw new Error("Wizarr error");
+    console.log("[WIZARR] Response status:", resp.status);
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error("[WIZARR] ❌ API error:", resp.status, errorText);
+      throw new Error(`Wizarr API ${resp.status}`);
+    }
 
     const payload = await resp.json();
+    console.log("[WIZARR] Payload reçu:", JSON.stringify(payload).substring(0, 200));
 
     const list =
       Array.isArray(payload) ? payload :
@@ -55,17 +66,35 @@ async function getWizarrSubscription(user) {
       Array.isArray(payload?.data) ? payload.data :
       [];
 
+    console.log("[WIZARR] Nombre d'utilisateurs:", list.length);
+
     const norm = s => (s || "").toLowerCase().trim();
     const plexEmail = norm(user.email);
 
-    if (!plexEmail) return computeSubscription(null);
+    console.log("[WIZARR] Cherche email:", plexEmail);
 
-    const wizUser = list.find(u => norm(u.email) === plexEmail) || null;
+    if (!plexEmail) {
+      console.log("[WIZARR] ❌ Email utilisateur Plex manquant");
+      return computeSubscription(null);
+    }
 
-    return computeSubscription(wizUser);
+    const wizUser = list.find(u => {
+      const uEmail = norm(u.email);
+      console.log("[WIZARR]   Comparaison:", uEmail, "===", plexEmail, "?", uEmail === plexEmail);
+      return uEmail === plexEmail;
+    }) || null;
+
+    console.log("[WIZARR] Utilisateur trouvé:", !!wizUser);
+    if (wizUser) {
+      console.log("[WIZARR]   Données:", JSON.stringify(wizUser).substring(0, 200));
+    }
+
+    const result = computeSubscription(wizUser);
+    console.log("[WIZARR] ✅ Résultat computeSubscription:", result);
+    return result;
 
   } catch (err) {
-    console.error("Wizarr error:", err.message);
+    console.error("[WIZARR] ❌ Erreur catch:", err.message);
     return computeSubscription(null);
   }
 }
@@ -301,6 +330,61 @@ router.post("/api/cache/invalidate", requireAuth, (req, res) => {
   }
 });
 
+/* ===============================
+   🔄 API GET ALL USERS (pour cron job)
+=============================== */
 
+// Endpoint pour récupérer tous les utilisateurs (utilisé par cron job au démarrage)
+router.get("/api/all-users", async (req, res) => {
+  try {
+    const baseUrl = process.env.OVERSEERR_URL || "http://localhost:5055";
+    const apiKey = process.env.OVERSEERR_API_KEY;
+    
+    if (!apiKey) {
+      return res.json([]);
+    }
+
+    const users = [];
+    let page = 1;
+    let pageSize = 50;
+    let totalPages = 1;
+
+    while (page <= totalPages) {
+      const resp = await fetch(
+        `${baseUrl}/api/v1/user?skip=${(page - 1) * pageSize}&take=${pageSize}`,
+        {
+          headers: {
+            "X-API-Key": apiKey,
+            "Accept": "application/json"
+          }
+        }
+      );
+
+      if (!resp.ok) break;
+
+      const json = await resp.json();
+      const pageInfo = json.pageInfo || {};
+      totalPages = Math.ceil((pageInfo.results || 0) / pageSize);
+
+      if (json.data) {
+        users.push(...json.data.map(u => ({
+          id: u.id,
+          username: u.username || u.plexUsername,
+          plexUserId: u.plexId,
+          email: u.email,
+          joinedAtTimestamp: u.createdAt ? Math.floor(new Date(u.createdAt).getTime() / 1000) : null
+        })));
+      }
+
+      page++;
+    }
+
+    console.log("[API] GET /api/all-users retourne", users.length, "utilisateurs");
+    res.json(users);
+  } catch (err) {
+    console.error("[API] Erreur fetch users:", err.message);
+    res.json([]);
+  }
+});
 
 module.exports = router;

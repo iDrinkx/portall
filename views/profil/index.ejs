@@ -749,18 +749,23 @@
     renderBadges();
 
     try {
-      console.log("[PROFIL] Lancement Promise.all avec 3 fetch...");
-      const [tracearrData, overseerrData, subscriptionData] = await Promise.all([
+      console.log("[PROFIL] Lancement Promise.allSettled avec 3 fetch...");
+      const results = await Promise.allSettled([
         loadTracearrStats(),
         loadOverseerrStats(),
         loadSubscription()
       ]);
       
-      console.log("[PROFIL] Promise.all complétée");
+      console.log("[PROFIL] Promise.allSettled complétée");
 
-      const stats = tracearrData || {};
-      const overseerr = overseerrData || { total: 0, pending: 0, approved: 0, available: 0 };
-      const subscription = subscriptionData || {};
+      // Extraire les données, chacune indépendante
+      const tracearrData = results[0].status === 'fulfilled' ? results[0].value || {} : {};
+      const overseerrData = results[1].status === 'fulfilled' ? results[1].value || { total: 0, pending: 0, approved: 0, available: 0 } : { total: 0, pending: 0, approved: 0, available: 0 };
+      const subscriptionData = results[2].status === 'fulfilled' ? results[2].value || {} : {};
+
+      const stats = tracearrData;
+      const overseerr = overseerrData;
+      const subscription = subscriptionData;
 
       console.log("[PROFIL] tracearrData:", tracearrData);
       console.log("[PROFIL] overseerrData:", overseerrData);
@@ -893,7 +898,12 @@
         `;
         if (subCardEl) {
           subCardEl.innerHTML = subHtml;
-          console.log("[SUB] HTML mis à jour");
+          console.log("[SUB] HTML mis à jour avec données");
+        }
+      } else {
+        console.log("[SUB] ⚠️  Pas de données d'abonnement - affiche message vide");
+        if (subCardEl) {
+          subCardEl.innerHTML = `<p style="color: #aaa;">Aucune donnée d'abonnement disponible</p>`;
         }
       }
 

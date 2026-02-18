@@ -79,16 +79,82 @@ app.get("/", (req, res) => {
    START
 ========================= */
 
-// Initialiser le cron job pour mettre en cache les sessions
-console.log("[SETUP] Initialisation du cron job sessions...");
-startSessionCronJob(
-  process.env.TRACEARR_URL,
-  process.env.TRACEARR_API_KEY,
-  process.env.PLEX_URL,
-  process.env.PLEX_TOKEN,
-  [] // Liste vide au démarrage, sera remplie au fur et à mesure des logins
-);
+// Fonction pour récupérer tous les utilisateurs Overseerr au démarrage
+async function initializeAllUsersForCron() {
+  try {
+    const baseUrl = process.env.OVERSEERR_URL || "http://localhost:5055";
+    const apiKey = process.env.OVERSEERR_API_KEY;
+    
+    if (!apiKey) {
+      console.warn("[SETUP] ⚠️  Pas d'OVERSEERR_API_KEY configurée, cron job sans utilisateurs");
+      return [];
+    }
 
-app.listen(PORT, () => {
+    const users = [];
+    let page = 1;
+    let pageSize = 50;
+    let totalPages = 1;
+    let retries = 3;
+
+    while (page <= totalPages && retries > 0) {
+      try {
+        const resp = await fetch(
+          `${baseUrl}/api/v1/user?skip=${(page - 1) * pageSize}&take=${pageSize}`,
+          {
+            headers: {
+              "X-API-Key": apiKey,
+              "Accept": "application/json"
+            }
+          }
+        );
+
+        if (!resp.ok) {
+          console.warn(`[SETUP] Erreur Overseerr ${resp.status}, retry...`);
+          retries--;
+          continue;
+        }
+
+        const json = await resp.json();
+        const pageInfo = json.pageInfo || {};
+        totalPages = Math.ceil((pageInfo.results || 0) / pageSize);
+
+        if (json.data) {
+          users.push(...json.data.map(u => ({
+            id: u.id,
+            username: u.username || u.plexUsername,
+            plexUserId: u.plexId,
+            joinedAtTimestamp: u.createdAt ? Math.floor(new Date(u.createdAt).getTime() / 1000) : null
+          })));
+        }
+
+        page++;
+      } catch (err) {
+        console.warn(`[SETUP] Erreur fetch page ${page}:`, err.message);
+        retries--;
+      }
+    }
+
+    console.log(`[SETUP] ✅ Récupéré ${users.length} utilisateurs pour le cron job`);
+    return users;
+  } catch (err) {
+    console.error("[SETUP] Erreur initializeAllUsersForCron:", err.message);
+    return [];
+  }
+}
+
+// Démarrer le serveur et initialiser le cron job
+app.listen(PORT, async () => {
   console.log("🚀 Server running on port", PORT);
+  
+  // Initialiser le cron job avec tous les utilisateurs Overseerr
+  console.log("[SETUP] Initialisation du cron job sessions...");
+  const allUsers = await initializeAllUsersForCron();
+  
+  startSessionCronJob(
+    process.env.TRACEARR_URL,
+    process.env.TRACEARR_API_KEY,
+    process.env.PLEX_URL,
+    process.env.PLEX_TOKEN,
+    allUsers // ✅ Liste réelle de tous les utilisateurs
+  );
 });
