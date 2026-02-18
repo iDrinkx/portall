@@ -477,9 +477,7 @@
 
 <script>
   // XP System Definition
-  const XP_SYSTEM = {
-    badges: <%= JSON.stringify(XP_SYSTEM.badges) %>
-  };
+  const XP_SYSTEM = <%- JSON.stringify({badges: XP_SYSTEM.badges}) %>;
 
   XP_SYSTEM.getBadgeByXp = function(totalXp) {
     return this.badges.find(b => totalXp >= b.minXp && totalXp < b.maxXp) || this.badges[this.badges.length - 1];
@@ -516,7 +514,7 @@
   const userId = document.body.getAttribute("data-user-id") || "guest";
 
   /* ===============================
-     δ DATE UTILITIES
+     DATE UTILITIES
   =============================== */
 
   function formatRelativeTime(dateString) {
