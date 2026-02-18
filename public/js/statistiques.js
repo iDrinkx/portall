@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (overseerrData) {
       html += `
         <div>
-          <h4 style="margin-bottom: 10px;">🎬 Overseerr</h4>
+          <h4 style="margin-bottom: 10px;">🎬 Demandes de contenu</h4>
           <div class="subscription-row">
             <span class="label">📊 Total demandes</span>
             <span class="value">${overseerrData.total}</span>
