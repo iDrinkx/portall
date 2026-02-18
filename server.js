@@ -6,6 +6,7 @@ const path = require("path");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
+const { startSessionCronJob } = require("./utils/cron-session-job");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +78,17 @@ app.get("/", (req, res) => {
 /* =========================
    START
 ========================= */
+
+// Initialiser le cron job pour mettre en cache les sessions
+console.log("[SETUP] Initialisation du cron job sessions...");
+startSessionCronJob(
+  app,
+  process.env.TRACEARR_URL,
+  process.env.TRACEARR_API_KEY,
+  process.env.PLEX_URL,
+  process.env.PLEX_TOKEN,
+  [] // Liste vide au démarrage, sera remplie au fur et à mesure des logins
+);
 
 app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
