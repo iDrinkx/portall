@@ -38,12 +38,17 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
 
     if (!foundUser) return null;
 
-    // Si pas de joinedAt dans Tracearr, essayer Plex
-    let joinedAt = foundUser.createdAt || null;
+    // Prioriser Plex pour une date plus fiable
+    let joinedAt = null;
     
-    if (!joinedAt && plexUserId && PLEX_URL && PLEX_TOKEN) {
+    if (plexUserId && PLEX_URL && PLEX_TOKEN) {
       const plexJoinDate = await getPlexJoinDate(plexUserId, PLEX_URL, PLEX_TOKEN);
       joinedAt = plexJoinDate ? plexJoinDate.toISOString() : null;
+    }
+    
+    // Fallback sur Tracearr si Plex ne fourni pas de date
+    if (!joinedAt) {
+      joinedAt = foundUser.createdAt || null;
     }
 
     return {

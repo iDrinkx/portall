@@ -116,7 +116,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (tracearrData) {
       html += `
         <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #333;">
-          <h4 style="margin-bottom: 10px;">📊 Tracearr</h4>
           <div class="subscription-row">
             <span class="label">📅 Membre depuis</span>
             <span class="value">${tracearrData.joined}</span>
