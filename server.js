@@ -82,7 +82,6 @@ app.get("/", (req, res) => {
 // Initialiser le cron job pour mettre en cache les sessions
 console.log("[SETUP] Initialisation du cron job sessions...");
 startSessionCronJob(
-  app,
   process.env.TRACEARR_URL,
   process.env.TRACEARR_API_KEY,
   process.env.PLEX_URL,

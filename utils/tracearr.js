@@ -3,17 +3,12 @@ const { getPlexJoinDate } = require("./plex");
 const SessionStatsCache = require("./session-stats-cache");
 
 /**
- * Compte les sessions en parcourant l'historique complet (utilise un delta pour optimiser)
- * @param {string} username - Nom d'utilisateur Plex
- * @param {string} TRACEARR_URL - URL du serveur Tracearr
- * @param {string} TRACEARR_API_KEY - Clé API Tracearr
- * @returns {Promise<number>} Nombre total de sessions
+ * Compte les sessions ET calcule les stats complètes (heures, films, épisodes)
  */
 async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) {
   try {
     console.log("[TRACEARR] Comptage OPTIMISE des sessions pour:", username);
     
-    // Recuperer le cache existant pour avoir le delta
     const cached = SessionStatsCache.get(username);
     const lastSessionTimestamp = cached?.lastSessionTimestamp || null;
     const previousCount = cached?.sessionCount || 0;
@@ -25,8 +20,14 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
     let newSessionCount = 0;
     let latestSessionTime = lastSessionTimestamp;
     let pageSize = 100;
+    
+    // Compteurs pour les heures et types de contenu
+    let totalDurationMs = 0;
+    let movieDurationMs = 0;
+    let episodeDurationMs = 0;
+    let movieCount = 0;
+    let episodeCount = 0;
 
-    // Premier passage: compter seulement les NOUVELLES sessions après lastSessionTimestamp
     while (historyPage <= historyTotalPages) {
       const histRes = await fetch(
         `${TRACEARR_URL}/api/v1/public/history?page=${historyPage}&pageSize=${pageSize}`,
@@ -48,7 +49,6 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
 
       historyTotalPages = Math.ceil((histJson.meta?.total || 0) / (histJson.meta?.pageSize || pageSize));
 
-      // Compter les sessions de cet utilisateur
       const userSessions = histJson.data.filter(session => 
         session.user?.username?.toLowerCase() === username.toLowerCase()
       );
@@ -56,48 +56,72 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
       for (const session of userSessions) {
         const sessionTime = session.startedAt || session.stoppedAt;
         
-        // Si on a un timestamp référence et cette session est plus vieille, on peut arrêter
         if (lastSessionTimestamp && sessionTime && new Date(sessionTime) < new Date(lastSessionTimestamp)) {
           console.log("[TRACEARR] Atteint la limite du cache - sessions plus vieilles que", lastSessionTimestamp);
-          historyPage = historyTotalPages + 1; // Force la sortie de la boucle
+          historyPage = historyTotalPages + 1;
           break;
         }
         
         newSessionCount++;
         
-        // Garder la date la plus récente
         if (!latestSessionTime || (sessionTime && new Date(sessionTime) > new Date(latestSessionTime))) {
           latestSessionTime = sessionTime;
         }
+        
+        // Compter les heures et types
+        const durationMs = session.totalDurationMs || 0;
+        totalDurationMs += durationMs;
+        
+        if (session.mediaType === "movie") {
+          movieDurationMs += durationMs;
+          movieCount++;
+        } else if (session.mediaType === "episode") {
+          episodeDurationMs += durationMs;
+          episodeCount++;
+        }
       }
 
-      console.log("[TRACEARR] Page", historyPage, "/" , historyTotalPages, "- Sessions trouvees:", userSessions.length, "Count cumulatif:", newSessionCount);
-
+      console.log("[TRACEARR] Page", historyPage, "/", historyTotalPages, "- Sessions trouvees:", userSessions.length);
       historyPage++;
     }
 
-    // Combiner avec le cache précédent si on a fait delta
+    // Convertir ms en heures
+    const totalHours = Math.round(totalDurationMs / (1000 * 60 * 60) * 10) / 10;
+    const movieHours = Math.round(movieDurationMs / (1000 * 60 * 60) * 10) / 10;
+    const episodeHours = Math.round(episodeDurationMs / (1000 * 60 * 60) * 10) / 10;
+
     let totalSessionCount = newSessionCount;
     if (lastSessionTimestamp && previousCount > 0) {
-      // On a trouvé uniquement les NOUVELLES
       totalSessionCount = previousCount + newSessionCount;
       console.log("[TRACEARR] Delta mode - precedent:", previousCount, "+ nouveau:", newSessionCount, "= total:", totalSessionCount);
     } else {
-      // Premier passage ou cache expiré - c'est le vrai count
       totalSessionCount = newSessionCount;
       console.log("[TRACEARR] Full scan mode - count total:", totalSessionCount);
     }
 
     console.log("[TRACEARR] Total sessions pour", username, ":", totalSessionCount);
+    console.log("[TRACEARR] Stats heures - Total:", totalHours, "h, Films:", movieHours, "h, Episodes:", episodeHours, "h");
+    console.log("[TRACEARR] Stats contenu - Films:", movieCount, "Episode:", episodeCount);
 
     return {
       sessionCount: totalSessionCount,
-      lastSessionTimestamp: latestSessionTime
+      lastSessionTimestamp: latestSessionTime,
+      stats: {
+        totalHours,
+        movieHours,
+        movieCount,
+        episodeHours,
+        episodeCount
+      }
     };
 
   } catch (err) {
     console.error("[TRACEARR] Erreur comptage optimise:", err.message);
-    return { sessionCount: 0, lastSessionTimestamp: null };
+    return { 
+      sessionCount: 0, 
+      lastSessionTimestamp: null,
+      stats: { totalHours: 0, movieHours: 0, movieCount: 0, episodeHours: 0, episodeCount: 0 }
+    };
   }
 }
 
@@ -177,7 +201,8 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
       joinedAt,
       lastActivity: userInfo.lastActivityAt || null,
       sessionCount: sessionData.sessionCount,
-      lastSessionTimestamp: sessionData.lastSessionTimestamp
+      lastSessionTimestamp: sessionData.lastSessionTimestamp,
+      watchStats: sessionData.stats // { totalHours, movieHours, movieCount, episodeHours, episodeCount }
     };
     
     // Sauvegarder en cache
@@ -206,4 +231,39 @@ async function updateUserSessionCache(username, TRACEARR_URL, TRACEARR_API_KEY, 
   return stats;
 }
 
-module.exports = { getTracearrStats, countSessionsOptimized, updateUserSessionCache };
+/**
+ * Mettre à jour les stats pour TOUS les utilisateurs du serveur
+ * @param {Array} userList - Liste des utilisateurs avec {username, id, joinedAtTimestamp}
+ */
+async function updateAllUsersSessionCache(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN, userList) {
+  console.log("[TRACEARR-BATCH] Debut MAJ cache pour", userList.length, "utilisateurs");
+  
+  const startTime = Date.now();
+  let successCount = 0;
+  let failureCount = 0;
+  
+  for (const user of userList) {
+    try {
+      await updateUserSessionCache(
+        user.username,
+        TRACEARR_URL,
+        TRACEARR_API_KEY,
+        user.id || user.plexUserId,
+        PLEX_URL,
+        PLEX_TOKEN,
+        user.joinedAtTimestamp
+      );
+      successCount++;
+    } catch (err) {
+      console.error("[TRACEARR-BATCH] Erreur pour", user.username, ":", err.message);
+      failureCount++;
+    }
+  }
+  
+  const duration = Math.round((Date.now() - startTime) / 1000);
+  console.log("[TRACEARR-BATCH] Fin - Succes:", successCount, "Echecs:", failureCount, "Durée:", duration, "sec");
+  
+  return { successCount, failureCount, duration };
+}
+
+module.exports = { getTracearrStats, countSessionsOptimized, updateUserSessionCache, updateAllUsersSessionCache };
