@@ -410,7 +410,9 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
  */
 async function updateTracearrAllUsers(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN) {
   try {
-    console.log("[TRACEARR-PRECOMPUTE] Début - Fetch tous les utilisateurs Tracearr");
+    const totalStartTime = Date.now();  // 🚩 Ajouter ici
+    
+    console.log("[TRACEARR-PRECOMPUTE] 🚀 Début - Fetch tous les utilisateurs Tracearr");
     
     const users = [];
     let page = 1;
