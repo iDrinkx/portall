@@ -10,12 +10,12 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
 
     console.log("[TRACEARR] Recherche utilisateur:", username);
 
+    // D'abord, récupérer l'utilisateur pour ses infos de base (joinedAt, lastActivityAt)
     let page = 1;
     let totalPages = 1;
-    let allUserInstances = []; // Tous les instances de l'utilisateur sur tous les serveurs
+    let userInfo = null;
 
-    while (page <= totalPages) {
-      console.log("[TRACEARR] Fetch page", page, "/", totalPages);
+    while (page <= totalPages && !userInfo) {
       const res = await fetch(
         `${TRACEARR_URL}/api/v1/public/users?page=${page}&pageSize=50`,
         {
@@ -26,55 +26,64 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
         }
       );
 
-      if (!res.ok) {
-        console.log("[TRACEARR] API error status:", res.status);
-        return null;
-      }
+      if (!res.ok) return null;
 
       const json = await res.json();
-      if (!json?.data) {
-        console.log("[TRACEARR] Pas de data dans réponse");
-        return null;
-      }
+      if (!json?.data) return null;
 
       totalPages = Math.ceil(json.meta.total / json.meta.pageSize);
-      console.log("[TRACEARR] Meta - total:", json.meta.total, "pageSize:", json.meta.pageSize, "totalPages:", totalPages);
-      console.log("[TRACEARR] Cherchant utilisateur:", username, "parmi", json.data.length, "users");
-
-      // Chercher TOUTES les instances de l'utilisateur (peut-être sur plusieurs serveurs)
-      const pageMatches = json.data.filter(
-        u => u.username?.toLowerCase() === username.toLowerCase()
-      );
-      
-      console.log("[TRACEARR] Trouvé", pageMatches.length, "instance(s) de", username, "cette page");
-      allUserInstances = allUserInstances.concat(pageMatches);
-
+      userInfo = json.data.find(u => u.username?.toLowerCase() === username.toLowerCase());
       page++;
     }
 
-    if (allUserInstances.length === 0) {
-      console.log("[TRACEARR] Utilisateur non trouvé apres", page - 1, "pages");
+    if (!userInfo) {
+      console.log("[TRACEARR] Utilisateur non trouve");
       return null;
     }
 
-    console.log("[TRACEARR] Total instances trouvees:", allUserInstances.length);
-    console.log("[TRACEARR] FULL USER OBJECTS:", JSON.stringify(allUserInstances, null, 2));
+    console.log("[TRACEARR] Utilisateur trouve:", userInfo.username);
 
-    // Sommer les sessions de tous les serveurs
-    const totalSessionCount = allUserInstances.reduce((sum, u) => sum + (u.sessionCount || 0), 0);
+    // Maintenant, récupérer l'historique complet pour compter les sessions
+    console.log("[TRACEARR] Recuperation de l'historique pour compter les sessions...");
     
-    // Prendre l'activité la plus récente
-    let latestActivity = null;
-    for (const u of allUserInstances) {
-      if (u.lastActivityAt) {
-        if (!latestActivity || new Date(u.lastActivityAt) > new Date(latestActivity)) {
-          latestActivity = u.lastActivityAt;
+    let historyPage = 1;
+    let historyTotalPages = 1;
+    let sessionCount = 0;
+    let latestActivity = userInfo.lastActivityAt;
+
+    while (historyPage <= historyTotalPages) {
+      const histRes = await fetch(
+        `${TRACEARR_URL}/api/v1/public/history?page=${historyPage}&pageSize=100`,
+        {
+          headers: {
+            Authorization: `Bearer ${TRACEARR_API_KEY}`,
+            Accept: "application/json"
+          }
         }
+      );
+
+      if (!histRes.ok) {
+        console.log("[TRACEARR] Erreur historique - status:", histRes.status);
+        break;
       }
+
+      const histJson = await histRes.json();
+      if (!histJson?.data) break;
+
+      historyTotalPages = Math.ceil((histJson.meta?.total || 0) / (histJson.meta?.pageSize || 100));
+      
+      // Compter les sessions de cet utilisateur
+      const userSessions = histJson.data.filter(session => 
+        session.user?.username?.toLowerCase() === username.toLowerCase()
+      );
+      
+      sessionCount += userSessions.length;
+      console.log("[TRACEARR] Page", historyPage, "- Sessions trouvees pour", username, ":", userSessions.length);
+
+      historyPage++;
     }
 
-    console.log("[TRACEARR] Total sessionCount (tous serveurs):", totalSessionCount);
-    console.log("[TRACEARR] Latest activity:", latestActivity);
+    console.log("[TRACEARR] Total sessions pour", username, ":", sessionCount);
 
     // Prioriser Plex pour une date plus fiable
     let joinedAt = null;
@@ -86,13 +95,13 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
     
     // Fallback sur Tracearr si Plex ne fourni pas de date
     if (!joinedAt) {
-      joinedAt = allUserInstances[0].createdAt || null;
+      joinedAt = userInfo.createdAt || null;
     }
 
     const result = {
       joinedAt,
       lastActivity: latestActivity || null,
-      sessionCount: totalSessionCount
+      sessionCount: sessionCount
     };
     console.log("[TRACEARR] Resultat final:", result);
     return result;
