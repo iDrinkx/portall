@@ -812,12 +812,6 @@
       console.log("[PROFIL] Chargement Tracearr en arrière-plan (avec polling)...");
       const tracearrRes = await Promise.allSettled([loadTracearrStats()]);
       
-
-      // Extraire les données, chacune indépendante
-      const tracearrData = results[0].status === 'fulfilled' ? results[0].value || {} : {};
-      const overseerrData = results[1].status === 'fulfilled' ? results[1].value || { total: 0, pending: 0, approved: 0, available: 0 } : { total: 0, pending: 0, approved: 0, available: 0 };
-      const subscriptionData = results[2].status === 'fulfilled' ? results[2].value || {} : {};
-      
       // Extraire les données Tracearr du promise
       const tracearrData = tracearrRes[0].status === 'fulfilled' ? tracearrRes[0].value || {} : {};
       const stats = tracearrData;
