@@ -162,9 +162,9 @@ router.get("/api/stats", requireAuth, async (req, res) => {
         process.env.PLEX_TOKEN,
         req.session.user.joinedAtTimestamp
       ),
-      // Timeout après 30 secondes
+      // Timeout après 10 secondes (au lieu de 30s)
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("TIMEOUT_30S")), 30000)
+        setTimeout(() => reject(new Error("TIMEOUT_10S")), 10000)
       )
     ]);
 
@@ -172,8 +172,8 @@ router.get("/api/stats", requireAuth, async (req, res) => {
     res.json(statsWithTimeout);
     
   } catch (err) {
-    if (err.message === "TIMEOUT_30S") {
-      console.warn("[API/STATS] Timeout 30s - le cron job mettra a jour en arriere-plan");
+    if (err.message === "TIMEOUT_10S") {
+      console.warn("[API/STATS] Timeout 10s - le cron job mettra a jour en arriere-plan");
       // Retourner un objet par défaut pendant que le cron job travaille
       res.json({
         joinedAt: req.session.user.joinedAtTimestamp ? new Date(req.session.user.joinedAtTimestamp * 1000).toISOString() : null,
