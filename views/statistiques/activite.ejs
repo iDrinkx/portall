@@ -1,8 +1,22 @@
 <h1 class="dashboard-title">🎬 Activité</h1>
 
 <div class="activity-container">
-  <div id="activityList" class="activity-list">
-    Chargement de l'activité...
+  <div id="activityContent" style="display: none;" class="activity-info-card">
+    <h2 id="username"></h2>
+    <div class="activity-grid">
+      <div class="activity-stat">
+        <div class="stat-label">📅 Inscrit depuis</div>
+        <div class="stat-value" id="joinedDate"></div>
+      </div>
+      <div class="activity-stat">
+        <div class="stat-label">⏱️ Dernière activité</div>
+        <div class="stat-value" id="lastActivityLabel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="activityMessage" class="activity-message">
+    <p>Chargement des informations...</p>
   </div>
 </div>
 
@@ -11,86 +25,80 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    max-width: 800px;
+    margin: 0 auto;
   }
 
-  .activity-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  .activity-info-card {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    padding: 30px;
+    border-radius: 12px;
   }
 
-  .activity-item {
+  .activity-info-card h2 {
+    margin-bottom: 25px;
+    color: #667eea;
+    font-size: 28px;
+  }
+
+  .activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .activity-stat {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .activity-message {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 16px;
-    border-radius: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    transition: background 0.3s ease;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    color: #aaa;
   }
 
-  .activity-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
+  .activity-message p {
+    margin: 10px 0;
+    line-height: 1.6;
   }
 
-  .activity-content {
-    flex: 1;
-  }
-
-  .activity-type {
+  .info-badge {
     display: inline-block;
-    padding: 4px 12px;
     background: rgba(102, 126, 234, 0.3);
     color: #667eea;
+    padding: 8px 16px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .activity-title {
-    font-size: 16px;
-    font-weight: 500;
-    margin-bottom: 6px;
-    color: white;
-  }
-
-  .activity-description {
-    font-size: 13px;
-    color: #aaa;
-    margin-bottom: 8px;
-  }
-
-  .activity-meta {
-    font-size: 12px;
-    color: #888;
-  }
-
-  .activity-time {
-    text-align: right;
-    font-size: 13px;
-    color: #888;
-    white-space: nowrap;
-    margin-left: 16px;
-  }
-
-  .activity-empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: #888;
-  }
-
-  .activity-empty p {
-    font-size: 14px;
+    margin-top: 15px;
   }
 
   .activity-error {
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 20px;
-    border-radius: 8px;
+    padding: 30px;
+    border-radius: 12px;
     color: #fca5a5;
     text-align: center;
   }
@@ -101,6 +109,8 @@
     const basePath = window.APP_BASE_PATH || "";
 
     function formatRelativeTime(dateString) {
+      if (!dateString) return "Aucune activité";
+      
       const date = new Date(dateString);
       const now = new Date();
       const diffMs = now - date;
@@ -122,6 +132,7 @@
     }
 
     function formatFullDate(dateString) {
+      if (!dateString) return "";
       const date = new Date(dateString);
       return date.toLocaleDateString('fr-FR', {
         year: 'numeric',
@@ -137,43 +148,36 @@
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
 
-      const listDiv = document.getElementById("activityList");
+      const contentDiv = document.getElementById("activityContent");
+      const messageDiv = document.getElementById("activityMessage");
 
-      if (!data || !data.activities || data.activities.length === 0) {
-        listDiv.innerHTML = `<div class="activity-empty"><p>Aucune activité enregistrée</p></div>`;
+      if (!data || !data.user) {
+        messageDiv.innerHTML = `<div class="activity-error">❌ Impossible de récupérer les informations d'activité</div>`;
         return;
       }
 
-      listDiv.innerHTML = data.activities.map(activity => {
-        const typeEmoji = activity.type === 'WATCHED' ? '👀' : 
-                          activity.type === 'ADDED' ? '➕' : 
-                          activity.type === 'UPDATED' ? '🔄' : '📌';
-        
-        const typeLabel = activity.type === 'WATCHED' ? 'Regardé' :
-                          activity.type === 'ADDED' ? 'Ajouté' :
-                          activity.type === 'UPDATED' ? 'Mis à jour' : activity.type;
+      // Afficher les infos de l'utilisateur
+      document.getElementById("username").textContent = data.user.username;
+      document.getElementById("joinedDate").textContent = formatFullDate(data.user.createdAt);
+      document.getElementById("lastActivityLabel").textContent = formatRelativeTime(data.user.lastActivityAt);
 
-        return `
-          <div class="activity-item">
-            <div class="activity-content">
-              <span class="activity-type">${typeEmoji} ${typeLabel}</span>
-              <div class="activity-title">${activity.title || 'Activité sans titre'}</div>
-              ${activity.description ? `<div class="activity-description">${activity.description}</div>` : ''}
-              <div class="activity-meta">
-                ${activity.mediaType ? `<span>📺 ${activity.mediaType}</span>` : ''}
-              </div>
-            </div>
-            <div class="activity-time">
-              <div>${formatRelativeTime(activity.date || activity.createdAt)}</div>
-              <div style="font-size: 11px; margin-top: 4px;">${formatFullDate(activity.date || activity.createdAt)}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
+      contentDiv.style.display = "block";
+
+      // Message informatif
+      const lastActivityDate = data.user.lastActivityAt 
+        ? `${formatRelativeTime(data.user.lastActivityAt)} (${formatFullDate(data.user.lastActivityAt)})`
+        : "Aucune activité enregistrée";
+
+      messageDiv.innerHTML = `
+        <p><strong>ℹ️ Information:</strong></p>
+        <p>Tracearr fournit uniquement la date de dernière activité via son API publique.</p>
+        <p>L'historique détaillé des contenus regardés n'est pas disponible.</p>
+        <div class="info-badge">📌 Dernière activité: ${lastActivityDate}</div>
+      `;
 
     } catch (err) {
       console.error("Activity load error:", err);
-      document.getElementById("activityList").innerHTML = `<div class="activity-error">❌ Erreur lors du chargement de l'activité</div>`;
+      document.getElementById("activityMessage").innerHTML = `<div class="activity-error">❌ Erreur lors du chargement de l'activité</div>`;
     }
   });
 </script>

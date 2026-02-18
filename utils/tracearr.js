@@ -75,7 +75,6 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
 
     // Trouver l'utilisateur
     while (page <= totalPages) {
-      console.log(`[Tracearr] Fetching users page ${page}/${totalPages}`);
       const res = await fetch(
         `${TRACEARR_URL}/api/v1/public/users?page=${page}&pageSize=50`,
         {
@@ -87,17 +86,15 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
       );
 
       if (!res.ok) {
-        console.log(`[Tracearr] Failed to fetch users: ${res.status} ${res.statusText}`);
+        console.log(`[Tracearr] Failed to fetch users: ${res.status}`);
         return null;
       }
 
       const json = await res.json();
       if (!json?.data) {
-        console.log("[Tracearr] No data in response");
         return null;
       }
 
-      console.log(`[Tracearr] Got ${json.data.length} users on page ${page}`);
       totalPages = Math.ceil(json.meta.total / json.meta.pageSize);
 
       foundUser = json.data.find(
@@ -105,7 +102,7 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
       );
 
       if (foundUser) {
-        console.log(`[Tracearr] Found user with ID: ${foundUser.id}`);
+        console.log(`[Tracearr] ✓ Found user ${username} (last activity: ${foundUser.lastActivityAt})`);
         break;
       }
 
@@ -117,85 +114,8 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
       return null;
     }
 
-    // Essayer différents endpoints pour récupérer l'historique d'activité
-    const endpoints = [
-      `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}`,
-      `${TRACEARR_URL}/api/v1/users/${foundUser.id}`,
-      `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}/activity?pageSize=100`,
-      `${TRACEARR_URL}/api/v1/users/${foundUser.id}/activity?pageSize=100`,
-      `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}/history?pageSize=100`,
-      `${TRACEARR_URL}/api/v1/activity?userId=${foundUser.id}&pageSize=100`,
-      `${TRACEARR_URL}/api/v1/activity?user=${foundUser.id}&pageSize=100`,
-      `${TRACEARR_URL}/api/v1/public/activity?user=${foundUser.id}&pageSize=100`
-    ];
-
-    let activities = [];
-    let foundEndpoint = null;
-    let userDetails = null;
-
-    for (const endpoint of endpoints) {
-      console.log(`[Tracearr] Trying: ${endpoint.replace(TRACEARR_URL, '')}`);
-      try {
-        const activityRes = await fetch(endpoint, {
-          headers: {
-            Authorization: `Bearer ${TRACEARR_API_KEY}`,
-            Accept: "application/json"
-          }
-        });
-
-        console.log(`[Tracearr] → ${activityRes.status} ${activityRes.statusText}`);
-
-        if (activityRes.ok) {
-          const activityData = await activityRes.json();
-          
-          // Si c'est un appel user/{id}, vérifier si activité est dedans
-          if (endpoint.includes('/users/') && !endpoint.includes('/activity')) {
-            userDetails = activityData;
-            console.log(`[Tracearr] User data keys: ${Object.keys(activityData || {}).join(', ')}`);
-            // Chercher la propriété activité
-            if (activityData?.activity) {
-              activities = Array.isArray(activityData.activity) ? activityData.activity : [activityData.activity];
-              foundEndpoint = endpoint;
-              console.log(`[Tracearr] ✓ Found activities in user.activity: ${activities.length}`);
-              break;
-            } else if (activityData?.activities) {
-              activities = Array.isArray(activityData.activities) ? activityData.activities : [];
-              foundEndpoint = endpoint;
-              console.log(`[Tracearr] ✓ Found activities in user.activities: ${activities.length}`);
-              break;
-            } else if (activityData?.watched) {
-              activities = Array.isArray(activityData.watched) ? activityData.watched : [];
-              foundEndpoint = endpoint;
-              console.log(`[Tracearr] ✓ Found activities in user.watched: ${activities.length}`);
-              break;
-            }
-          } else {
-            activities = Array.isArray(activityData) ? activityData : (activityData.data || activityData.activities || []);
-            foundEndpoint = endpoint;
-            console.log(`[Tracearr] ✓ Found working endpoint! Got ${activities.length} activities`);
-            break;
-          }
-        }
-      } catch (err) {
-        console.log(`[Tracearr] → Error: ${err.message}`);
-      }
-    }
-
-    if (!foundEndpoint) {
-      console.log(`[Tracearr] ⚠ No activity endpoint found. Returning user info without activities.`);
-      console.log(`[Tracearr] 💡 Tip: Check Tracearr API documentation or check /api/v1/public/endpoints`);
-      return {
-        user: {
-          id: foundUser.id,
-          username: foundUser.username,
-          avatar: foundUser.avatar || null,
-          createdAt: foundUser.createdAt,
-          lastActivityAt: foundUser.lastActivityAt
-        },
-        activities: []
-      };
-    }
-
+    // Tracearr fournit seulement lastActivityAt, pas d'historique détaillé
+    // On retourne les infos disponibles
     return {
       user: {
         id: foundUser.id,
@@ -204,7 +124,8 @@ async function getTracearrActivity(username, TRACEARR_URL, TRACEARR_API_KEY) {
         createdAt: foundUser.createdAt,
         lastActivityAt: foundUser.lastActivityAt
       },
-      activities: activities || []
+      activities: [],
+      note: "Tracearr API ne fournit que la dernière activité (lastActivityAt). L'historique détaillé n'est pas disponible via l'API publique."
     };
 
   } catch (err) {

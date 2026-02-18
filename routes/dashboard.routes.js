@@ -317,6 +317,28 @@ router.get("/api/tracearr-diagnostic", requireAuth, async (req, res) => {
 
     const results = [];
 
+    // 0. Check available endpoints
+    try {
+      const endpointsRes = await fetch(
+        `${TRACEARR_URL}/api/v1/public/endpoints`,
+        {
+          headers: {
+            Authorization: `Bearer ${TRACEARR_API_KEY}`,
+            Accept: "application/json"
+          }
+        }
+      );
+      const endpointsData = await endpointsRes.json();
+      results.push({
+        step: "Available endpoints",
+        status: endpointsRes.ok ? "✓" : "✗",
+        count: Array.isArray(endpointsData) ? endpointsData.length : Object.keys(endpointsData).length,
+        endpoints: endpointsData
+      });
+    } catch (err) {
+      results.push({ step: "Available endpoints", status: "✗", error: err.message });
+    }
+
     // 1. Chercher l'utilisateur
     let foundUser = null;
     try {
@@ -331,11 +353,16 @@ router.get("/api/tracearr-diagnostic", requireAuth, async (req, res) => {
       );
       const usersData = await usersRes.json();
       foundUser = usersData.data?.find(u => u.username?.toLowerCase() === username.toLowerCase());
+      
+      // Inspecter la structure de l'utilisateur trouvé
+      const userKeys = foundUser ? Object.keys(foundUser) : [];
+      
       results.push({
         step: "Find user",
         status: foundUser ? "✓" : "✗",
         userId: foundUser?.id,
-        username: foundUser?.username
+        username: foundUser?.username,
+        userDataKeys: userKeys
       });
     } catch (err) {
       results.push({ step: "Find user", status: "✗", error: err.message });
@@ -349,11 +376,13 @@ router.get("/api/tracearr-diagnostic", requireAuth, async (req, res) => {
     // 2. Tester les différents endpoints
     const endpoints = [
       `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}`,
+      `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}?key=${TRACEARR_API_KEY}`,
       `${TRACEARR_URL}/api/v1/users/${foundUser.id}`,
       `${TRACEARR_URL}/api/v1/public/users/${foundUser.id}/activity`,
       `${TRACEARR_URL}/api/v1/users/${foundUser.id}/activity`,
       `${TRACEARR_URL}/api/v1/activity?user=${foundUser.id}`,
-      `${TRACEARR_URL}/api/v1/public/activity?user=${foundUser.id}`
+      `${TRACEARR_URL}/api/v1/public/activity?user=${foundUser.id}`,
+      `${TRACEARR_URL}/api/v1/watched?user=${foundUser.id}`
     ];
 
     for (const endpoint of endpoints) {
@@ -366,14 +395,15 @@ router.get("/api/tracearr-diagnostic", requireAuth, async (req, res) => {
         });
 
         const data = await res2.json();
-        const dataKeys = data ? Object.keys(data).slice(0, 10) : [];
+        const dataKeys = data ? Object.keys(data).slice(0, 15) : [];
 
         results.push({
           endpoint: endpoint.replace(TRACEARR_URL, ""),
           status: res2.status,
           ok: res2.ok,
           dataKeys: dataKeys,
-          dataCount: Array.isArray(data) ? data.length : (data?.data?.length || "N/A")
+          dataCount: Array.isArray(data) ? data.length : (data?.data?.length || "N/A"),
+          sample: typeof data === 'object' && !Array.isArray(data) ? JSON.stringify(data).substring(0, 200) : null
         });
       } catch (err) {
         results.push({
