@@ -992,10 +992,16 @@
       const progressBar = document.getElementById("progressBar");
       const xpNeeded = document.getElementById("xpNeeded");
       console.log("[DOM] progressBar:", !!progressBar, "xpNeeded:", !!xpNeeded);
+      console.log("[XP-PROGRESS] Totale XP:", totalXp, "Progress object:", progress);
       
       if (progressBar) {
-        progressBar.style.width = progress.progressPercent + "%";
+        const percent = progress.progressPercent || 0;
+        console.log("[XP-PROGRESS] 🎯 Mise à jour barre - percent:", percent, "color:", badge.color);
+        progressBar.style.width = percent + "%";
         progressBar.style.backgroundColor = badge.color;
+        console.log("[XP-PROGRESS] ✅ Barre appliquée - width:", progressBar.style.width, "bg:", progressBar.style.backgroundColor);
+      } else {
+        console.error("[XP-PROGRESS] ❌ Element progressBar non trouvé!");
       }
       if (xpNeeded) {
         xpNeeded.textContent = progress.xpNeeded > 0 ? `${progress.xpNeeded} XP avant ${progress.next?.name || "max"}` : "Max atteint!";
@@ -1069,6 +1075,34 @@
             
             if (formulaSessionEl) formulaSessionEl.textContent = `${Math.round(newTotalHours * 10) / 10} heures × 1 = ${newTotalXp} XP`;
             if (formulaTotalEl) formulaTotalEl.textContent = `${newTotalXp} XP`;
+            
+            // Update badge and avatar color
+            const newBadge = XP_SYSTEM.getBadgeByXp(newTotalXp);
+            const avatarEl = document.getElementById("profileAvatar");
+            const badgeRing = document.getElementById("badgeRing");
+            const xpBadgeEl = document.getElementById("xpBadge");
+            
+            if (avatarEl) avatarEl.style.borderColor = newBadge.borderColor;
+            if (badgeRing) badgeRing.style.borderColor = newBadge.borderColor;
+            if (xpBadgeEl) {
+              xpBadgeEl.textContent = `${newBadge.icon} ${newBadge.name}`;
+              xpBadgeEl.style.background = newBadge.bgColor;
+              xpBadgeEl.style.color = newBadge.color;
+              xpBadgeEl.style.borderColor = newBadge.borderColor;
+            }
+            
+            // Update progress bar
+            const newProgress = XP_SYSTEM.getProgressToNextBadge(newTotalXp);
+            const progressBar = document.getElementById("progressBar");
+            const xpNeeded = document.getElementById("xpNeeded");
+            
+            if (progressBar) {
+              progressBar.style.width = newProgress.progressPercent + "%";
+              progressBar.style.backgroundColor = newBadge.color;
+            }
+            if (xpNeeded) {
+              xpNeeded.textContent = newProgress.xpNeeded > 0 ? `${newProgress.xpNeeded} XP avant ${newProgress.next?.name || "max"}` : "Max atteint!";
+            }
             
             console.log("[PROFIL-UPDATE] ✅ Tous les éléments mis à jour!");
           } catch (err) {
