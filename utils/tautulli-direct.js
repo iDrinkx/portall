@@ -56,17 +56,18 @@ function getUserStatsFromTautulli(username) {
     
     // 🎯 Requête SQL optimisée - agrégation directe
     // Tautulli stocke les historiques dans la table `session_history`
+    // Durée = (stopped - started) en secondes
     const stmt = tautulliDb.prepare(`
       SELECT 
         u.user_id,
         u.username,
         COUNT(*) as session_count,
-        SUM(sh.duration) as total_duration_seconds,
+        SUM(CAST((sh.stopped - sh.started) AS INTEGER)) as total_duration_seconds,
         MAX(sh.date) as last_session_timestamp,
         SUM(CASE WHEN sh.media_type = 'movie' THEN 1 ELSE 0 END) as movie_count,
-        SUM(CASE WHEN sh.media_type = 'movie' THEN sh.duration ELSE 0 END) as movie_duration_seconds,
+        SUM(CASE WHEN sh.media_type = 'movie' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as movie_duration_seconds,
         SUM(CASE WHEN sh.media_type = 'episode' THEN 1 ELSE 0 END) as episode_count,
-        SUM(CASE WHEN sh.media_type = 'episode' THEN sh.duration ELSE 0 END) as episode_duration_seconds
+        SUM(CASE WHEN sh.media_type = 'episode' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as episode_duration_seconds
       FROM users u
       LEFT JOIN session_history sh ON u.user_id = sh.user_id
       WHERE LOWER(u.username) = ?
@@ -122,12 +123,12 @@ function getAllUserStatsFromTautulli() {
         u.user_id,
         u.username,
         COUNT(*) as session_count,
-        SUM(sh.duration) as total_duration_seconds,
+        SUM(CAST((sh.stopped - sh.started) AS INTEGER)) as total_duration_seconds,
         MAX(sh.date) as last_session_timestamp,
         SUM(CASE WHEN sh.media_type = 'movie' THEN 1 ELSE 0 END) as movie_count,
-        SUM(CASE WHEN sh.media_type = 'movie' THEN sh.duration ELSE 0 END) as movie_duration_seconds,
+        SUM(CASE WHEN sh.media_type = 'movie' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as movie_duration_seconds,
         SUM(CASE WHEN sh.media_type = 'episode' THEN 1 ELSE 0 END) as episode_count,
-        SUM(CASE WHEN sh.media_type = 'episode' THEN sh.duration ELSE 0 END) as episode_duration_seconds
+        SUM(CASE WHEN sh.media_type = 'episode' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as episode_duration_seconds
       FROM users u
       LEFT JOIN session_history sh ON u.user_id = sh.user_id
       GROUP BY u.user_id, u.username
@@ -178,13 +179,13 @@ function getLiveUsers() {
         u.user_id,
         u.username,
         s.started AS session_started,
-        s.paused_counter,
+        CAST((s.stopped - s.started) AS INTEGER) as watch_duration,
         m.title,
         m.media_type
       FROM users u
-      JOIN sessions s ON u.user_id = s.user_id
+      JOIN session_history s ON u.user_id = s.user_id
       LEFT JOIN media_info m ON s.rating_key = m.rating_key
-      WHERE s.stopped IS NULL OR s.stopped = 0
+      WHERE s.stopped = 0 OR s.stopped IS NULL
       ORDER BY u.username
     `);
     
