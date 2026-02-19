@@ -366,7 +366,7 @@
           movieCount: stats.watchStats?.movieCount || 0,
           episodeCount: stats.watchStats?.episodeCount || 0,
           sessionCount: stats.sessionCount || 0,
-          daysSince: Math.floor((Date.now() - (new Date('<%= user.joinedAt %>').getTime())) / (1000 * 60 * 60 * 24))
+          daysSince: Math.floor((Date.now() - (<%= user.joinedAtTimestamp %> * 1000)) / (1000 * 60 * 60 * 24))
         };
 
         console.log("[BADGES-JS] Data:", data);

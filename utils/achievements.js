@@ -51,9 +51,9 @@ const ACHIEVEMENTS = {
       id: "og",
       name: "OG",
       icon: "⭐",
-      description: "Premier visionnage en 2023 lors du lancement",
+      description: "Premier visionnage en 2024 lors du lancement",
       condition: (data) => false,
-      conditionText: "Premier visionnage en 2023 lors du lancement",
+      conditionText: "Premier visionnage en 2024 lors du lancement",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "temporels"
