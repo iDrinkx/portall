@@ -9,6 +9,7 @@ const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
+const { syncTautulliHistoryToDatabase } = require("./utils/tautulli");  // 🔄 Tautulli sync
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -169,6 +170,19 @@ app.listen(PORT, async () => {
   
   // 🏥 HEALTH CHECK au démarrage
   await runHealthCheck();
+  
+  // 🔄 SYNC TAUTULLI HISTORIQUE au démarrage (première fois = long, ensuite rapide)
+  console.log("[SETUP] Sync Tautulli historique au boot...");
+  try {
+    const syncResult = await syncTautulliHistoryToDatabase();
+    if (syncResult.success) {
+      console.log("[SETUP] ✅ Tautulli sync complétée:", syncResult.sessionsInerted, "sessions insérées");
+    } else {
+      console.warn("[SETUP] ⚠️  Erreur Tautulli sync:", syncResult.error);
+    }
+  } catch (err) {
+    console.warn("[SETUP] ⚠️  Erreur lors du sync Tautulli:", err.message);
+  }
   
   // Initialiser le cron job avec tous les utilisateurs Overseerr
   console.log("[SETUP] Initialisation du cron job sessions...");

@@ -3,7 +3,7 @@ const router = express.Router();
 const fetch = require("node-fetch");
 
 const { computeSubscription } = require("../utils/wizarr");
-const { getTautulliStats } = require("../utils/tautulli");
+const { getTautulliStats, syncTautulliHistoryToDatabase } = require("../utils/tautulli");
 const { getOverseerrStats } = require("../utils/overseerr");
 const { getPlexJoinDate } = require("../utils/plex");
 const { XP_SYSTEM } = require("../utils/xp-system");
@@ -459,6 +459,44 @@ router.get("/api/all-users", async (req, res) => {
   } catch (err) {
     console.error("[API] Erreur fetch users:", err.message);
     res.json([]);
+  }
+});
+
+/* ===============================
+   🔄 TAUTULLI SYNC ENDPOINT
+=============================== */
+
+/**
+ * POST /api/sync-tautulli-history
+ * Déclenche un sync complet de l'historique Tautulli vers SQLite
+ * À faire une seule fois au boot, puis via cron daily
+ */
+router.post("/api/sync-tautulli-history", requireAuth, async (req, res) => {
+  try {
+    console.log("[API/SYNC] 🚀 Sync Tautulli démarrée par:", req.session.user?.username);
+    
+    // Lancer le sync en background
+    const result = await syncTautulliHistoryToDatabase();
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: "Sync Tautulli complétée",
+        data: result
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors du sync",
+        error: result.error
+      });
+    }
+  } catch (err) {
+    console.error("[API/SYNC] ❌ Erreur:", err.message);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 

@@ -238,13 +238,131 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* ===============================
+     � ANIMATION COMPTEUR STATISTIQUES
+  =============================== */
+
+  /**
+   * Animer un compteur de 0 à la valeur cible
+   * Utilisation: animateCounter(element, targetValue, duration)
+   */
+  function animateCounter(element, targetValue, duration = 1500) {
+    // Parser la valeur cible
+    const target = parseFloat(targetValue);
+    if (isNaN(target)) return;
+
+    let current = 0;
+    const startTime = Date.now();
+    const easeOutQuad = (t) => t * (2 - t); // Fonction d'ease ease-out
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutQuad(progress);
+      
+      current = target * eased;
+      
+      // Afficher avec zéro décimal pour les entiers, 1 décimal pour les heures
+      if (targetValue % 1 === 0 || targetValue < 1) {
+        element.textContent = Math.round(current);
+      } else {
+        element.textContent = current.toFixed(1);
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        element.textContent = targetValue;
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }
+
+  /**
+   * Démarrer animations des compteurs une fois qu'ils sont visibles
+   */
+  function initCounterAnimations() {
+    const counters = document.querySelectorAll('.stat-value.counter');
+    
+    if (counters.length === 0) return;
+
+    // Utiliser IntersectionObserver pour animer seulement quand visible
+    const observerOptions = {
+      threshold: 0.3,
+      rootMargin: '0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target.hasAttribute('data-animated')) {
+          const target = parseFloat(entry.target.getAttribute('data-target')) || 0;
+          animateCounter(entry.target, target, 1800);
+          entry.target.setAttribute('data-animated', 'true');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    counters.forEach(counter => observer.observe(counter));
+  }
+
+  /**
+   * Charger et afficher les stats de visionnage (Tautulli)
+   */
+  async function updateWatchStats() {
+    try {
+      const res = await fetch(basePath + "/api/stats", {
+        headers: { "Accept": "application/json" }
+      });
+      
+      if (!res.ok) {
+        console.warn("[WATCH-STATS] Erreur API stats:", res.status);
+        return;
+      }
+      
+      const stats = await res.json();
+      
+      // Mettre à jour les compteurs si les données existent
+      if (stats.watchStats) {
+        const { totalHours, movieCount, episodeCount } = stats.watchStats;
+        
+        // Mettre à jour avec les vraies données
+        const hoursEl = document.getElementById('counterHours');
+        const moviesEl = document.getElementById('counterMovies');
+        const episodesEl = document.getElementById('counterEpisodes');
+        
+        if (hoursEl) {
+          hoursEl.setAttribute('data-target', totalHours || 0);
+          hoursEl.textContent = totalHours || 0;
+        }
+        if (moviesEl) {
+          moviesEl.setAttribute('data-target', movieCount || 0);
+          moviesEl.textContent = movieCount || 0;
+        }
+        if (episodesEl) {
+          episodesEl.setAttribute('data-target', episodeCount || 0);
+          episodesEl.textContent = episodeCount || 0;
+        }
+        
+        console.log("[WATCH-STATS] ✅ Stats mises à jour", { totalHours, movieCount, episodeCount });
+      }
+    } catch (err) {
+      console.warn("[WATCH-STATS] Erreur chargement:", err.message);
+    }
+  }
+
+  /* ===============================
      🚀 LOAD ALL DATA
   =============================== */
 
   await Promise.all([
     loadSubscription(),
     loadStats(),
+    updateWatchStats(),
     updateAvatarXpColor()
   ]);
 
-});
+  // Démarrer animations compteurs après chargement
+  setTimeout(() => {
+    initCounterAnimations();
+  }, 200);

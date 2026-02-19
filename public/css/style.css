@@ -645,3 +645,172 @@ body {
 .stats-preview.loading {
   opacity: 0.6;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   📊 SECTION STATISTIQUES DE VISIONNAGE
+═══════════════════════════════════════════════════════════════ */
+
+.watch-stats-section {
+  margin: 50px 0;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.stats-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.stats-header h2 {
+  font-size: 28px;
+  color: var(--text);
+  margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.stats-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Grille d'affichage */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+/* Carte de statistique */
+.stat-card {
+  background: linear-gradient(135deg, var(--panel2) 0%, var(--panel) 100%);
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 32px 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Effet de fond animé au hover */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(245, 166, 35, 0.1) 0%, rgba(245, 166, 35, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-card:hover {
+  border-color: var(--plex);
+  box-shadow: 0 8px 32px rgba(245, 166, 35, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+/* Icône */
+.stat-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Contenu de la carte */
+.stat-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.stat-label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/* Valeur principale (avec animation count-up) */
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--plex);
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+
+.stat-value.counter {
+  transition: color 0.3s ease;
+}
+
+.stat-card:hover .stat-value {
+  color: var(--plex2);
+  text-shadow: 0 0 20px rgba(245, 166, 35, 0.3);
+}
+
+/* Unité */
+.stat-unit {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Animation d'apparition */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsif */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  
+  .stats-header h2 {
+    font-size: 22px;
+  }
+  
+  .stat-card {
+    padding: 24px 20px;
+  }
+  
+  .stat-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+}

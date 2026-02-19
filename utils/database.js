@@ -88,11 +88,32 @@ function runMigrations() {
     `);
     console.log("[DB] ✅ Table 'session_cache' vérifiée");
     
+    // Table: tautulli_sessions - Historique complet des sessions Tautulli
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tautulli_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        media_type TEXT,
+        title TEXT,
+        duration_seconds INTEGER DEFAULT 0,
+        session_date DATETIME NOT NULL,
+        watched_status REAL DEFAULT 0,
+        rating_key INTEGER,
+        synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, rating_key, session_date)
+      )
+    `);
+    console.log("[DB] ✅ Table 'tautulli_sessions' vérifiée");
+    
     // Index pour perf
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_watch_history_user ON watch_history(user_id);
       CREATE INDEX IF NOT EXISTS idx_watch_history_scanned ON watch_history(scannedAt);
       CREATE INDEX IF NOT EXISTS idx_session_cache_user ON session_cache(user_id);
+      CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_user ON tautulli_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_username ON tautulli_sessions(username);
     `);
     console.log("[DB] ✅ Indexes créés");
     

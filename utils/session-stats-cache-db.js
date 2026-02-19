@@ -244,6 +244,13 @@ class SessionStatsCacheDB {
     // Avec SQLite, on n'a pas besoin de cette méthode car les données sont validées avant insertion
     console.log("[CACHE-DB] ✅ Pas de nettoyage nécessaire (validation à l'insertion)");
   }
+
+  /**
+   * Accéder directement à la base de données SQLite
+   */
+  static getDb() {
+    return db;
+  }
 }
 
 module.exports = SessionStatsCacheDB;
