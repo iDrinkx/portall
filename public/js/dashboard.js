@@ -321,33 +321,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       const stats = await res.json();
+      console.log("[WATCH-STATS] Stats reçues:", stats);
       
       // Mettre à jour les compteurs si les données existent
-      if (stats.watchStats) {
+      if (stats && stats.watchStats) {
         const { totalHours, movieCount, episodeCount } = stats.watchStats;
+        const sessionCount = stats.sessionCount || 0;
+        
+        console.log("[WATCH-STATS] Données extraites:", { totalHours, movieCount, episodeCount, sessionCount });
         
         // Mettre à jour avec les vraies données
         const hoursEl = document.getElementById('counterHours');
         const moviesEl = document.getElementById('counterMovies');
         const episodesEl = document.getElementById('counterEpisodes');
+        const sessionsEl = document.getElementById('counterSessions');
+        
+        console.log("[WATCH-STATS] Éléments DOM:", { hoursEl: !!hoursEl, moviesEl: !!moviesEl, episodesEl: !!episodesEl, sessionsEl: !!sessionsEl });
         
         if (hoursEl) {
-          hoursEl.setAttribute('data-target', totalHours || 0);
-          hoursEl.textContent = totalHours || 0;
+          hoursEl.setAttribute('data-target', Math.round(totalHours * 10) / 10 || 0);
+          hoursEl.textContent = Math.round(totalHours * 10) / 10 || 0;
+          console.log("[WATCH-STATS] Heures mis à jour:", totalHours);
         }
         if (moviesEl) {
           moviesEl.setAttribute('data-target', movieCount || 0);
           moviesEl.textContent = movieCount || 0;
+          console.log("[WATCH-STATS] Films mis à jour:", movieCount);
         }
         if (episodesEl) {
           episodesEl.setAttribute('data-target', episodeCount || 0);
           episodesEl.textContent = episodeCount || 0;
+          console.log("[WATCH-STATS] Épisodes mis à jour:", episodeCount);
+        }
+        if (sessionsEl) {
+          sessionsEl.setAttribute('data-target', sessionCount || 0);
+          sessionsEl.textContent = sessionCount || 0;
+          console.log("[WATCH-STATS] Sessions mis à jour:", sessionCount);
         }
         
-        console.log("[WATCH-STATS] ✅ Stats mises à jour", { totalHours, movieCount, episodeCount });
+        console.log("[WATCH-STATS] ✅ Tous les compteurs mis à jour");
+      } else {
+        console.warn("[WATCH-STATS] ⚠️  watchStats non présent dans la réponse");
       }
     } catch (err) {
-      console.warn("[WATCH-STATS] Erreur chargement:", err.message);
+      console.error("[WATCH-STATS] ❌ Erreur chargement:", err.message);
     }
   }
 
