@@ -130,12 +130,7 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
         
         if (sanitizedDuration > 0) {
           totalDurationMs += sanitizedDuration;
-        }
-        
-        // Valider la durée AVANT de l'accumuler (prevent corruption)
-        const sanitizedDuration = DURATION_VALIDATION.sanitize(durationMs);
-        
-        if (sanitizedDuration > 0) {
+          
           if (session.mediaType === "movie") {
             movieDurationMs += sanitizedDuration;
             movieCount++;
