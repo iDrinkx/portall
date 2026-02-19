@@ -797,4 +797,90 @@ router.get("/api/debug/secrets", requireAuth, (req, res) => {
   res.json(out);
 });
 
+/* ===============================
+   🦕 DEBUG COLLECTION (dev only)
+=============================== */
+router.get("/api/debug/collection/:collectionId", requireAuth, async (req, res) => {
+  const { collectionId } = req.params;
+  const username = (req.session.user.username || '').toLowerCase();
+  const PLEX_URL = process.env.PLEX_URL;
+  const PLEX_TOKEN = process.env.PLEX_TOKEN;
+  const TAUTULLI_DB_PATH = process.env.TAUTULLI_DB_PATH;
+  const out = { username, collectionId };
+
+  // 1. Appel API Plex pour récupérer les films de la collection
+  try {
+    const url = `${PLEX_URL}/library/collections/${collectionId}/children?X-Plex-Token=${PLEX_TOKEN}`;
+    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const json = await resp.json();
+    const items = (json?.MediaContainer?.Metadata || []).map(i => ({ title: i.title, year: i.year ?? null }));
+    out.plex_collection_items = items;
+    out.plex_count = items.length;
+  } catch(e) { out.plex_error = e.message; }
+
+  // 2. Chercher ces films dans Tautulli pour l'utilisateur courant
+  if (TAUTULLI_DB_PATH) {
+    const Database = require('better-sqlite3');
+    const tDb = new Database(TAUTULLI_DB_PATH, { readonly: true });
+    try {
+      // Colonnes disponibles dans session_history_metadata
+      const cols = tDb.prepare(`PRAGMA table_info(session_history_metadata)`).all();
+      out.shm_columns = cols.map(c => c.name);
+      const hasYear = cols.some(c => c.name === 'year');
+      out.shm_has_year_column = hasYear;
+
+      // Tous les films jurassic regardés par l'utilisateur (version brute sans filtre title+year)
+      const rawJurassic = tDb.prepare(`
+        SELECT DISTINCT shm.title, shm.year, sh.media_type, sh.user
+        FROM session_history sh
+        JOIN session_history_metadata shm ON sh.id = shm.id
+        WHERE LOWER(sh.user) = ? AND LOWER(shm.title) LIKE '%jurassic%'
+        ORDER BY shm.title
+      `).all(username);
+      out.raw_jurassic_in_tautulli = rawJurassic;
+
+      // Tester le matching title+year exact si on a les items Plex
+      if (out.plex_collection_items && out.plex_collection_items.length > 0 && hasYear) {
+        const matchResults = out.plex_collection_items.map(m => {
+          try {
+            const row = tDb.prepare(`
+              SELECT COUNT(*) as cnt, shm.title as db_title, shm.year as db_year
+              FROM session_history sh
+              JOIN session_history_metadata shm ON sh.id = shm.id
+              WHERE LOWER(sh.user) = ?
+                AND sh.stopped > sh.started
+                AND sh.media_type = 'movie'
+                AND LOWER(shm.title) = ?
+                AND shm.year = ?
+            `).get(username, m.title.toLowerCase(), m.year);
+            return { plex_title: m.title, plex_year: m.year, found: (row?.cnt || 0) > 0, db_title: row?.db_title, db_year: row?.db_year };
+          } catch(e) { return { plex_title: m.title, error: e.message }; }
+        });
+        out.title_year_match_results = matchResults;
+        out.matched_count = matchResults.filter(r => r.found).length;
+      }
+
+      // Tester le matching LIKE fallback
+      try {
+        const likeRows = tDb.prepare(`
+          SELECT COUNT(DISTINCT shm.title) as cnt
+          FROM session_history sh
+          JOIN session_history_metadata shm ON sh.id = shm.id
+          WHERE LOWER(sh.user) = ?
+            AND sh.stopped > sh.started
+            AND sh.media_type = 'movie'
+            AND LOWER(shm.title) LIKE '%jurassic%'
+        `).get(username);
+        out.fallback_like_count = likeRows?.cnt || 0;
+      } catch(e) { out.fallback_like_error = e.message; }
+
+    } catch(e) { out.tautulli_error = e.message; }
+    tDb.close();
+  } else {
+    out.tautulli_error = 'TAUTULLI_DB_PATH non configuré';
+  }
+
+  res.json(out);
+});
+
 module.exports = router;
