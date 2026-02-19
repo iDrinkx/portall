@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Calculer l'XP
       const sessionCount = tautulliData?.sessionCount || 0;
       const totalRequests = overseerrData?.total || 0;
-      const totalXp = sessionCount * 2 + totalRequests * 15;
+      const totalXp = sessionCount * 2; // Overseerr ne procure plus d'XP
 
       // Obtenir le badge couleur
       const badge = XP_SYSTEM.getBadgeByXp(totalXp);

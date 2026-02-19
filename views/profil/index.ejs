@@ -865,8 +865,8 @@
       }
 
       // Calculer l'XP
-      const totalXp = tautulliSessionCount * 2 + (overseerr.total || 0) * 15;
-      console.log("[XP] Calcul: " + tautulliSessionCount + "*2 + " + (overseerr.total||0) + "*15 = " + totalXp);
+      const totalXp = tautulliSessionCount * 2;
+      console.log("[XP] Calcul: " + tautulliSessionCount + " × 2 = " + totalXp);
       
       const badge = XP_SYSTEM.getBadgeByXp(totalXp);
       const progress = XP_SYSTEM.getProgressToNextBadge(totalXp);
@@ -920,7 +920,7 @@
       console.log("[DOM] FormulaSessions:", !!formulaSessionEl, "Requests:", !!formulaRequestEl);
       
       if (formulaSessionEl) formulaSessionEl.textContent = `${tautulliSessionCount} × 2 = ${tautulliSessionCount * 2} XP`;
-      if (formulaRequestEl) formulaRequestEl.textContent = `${overseerr.total} × 15 = ${overseerr.total * 15} XP`;
+      if (formulaRequestEl) formulaRequestEl.style.display = 'none'; // Overseerr ne procure pas d'XP
       if (formulaTotalEl) formulaTotalEl.textContent = `${totalXp} XP`;
 
       // Activer les badges débloqués
@@ -960,7 +960,7 @@
             
             // Update xpAmount (recalcul XP)
             const newSessionCount = readyStats.sessionCount || 0;
-            const newTotalXp = (newSessionCount * 2) + (overseerr.total * 15);
+            const newTotalXp = newSessionCount * 2;
             const xpAmountEl = document.getElementById("xpAmount");
             if (xpAmountEl) {
               xpAmountEl.textContent = newTotalXp;
@@ -983,7 +983,7 @@
             const formulaTotalEl = document.getElementById("totalXpFormula");
             
             if (formulaSessionEl) formulaSessionEl.textContent = `${newSessionCount} × 2 = ${newSessionCount * 2} XP`;
-            if (formulaRequestEl) formulaRequestEl.textContent = `${overseerr.total} × 15 = ${overseerr.total * 15} XP`;
+            if (formulaRequestEl) formulaRequestEl.style.display = 'none'; // Overseerr ne procure pas d'XP
             if (formulaTotalEl) formulaTotalEl.textContent = `${newTotalXp} XP`;
             
             console.log("[PROFIL-UPDATE] ✅ Tous les éléments mis à jour!");
