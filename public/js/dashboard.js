@@ -309,88 +309,90 @@ document.addEventListener("DOMContentLoaded", async () => {
   /**
    * Charger et afficher les stats de visionnage (Tautulli)
    */
-  async function updateWatchStats() {
+  function updateWatchStats() {
+    console.log("[WATCH-STATS] 🚀 Démarrage");
+    
     try {
-      console.log("[WATCH-STATS] 🚀 Appel API /api/stats");
+      // Récupérer depuis le cache (rempli par loadStats)
+      let statsData = cacheManager.get("statsCache", STATS_CACHE_DURATION);
       
-      const res = await fetch(basePath + "/api/stats", {
-        headers: { "Accept": "application/json" }
-      });
-      
-      console.log("[WATCH-STATS] Réponse reçue - status:", res.status);
-      
-      if (!res.ok) {
-        console.warn("[WATCH-STATS] ❌ Erreur API stats:", res.status);
+      if (!statsData) {
+        console.warn("[WATCH-STATS] ⚠️  Pas de cache, chargement API");
+        // Charger depuis l'API si pas en cache
+        fetch(basePath + "/api/stats")
+          .then(r => r.json())
+          .then(stats => {
+            console.log("[WATCH-STATS] ✅ API stats reçues:", stats);
+            cacheManager.set("statsCache", stats);
+            applyWatchStats(stats);
+          })
+          .catch(err => console.error("[WATCH-STATS] ❌ Erreur API:", err.message));
         return;
       }
       
-      const stats = await res.json();
-      console.log("[WATCH-STATS] ✅ JSON parsé:", stats);
+      console.log("[WATCH-STATS] ✅ Cache trouvé:", statsData);
+      applyWatchStats(statsData);
       
-      // Attendre un peu que le DOM soit ready
-      await new Promise(r => setTimeout(r, 500));
-      
-      // Vérifier si les éléments DOM existent
-      console.log("[WATCH-STATS] 🔍 Recherche des éléments DOM...");
+    } catch (err) {
+      console.error("[WATCH-STATS] ❌ Exception:", err.message);
+    }
+  }
+  
+  /**
+   * Appliquer les stats au DOM
+   */
+  function applyWatchStats(statsData) {
+    if (!statsData || !statsData.watchStats) {
+      console.warn("[WATCH-STATS] ⚠️  Pas de watchStats");
+      return;
+    }
+    
+    const { totalHours, movieCount, episodeCount } = statsData.watchStats;
+    const sessionCount = statsData.sessionCount || 0;
+    
+    console.log("[WATCH-STATS] 📊 Données à appliquer:", { totalHours, movieCount, episodeCount, sessionCount });
+    
+    // Petit délai pour que le DOM soit prêt
+    setTimeout(() => {
       const hoursEl = document.getElementById('counterHours');
       const moviesEl = document.getElementById('counterMovies');
       const episodesEl = document.getElementById('counterEpisodes');
       const sessionsEl = document.getElementById('counterSessions');
       
-      console.log("[WATCH-STATS] DOM trouvés:", {
-        hoursEl: hoursEl ? '✅ ' + hoursEl.id : '❌',
-        moviesEl: moviesEl ? '✅ ' + moviesEl.id : '❌',
-        episodesEl: episodesEl ? '✅ ' + episodesEl.id : '❌',
-        sessionsEl: sessionsEl ? '✅ ' + sessionsEl.id : '❌'
+      console.log("[WATCH-STATS] 🔍 DOM :", {
+        counterHours: hoursEl ? '✅' : '❌',
+        counterMovies: moviesEl ? '✅' : '❌',
+        counterEpisodes: episodesEl ? '✅' : '❌',
+        counterSessions: sessionsEl ? '✅' : '❌'
       });
       
-      // Mettre à jour les compteurs si les données existent
-      if (stats && stats.watchStats) {
-        const { totalHours, movieCount, episodeCount } = stats.watchStats;
-        const sessionCount = stats.sessionCount || 0;
-        
-        console.log("[WATCH-STATS] 📊 Données à afficher:", { totalHours, movieCount, episodeCount, sessionCount });
-        
-        if (hoursEl) {
-          const hours = Math.round(totalHours * 10) / 10 || 0;
-          hoursEl.setAttribute('data-target', hours);
-          hoursEl.textContent = hours;
-          console.log("[WATCH-STATS] ✅ counterHours mis à jour: " + hours);
-        } else {
-          console.warn("[WATCH-STATS] ⚠️  #counterHours NOT FOUND in DOM");
-        }
-        
-        if (moviesEl) {
-          moviesEl.setAttribute('data-target', movieCount || 0);
-          moviesEl.textContent = movieCount || 0;
-          console.log("[WATCH-STATS] ✅ counterMovies mis à jour: " + movieCount);
-        } else {
-          console.warn("[WATCH-STATS] ⚠️  #counterMovies NOT FOUND in DOM");
-        }
-        
-        if (episodesEl) {
-          episodesEl.setAttribute('data-target', episodeCount || 0);
-          episodesEl.textContent = episodeCount || 0;
-          console.log("[WATCH-STATS] ✅ counterEpisodes mis à jour: " + episodeCount);
-        } else {
-          console.warn("[WATCH-STATS] ⚠️  #counterEpisodes NOT FOUND in DOM");
-        }
-        
-        if (sessionsEl) {
-          sessionsEl.setAttribute('data-target', sessionCount || 0);
-          sessionsEl.textContent = sessionCount || 0;
-          console.log("[WATCH-STATS] ✅ counterSessions mis à jour: " + sessionCount);
-        } else {
-          console.warn("[WATCH-STATS] ⚠️  #counterSessions NOT FOUND in DOM");
-        }
-        
-        console.log("[WATCH-STATS] 🎉 Tous les compteurs traités");
-      } else {
-        console.warn("[WATCH-STATS] ⚠️  Pas de watchStats dans la réponse:", { stats });
+      if (hoursEl) {
+        const hours = Math.round(totalHours * 10) / 10;
+        hoursEl.textContent = hours;
+        hoursEl.setAttribute('data-target', hours);
+        console.log("[WATCH-STATS] ✅ Heures:", hours);
       }
-    } catch (err) {
-      console.error("[WATCH-STATS] ❌ Exception:", err.message, err.stack);
-    }
+      
+      if (moviesEl) {
+        moviesEl.textContent = movieCount;
+        moviesEl.setAttribute('data-target', movieCount);
+        console.log("[WATCH-STATS] ✅ Films:", movieCount);
+      }
+      
+      if (episodesEl) {
+        episodesEl.textContent = episodeCount;
+        episodesEl.setAttribute('data-target', episodeCount);
+        console.log("[WATCH-STATS] ✅ Épisodes:", episodeCount);
+      }
+      
+      if (sessionsEl) {
+        sessionsEl.textContent = sessionCount;
+        sessionsEl.setAttribute('data-target', sessionCount);
+        console.log("[WATCH-STATS] ✅ Sessions:", sessionCount);
+      }
+      
+      console.log("[WATCH-STATS] 🎉 Update complété");
+    }, 100);
   }
 
   /* ===============================
@@ -400,9 +402,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   await Promise.all([
     loadSubscription(),
     loadStats(),
-    updateWatchStats(),
     updateAvatarXpColor()
   ]);
+  
+  // Update watch stats APRÈS que le cache soit rempli par loadStats
+  console.log("[DASHBOARD] 📊 Appel updateWatchStats après cache");
+  updateWatchStats();
 
   // Démarrer animations compteurs après chargement
   setTimeout(() => {
