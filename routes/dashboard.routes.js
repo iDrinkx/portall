@@ -120,6 +120,10 @@ router.get("/statistiques", requireAuth, (req, res) => {
   res.render("statistiques/index", { user: req.session.user, basePath: req.basePath });
 });
 
+router.get("/badges", requireAuth, (req, res) => {
+  res.render("badges", { user: req.session.user, basePath: req.basePath, XP_SYSTEM });
+});
+
 /* ===============================
    🔄 API SUBSCRIPTION
 =============================== */

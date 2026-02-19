@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Badges - Plex Portal</title>
+  <link rel="stylesheet" href="<%= basePath %>/css/style.css">
+  <style>
+    .badges-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .badges-header {
+      margin-bottom: 40px;
+    }
+
+    .badges-header h1 {
+      font-size: 32px;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .level-display {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(218, 165, 32, 0.1));
+      padding: 20px;
+      border-radius: 12px;
+      border-left: 4px solid #DAA520;
+    }
+
+    .level-number {
+      font-size: 48px;
+      font-weight: bold;
+      color: #DAA520;
+      min-width: 80px;
+    }
+
+    .level-info {
+      flex: 1;
+    }
+
+    .level-label {
+      font-size: 14px;
+      color: #a0a0a0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .level-progress {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .level-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .level-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #DAA520, #FFD700);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== SECTION: XP SOURCES ===== */
+
+    .xp-sources {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 25px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .xp-sources h2 {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 25px;
+      font-weight: 600;
+    }
+
+    .xp-source {
+      margin-bottom: 25px;
+    }
+
+    .xp-source:last-child {
+      margin-bottom: 0;
+    }
+
+    .source-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .source-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .source-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .source-bar {
+      width: 100%;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .source-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.3s ease;
+    }
+
+    .source-bar-fill.hours {
+      background: linear-gradient(90deg, #3498db, #2980b9);
+    }
+
+    .source-bar-fill.badges {
+      background: linear-gradient(90deg, #e67e22, #d35400);
+    }
+
+    .source-bar-fill.anciennete {
+      background: linear-gradient(90deg, #1abc9c, #16a085);
+    }
+
+    .source-percent {
+      font-size: 12px;
+      color: #a0a0a0;
+    }
+
+    /* ===== SECTION: DETAILS PAR CATEGORIE ===== */
+
+    .details-section {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 25px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .details-section h2 {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 25px;
+      font-weight: 600;
+    }
+
+    .detail-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .detail-card {
+      padding: 18px;
+      border-radius: 10px;
+      border: 2px solid;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .detail-card.hours {
+      background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(41, 128, 185, 0.1));
+      border-color: rgba(52, 152, 219, 0.3);
+    }
+
+    .detail-card.badges {
+      background: linear-gradient(135deg, rgba(230, 126, 34, 0.1), rgba(211, 84, 0, 0.1));
+      border-color: rgba(230, 126, 34, 0.3);
+    }
+
+    .detail-card.anciennete {
+      background: linear-gradient(135deg, rgba(26, 188, 156, 0.1), rgba(22, 160, 133, 0.1));
+      border-color: rgba(26, 188, 156, 0.3);
+    }
+
+    .detail-icon {
+      font-size: 28px;
+      min-width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-content {
+      flex: 1;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: #a0a0a0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .detail-value.hours {
+      color: #3498db;
+    }
+
+    .detail-value.badges {
+      color: #e67e22;
+    }
+
+    .detail-value.anciennete {
+      color: #1abc9c;
+    }
+
+    /* ===== LOADING STATE ===== */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #a0a0a0;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #DAA520;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <%- include('../layout') %>
+
+  <main class="badges-container">
+    <div class="badges-header">
+      <h1>🏆 Badges & Progression</h1>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p style="margin-top: 20px;">Chargement des données...</p>
+    </div>
+
+    <div id="content" style="display: none;">
+      <!-- LEVEL DISPLAY -->
+      <div class="level-display">
+        <div class="level-number" id="levelNumber">-</div>
+        <div class="level-info">
+          <div class="level-label">Niveau Actuel</div>
+          <div class="level-progress">
+            <span id="xpInLevel">0</span> / 100 XP
+          </div>
+          <div class="level-bar">
+            <div class="level-bar-fill" id="levelBarFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRID: SOURCES + DETAILS -->
+      <div class="content-grid">
+        <!-- SOURCES D'XP -->
+        <div class="xp-sources">
+          <h2>📊 Sources d'XP</h2>
+          <div class="xp-source">
+            <div class="source-header">
+              <span class="source-name">⏱️ Heures visionnées</span>
+              <span class="source-value" id="hoursValue">0</span>
+            </div>
+            <div class="source-bar">
+              <div class="source-bar-fill hours" id="hoursBar" style="width: 0%"></div>
+            </div>
+            <div class="source-percent">
+              <span id="hoursPercent">0%</span> du total
+            </div>
+          </div>
+
+          <div class="xp-source">
+            <div class="source-header">
+              <span class="source-name">🏅 Badges débloqués</span>
+              <span class="source-value" id="badgesValue">0</span>
+            </div>
+            <div class="source-bar">
+              <div class="source-bar-fill badges" id="badgesBar" style="width: 0%"></div>
+            </div>
+            <div class="source-percent">
+              <span id="badgesPercent">0%</span> du total
+            </div>
+          </div>
+
+          <div class="xp-source">
+            <div class="source-header">
+              <span class="source-name">📅 Ancienneté</span>
+              <span class="source-value" id="ancienneteValue">0</span>
+            </div>
+            <div class="source-bar">
+              <div class="source-bar-fill anciennete" id="ancienneteBar" style="width: 0%"></div>
+            </div>
+            <div class="source-percent">
+              <span id="anciennetePercent">0%</span> du total
+            </div>
+          </div>
+        </div>
+
+        <!-- DETAILS PAR CATEGORIE -->
+        <div class="details-section">
+          <h2>📈 Détails par catégorie</h2>
+          <div class="detail-cards">
+            <div class="detail-card hours">
+              <div class="detail-icon">⏱️</div>
+              <div class="detail-content">
+                <div class="detail-label">Heures visionnées</div>
+                <div class="detail-value hours" id="detailHours">0h</div>
+              </div>
+            </div>
+
+            <div class="detail-card badges">
+              <div class="detail-icon">🏅</div>
+              <div class="detail-content">
+                <div class="detail-label">Badges débloqués</div>
+                <div class="detail-value badges" id="detailBadges">0/46</div>
+              </div>
+            </div>
+
+            <div class="detail-card anciennete">
+              <div class="detail-icon">📅</div>
+              <div class="detail-content">
+                <div class="detail-label">Jours depuis inscription</div>
+                <div class="detail-value anciennete" id="detailAnciennete">0 j</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Multiplicateurs XP
+    const XP_MULTIPLIERS = {
+      HOURS: 8,        // 1 heure = 8 XP
+      BADGE: 140,      // 1 badge = 140 XP
+      ANCIENNETE: 5,   // 1 jour = 5 XP
+      LEVEL: 100       // 1 niveau = 100 XP
+    };
+
+    // Charger les données
+    async function loadBadgesData() {
+      try {
+        const response = await fetch('<%= basePath %>/api/stats');
+        const data = await response.json();
+
+        console.log('[BADGES] Données reçues:', data);
+
+        // Extraire les données
+        const totalHours = data.watchStats?.totalHours || 0;
+        const joinedAt = data.joinedAt ? new Date(data.joinedAt) : null;
+
+        // Calculer les XP par source
+        const hoursXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
+        const badgesXp = 0; // À implémenter: obtenir le nombre de badges débloqués
+        const daysJoined = joinedAt ? Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        const ancienneteXp = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
+
+        const totalXp = hoursXp + badgesXp + ancienneteXp;
+        const currentLevel = Math.floor(totalXp / XP_MULTIPLIERS.LEVEL) + 1;
+        const xpInLevel = totalXp % XP_MULTIPLIERS.LEVEL;
+
+        console.log('[BADGES] Calculs:', { hoursXp, badgesXp, ancienneteXp, totalXp, currentLevel, xpInLevel });
+
+        // Calculer les pourcentages
+        const hoursPercent = totalXp > 0 ? Math.round((hoursXp / totalXp) * 100) : 0;
+        const badgesPercent = totalXp > 0 ? Math.round((badgesXp / totalXp) * 100) : 0;
+        const anciennetePercent = totalXp > 0 ? Math.round((ancienneteXp / totalXp) * 100) : 0;
+
+        // Mettre à jour le DOM
+        document.getElementById('levelNumber').textContent = currentLevel;
+        document.getElementById('xpInLevel').textContent = xpInLevel;
+        document.getElementById('levelBarFill').style.width = ((xpInLevel / XP_MULTIPLIERS.LEVEL) * 100) + '%';
+
+        // Sources d'XP
+        document.getElementById('hoursValue').textContent = hoursXp.toLocaleString();
+        document.getElementById('hoursBar').style.width = hoursPercent + '%';
+        document.getElementById('hoursPercent').textContent = hoursPercent + '%';
+
+        document.getElementById('badgesValue').textContent = badgesXp.toLocaleString();
+        document.getElementById('badgesBar').style.width = badgesPercent + '%';
+        document.getElementById('badgesPercent').textContent = badgesPercent + '%';
+
+        document.getElementById('ancienneteValue').textContent = ancienneteXp.toLocaleString();
+        document.getElementById('ancienneteBar').style.width = anciennetePercent + '%';
+        document.getElementById('anciennetePercent').textContent = anciennetePercent + '%';
+
+        // Détails
+        document.getElementById('detailHours').textContent = totalHours.toFixed(1) + 'h';
+        document.getElementById('detailBadges').textContent = '0/46'; // À mettre à jour
+        document.getElementById('detailAnciennete').textContent = daysJoined + ' j';
+
+        // Afficher le contenu, cacher le loader
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+      } catch (error) {
+        console.error('[BADGES] Erreur:', error);
+        document.getElementById('loading').innerHTML = '<p style="color: #e74c3c;">Erreur lors du chargement des données</p>';
+      }
+    }
+
+    // Charger à l'ouverture de la page
+    loadBadgesData();
+  </script>
+</body>
+</html>
