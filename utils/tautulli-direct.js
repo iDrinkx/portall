@@ -34,14 +34,15 @@ const COLLECTION_MIN = {
 };
 
 /**
- * Récupère les rating_keys des films d'une collection via l'API Plex.
+ * Récupère les GUIDs Plex des films d'une collection.
+ * Le GUID (plex://movie/xxx) est stable même si le rating_key change après ré-indexation.
  * Résultat mis en cache 24h.
  */
-async function getCollectionItemKeys(collectionRatingKey) {
+async function getCollectionItemGuids(collectionRatingKey) {
   const now = Date.now();
   const cached = collectionCache[collectionRatingKey];
   if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
-    return cached.keys;
+    return cached.guids;
   }
 
   const PLEX_URL = process.env.PLEX_URL;
@@ -57,10 +58,14 @@ async function getCollectionItemKeys(collectionRatingKey) {
     const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     const json = await resp.json();
     const items = json?.MediaContainer?.Metadata || [];
-    const keys = items.map(c => Number(c.ratingKey)).filter(Boolean);
-    collectionCache[collectionRatingKey] = { keys, ts: now };
-    console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${keys.length} films →`, keys);
-    return keys;
+    // Extraire le GUID canonique plex:// depuis le tableau Guid ou le champ guid
+    const guids = items.map(item => {
+      const plexGuid = (item.Guid || []).find(g => g.id && g.id.startsWith('plex://'));
+      return plexGuid ? plexGuid.id : (item.guid || null);
+    }).filter(Boolean);
+    collectionCache[collectionRatingKey] = { guids, ts: now };
+    console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${guids.length} GUIDs cachés`);
+    return guids;
   } catch(e) {
     console.error(`[TAUTULLI-DIRECT] ❌ Erreur collection Plex ${collectionRatingKey}:`, e.message);
     return null;
@@ -457,21 +462,31 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   };
 
   /**
-   * Compte les films regardés par l'utilisateur via une liste de rating_keys.
+   * Compte les films regardés par l'utilisateur via une liste de GUIDs Plex.
+   * Cherche dans session_history_metadata par GUID pour récupérer les rating_keys
+   * effectivement enregistrés, puis vérifie dans session_history.
    */
-  const countMoviesByKeys = (ratingKeys) => {
-    if (!ratingKeys || !ratingKeys.length) return { cnt: 0, last_stopped: null };
+  const countMoviesByGuids = (guids) => {
+    if (!guids || !guids.length) return { cnt: 0, last_stopped: null };
     try {
-      const ph = ratingKeys.map(() => '?').join(', ');
+      const ph = guids.map(() => '?').join(', ');
+      // Trouver les rating_keys correspondant à ces GUIDs dans les métadonnées
+      const keys = tautulliDb.prepare(`
+        SELECT DISTINCT rating_key FROM session_history_metadata
+        WHERE guid IN (${ph})
+      `).all(...guids);
+      if (!keys.length) return { cnt: 0, last_stopped: null };
+      const ratingKeys = keys.map(k => k.rating_key);
+      const ph2 = ratingKeys.map(() => '?').join(', ');
       const row = tautulliDb.prepare(`
         SELECT COUNT(DISTINCT sh.rating_key) as cnt, MAX(sh.stopped) as last_stopped
         FROM session_history sh
         WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
-          AND sh.media_type = 'movie' AND sh.rating_key IN (${ph})
+          AND sh.media_type = 'movie' AND sh.rating_key IN (${ph2})
       `).get(norm, ...ratingKeys);
       return row || { cnt: 0, last_stopped: null };
     } catch(e) {
-      console.error('[TAUTULLI-DIRECT] ❌ countMoviesByKeys error:', e.message);
+      console.error('[TAUTULLI-DIRECT] ❌ countMoviesByGuids error:', e.message);
       return { cnt: 0, last_stopped: null };
     }
   };
@@ -482,18 +497,18 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
    */
   const checkCollection = async (id, fallbackPatterns, minRequired = null) => {
     const conf = COLLECTION_KEYS[id];
-    // Essai via API Tautulli (collection exacte, taille dynamique)
+    // Essai via API Plex (GUIDs stables, indépendants des re-scans)
     if (conf?.ratingKey) {
-      const keys = await getCollectionItemKeys(conf.ratingKey);
-      if (keys && keys.length > 0) {
-        const row = countMoviesByKeys(keys);
-        const required = minRequired ?? keys.length; // seuil min ou toute la collection
+      const guids = await getCollectionItemGuids(conf.ratingKey);
+      if (guids && guids.length > 0) {
+        const row = countMoviesByGuids(guids);
+        const required = minRequired ?? guids.length;
         console.log(`[TAUTULLI-DIRECT] ${id} (collection): ${row.cnt}/${required} films`);
         if (row.cnt >= required) return fmt(row.last_stopped) || today;
         return null;
       }
     }
-    // Fallback : matching par titre LIKE + seuil requis
+    // Fallback : matching par titre LIKE
     if (fallbackPatterns && minRequired) {
       const row = countMoviesByLike(fallbackPatterns);
       console.log(`[TAUTULLI-DIRECT] ${id} (fallback titre): ${row.cnt}/${minRequired} films`);
