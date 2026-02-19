@@ -27,8 +27,7 @@ services:
       
       # ⭐ TAUTULLI - Lecture directe de la DB (optimal)
       # Chemin vers la DB Tautulli pour lectures optimisées
-      # Ex: /path/to/tautulli/library/plexpy.db
-      # TAUTULLI_DB_PATH: "/tautulli-data/plexpy.db"
+      TAUTULLI_DB_PATH: "/tautulli-data/tautulli.db"
       
       # Alternative: API Tautulli (si DB non accessible)
       # TAUTULLI_URL: "http://tautulli.local"
@@ -46,8 +45,8 @@ services:
       # Logo et fichiers de config
       - ./config:/config
       
-      # 🗄️ Optionnel: Volume de la DB Tautulli (si pas d'accès direct)
-      # - /path/to/tautulli/library:/tautulli-data
+      # 🗄️ DB Tautulli (lecture seule)
+      - /mnt/user/appdata/tautulli:/tautulli-data
     
     restart: unless-stopped
     
