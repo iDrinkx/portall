@@ -1049,8 +1049,8 @@
           profilSubStatus.className = 'status-badge ' + (subscriptionData.status || '');
           profilSubStatus.textContent = subscriptionData.label;
         }
-        if (profilSubDays) profilSubDays.textContent = subscriptionData.daysLeft ? subscriptionData.daysLeft + ' jours' : '\u2014';
-        if (profilSubExpire) profilSubExpire.textContent = subscriptionData.expiresAt || '\u2014';
+        if (profilSubDays) profilSubDays.textContent = subscriptionData.daysLeft || '—';
+        if (profilSubExpire) profilSubExpire.textContent = subscriptionData.expiresAt || '—';
         if (profilSubProgress) profilSubProgress.style.width = (subscriptionData.progressPercent || 0) + '%';
         console.log('[PROFIL] \u2705 Abonnement affiché');
       } else if (profilSubStatus) {

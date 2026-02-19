@@ -104,7 +104,7 @@
         if (!data) return;
         const numMatch = data.daysLeft && String(data.daysLeft).match(/\d+/);
         if (data.status === 'unlimited') pill.textContent = '\u221e';
-        else if (numMatch) pill.textContent = numMatch[0] + '\u00a0j';
+        else if (numMatch) pill.textContent = numMatch[0] + '\u00a0jours';
         else pill.textContent = data.label || '\u2014';
         pill.classList.add('nav-sub-pill--' + (data.status || 'loading'));
       })
