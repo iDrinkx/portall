@@ -232,6 +232,39 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
 });
 
 /* ===============================
+   🔄 API FORCE SCAN - Force un scan immédiat de Tautulli
+=============================== */
+
+router.post("/api/force-scan", requireAuth, async (req, res) => {
+  try {
+    console.log("[API/FORCE-SCAN] 🚀 Scan forcé demandé par:", req.session.user.username);
+    
+    const { scanTautulliHistoryForAllUsers } = require("../utils/tautulli");
+    
+    const scanStartTime = Date.now();
+    const result = await scanTautulliHistoryForAllUsers(
+      process.env.TAUTULLI_URL,
+      process.env.TAUTULLI_API_KEY
+    );
+    
+    const duration = Math.round((Date.now() - scanStartTime) / 1000);
+    
+    console.log("[API/FORCE-SCAN] ✅ Scan forcé terminé en", duration, 'secondes');
+    
+    res.json({
+      success: true,
+      message: `Scan lancé avec succès - ${Object.keys(result).length} utilisateurs traités en ${duration}s`,
+      usersScanned: Object.keys(result).length,
+      duration
+    });
+    
+  } catch (err) {
+    console.error("[API/FORCE-SCAN] ❌ Erreur:", err.message);
+    res.status(500).json({ error: "Failed to force scan", details: err.message });
+  }
+});
+
+/* ===============================
    🎬 API OVERSEERR
 =============================== */
 

@@ -47,7 +47,8 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
 
     // D'abord, vérifier le cache
     const cached = SessionStatsCache.getWithTimestamp(normalizedUsername);
-    if (cached) {
+    if (cached && cached.sessionCount > 0) {
+      // Retourner le cache SEULEMENT s'il contient des données valides
       console.log("[TAUTULLI] Retour du CACHE - sessionCount:", cached.sessionCount, "Mis a jour", cached.timeSince);
       return {
         joinedAt: cached.joinedAt,
@@ -56,6 +57,11 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
         cachedAt: cached.lastActivity,
         timeSince: cached.timeSince
       };
+    }
+    
+    // ⚠️ Si cache est vide (sessionCount = 0), forcer un nouveau scan
+    if (cached && cached.sessionCount === 0) {
+      console.log("[TAUTULLI] ⚠️  Cache contient 0 sessions - forçage d'un nouveau scan pour " + normalizedUsername);
     }
 
     // ⚠️ Si un scan global est en cours et le cache est vide, retourner "computing"
@@ -221,12 +227,20 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
           { headers: { Accept: "application/json" } }
         );
         
-        if (!histRes.ok) break;
+        if (!histRes.ok) {
+          console.log("[TAUTULLI-SCAN] ⚠️  Erreur API - status:", histRes.status);
+          break;
+        }
         
         const histJson = await histRes.json();
+        console.log("[TAUTULLI-SCAN] Réponse API page", pagesScanned, "- structure:", JSON.stringify(histJson, null, 2).substring(0, 200));
+        
         const sessions = histJson.response?.data || [];
         
-        if (!sessions || sessions.length === 0) break;
+        if (!sessions || sessions.length === 0) {
+          console.log("[TAUTULLI-SCAN] ✅ Pas plus de sessions - fin du scan");
+          break;
+        }
         
         pagesScanned++;
         totalSessions += sessions.length;
