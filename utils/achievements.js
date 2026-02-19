@@ -343,7 +343,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      revocable: true
     },
     {
       id: "dark-knight",
@@ -355,19 +356,21 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      revocable: true
     },
     {
       id: "clever-girl",
       name: "Survivant du Parc",
       icon: "🦕",
-      description: "A survécu à tous les parcs — les 6 films Jurassic",
+      description: "A survécu à tous les parcs — les 7 films Jurassic",
       condition: (data) => false,
-      conditionText: "A survécu à tous les parcs — les 6 films Jurassic",
+      conditionText: "A survécu à tous les parcs — les 7 films Jurassic",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      revocable: true
     },
     {
       id: "potter-head",
@@ -379,7 +382,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      revocable: true
     },
 
     {
@@ -404,7 +408,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      revocable: true
     },
     {
       id: "countdown-pajama",
@@ -428,6 +433,7 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
+      revocable: true,
       isSecret: false
     },
     {
@@ -447,6 +453,7 @@ const ACHIEVEMENTS = {
       name: "Tolkiendil",
       icon: "👑",
       description: "Fan de l'univers de Tolkien",
+      revocable: true,
       condition: (data) => false,
       conditionText: "Fan de l'univers de Tolkien",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),

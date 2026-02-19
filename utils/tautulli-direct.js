@@ -429,7 +429,8 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
  */
 async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckIds = []) {
   const results = {};
-  if (!tautulliDb || toCheckIds.length === 0) return results;
+  const progress = {};
+  if (!tautulliDb || toCheckIds.length === 0) return { unlocked: results, progress };
 
   const norm = username.toLowerCase();
   const fmt  = (ts) => ts ? new Date(ts * 1000).toLocaleDateString('fr-FR') : null;
@@ -465,26 +466,9 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
    * Compte les films regardés par l'utilisateur via une liste de {title, year}.
    * Le matching par titre+année est robuste aux re-scans Plex qui changent les GUIDs.
    */
-  const countMoviesByTitleYear = (movies, debugId) => {
+  const countMoviesByTitleYear = (movies) => {
     if (!movies || !movies.length) return { cnt: 0, last_stopped: null };
     try {
-      // 🔍 DEBUG: titres attendus vs titres regardés par l'user en DB
-      if (debugId) {
-        console.log(`[TAUTULLI-DIRECT] 🔍 [${debugId}] Titres Plex API:`, movies.map(m => `"${m.title}" (${m.year})`));
-        // Vérifier si ces films existent dans la DB (TOUS utilisateurs confondus)
-        const firstTitle = movies[0]?.title?.toLowerCase();
-        if (firstTitle) {
-          const allUsers = tautulliDb.prepare(`
-            SELECT DISTINCT sh.user, shm.title, shm.year
-            FROM session_history sh
-            JOIN session_history_metadata shm ON sh.id = shm.id
-            WHERE sh.media_type = 'movie' AND LOWER(shm.title) LIKE ?
-            LIMIT 10
-          `).all(`%${firstTitle.split(' ').slice(0,2).join('%')}%`);
-          console.log(`[TAUTULLI-DIRECT] 🔍 [${debugId}] "${movies[0].title}" dans la DB (tous users):`, 
-            allUsers.length ? allUsers.map(r => `${r.user} → "${r.title}"`) : 'AUCUN SESSION TROUVÉ');
-        }
-      }
       const orClauses = movies.map(() => '(LOWER(shm.title) = ? AND shm.year = ?)').join(' OR ');
       const params = [norm, ...movies.flatMap(m => [m.title.toLowerCase(), m.year])];
       const row = tautulliDb.prepare(`
@@ -514,75 +498,84 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
     if (conf?.ratingKey) {
       const movies = await getCollectionItems(conf.ratingKey);
       if (movies && movies.length > 0) {
-        const row = countMoviesByTitleYear(movies, id);
+        const row = countMoviesByTitleYear(movies);
         const required = minRequired ?? movies.length;
-        console.log(`[TAUTULLI-DIRECT] ${id} (collection): ${row.cnt}/${required} films`);
-        if (row.cnt >= required) return fmt(row.last_stopped) || today;
-        return null;
+        const current = Math.min(row.cnt, required);
+        console.log(`[TAUTULLI-DIRECT] ${id} (collection): ${current}/${required} films`);
+        if (current >= required) return { date: fmt(row.last_stopped) || today, current, total: required };
+        return { date: null, current, total: required };
       }
     }
     // Fallback : matching par titre LIKE (si API Plex indisponible)
     if (fallbackPatterns && minRequired) {
       const row = countMoviesByLike(fallbackPatterns);
-      console.log(`[TAUTULLI-DIRECT] ${id} (fallback titre): ${row.cnt}/${minRequired} films`);
-      if (row.cnt >= minRequired) return fmt(row.last_stopped) || today;
+      const current = Math.min(row.cnt, minRequired);
+      console.log(`[TAUTULLI-DIRECT] ${id} (fallback titre): ${current}/${minRequired} films`);
+      if (current >= minRequired) return { date: fmt(row.last_stopped) || today, current, total: minRequired };
+      return { date: null, current, total: minRequired };
     }
-    return null;
+    return { date: null, current: 0, total: 0 };
   };
 
   console.log(`[TAUTULLI-DIRECT] 🔍 Évaluation secrets pour ${norm}: [${toCheckIds.join(', ')}]`);
 
   try {
     for (const id of toCheckIds) {
-      let date;
       switch (id) {
 
         // 🦕 Survivant du Parc — Toute la saga Jurassic
         case 'clever-girl': {
-          date = await checkCollection(id, ['%jurassic%'], 7);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%jurassic%'], 7);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // ⚡ Potterhead — Les 8 films Harry Potter
         case 'potter-head': {
-          date = await checkCollection(id, ['harry potter%'], 8);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['harry potter%'], 8);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // 🦸 Marvel Fan — Toute la collection MCU
         case 'marvel-fan': {
-          date = await checkCollection(id, ['%marvel%', '%avengers%']);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%marvel%', '%avengers%']);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // 🗡️ Chevalier Noir — 4 films Star Wars minimum
         case 'dark-knight': {
-          date = await checkCollection(id, ['%star wars%'], COLLECTION_MIN['dark-knight']);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%star wars%'], COLLECTION_MIN['dark-knight']);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // 🧑‍⚖️ Maître Jedi — 7 films Star Wars minimum
         case 'black-knight': {
-          date = await checkCollection(id, ['%star wars%'], COLLECTION_MIN['black-knight']);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%star wars%'], COLLECTION_MIN['black-knight']);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // 👑 Tolkiendil — Trilogie Seigneur des Anneaux
         case 'tolkiendil': {
-          date = await checkCollection(id, ['%lord of the rings%', '%seigneur des anneaux%'], 3);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%lord of the rings%', '%seigneur des anneaux%'], 3);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
         // 🐵 Évolutionniste — Trilogie Planète des Singes
         case 'evolutionist': {
-          date = await checkCollection(id, ['%planet of the apes%', '%planète des singes%'], 3);
-          if (date) results[id] = date;
+          const r = await checkCollection(id, ['%planet of the apes%', '%planète des singes%'], 3);
+          if (r.date) results[id] = r.date;
+          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
@@ -646,7 +639,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   } else {
     console.log('[TAUTULLI-DIRECT] ℹ️  Aucun nouveau secret débloqué pour', norm);
   }
-  return results;
+  return { unlocked: results, progress };
 }
 
 /** * 🔍 Récupérer les utilisateurs actuellement en lecture (live sessions)

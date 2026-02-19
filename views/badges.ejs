@@ -331,9 +331,23 @@
               </div>
             <% } else { %>
               <!-- VERROUILLÉ -->
-              <% if (achievement.isSecret || achievement.category === 'secrets') { %>
+              <% if (!achievement.revocable && (achievement.isSecret || achievement.category === 'secrets')) { %>
                 <!-- SECRET VERROUILLÉ : on ne révèle rien -->
                 <div class="achievement-secret-text">🔒 Badge secret</div>
+              <% } else if (achievement.revocable) { %>
+                <!-- BADGE COLLECTION : description + barre de progression -->
+                <div class="achievement-description"><%= achievement.description %></div>
+                <% const prog = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id]; %>
+                <% if (prog && prog.total > 0) { %>
+                  <div class="achievement-progress">
+                    <span class="current"><%= prog.current %></span> / <span class="total"><%= prog.total %></span> (<span class="percent"><%= Math.round((prog.current / prog.total) * 100) %></span>%)
+                  </div>
+                  <div class="achievement-progress-bar">
+                    <div class="achievement-progress-fill" style="width: <%= Math.min(100, Math.round((prog.current / prog.total) * 100)) %>%"></div>
+                  </div>
+                <% } else { %>
+                  <div class="achievement-secret-text">🔒 Badge secret</div>
+                <% } %>
               <% } else { %>
                 <!-- NON-SECRET VERROUILLÉ -->
                 <% const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 }; %>

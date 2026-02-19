@@ -187,7 +187,20 @@ function runMigrations() {
     `);
     console.log("[DB] ✅ Table 'user_achievements' vérifiée");
 
-    // Index pour perf
+    // Table: achievement_progress - Progression des badges collection par utilisateur
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS achievement_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        achievement_id TEXT NOT NULL,
+        current INTEGER DEFAULT 0,
+        total INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, achievement_id),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log("[DB] ✅ Table 'achievement_progress' vérifiée");
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
@@ -468,6 +481,27 @@ const UserAchievementQueries = {
 };
 
 /**
+ * Achievement progress queries (progression des badges collection)
+ */
+const AchievementProgressQueries = {
+  save(userId, achievementId, current, total) {
+    const db = getDb();
+    return db.prepare(`
+      INSERT OR REPLACE INTO achievement_progress (user_id, achievement_id, current, total, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(userId, achievementId, current, total);
+  },
+
+  getForUser(userId) {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT achievement_id, current, total FROM achievement_progress WHERE user_id = ?
+    `).all(userId);
+    return Object.fromEntries(rows.map(r => [r.achievement_id, { current: r.current, total: r.total }]));
+  }
+};
+
+/**
  * Transactions helper
  */
 function transaction(callback) {
@@ -485,5 +519,6 @@ module.exports = {
   WatchHistoryQueries,
   SessionCacheQueries,
   UserAchievementQueries,
+  AchievementProgressQueries,
   DB_PATH
 };

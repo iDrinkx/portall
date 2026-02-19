@@ -8,7 +8,7 @@ const { getOverseerrStats } = require("../utils/overseerr");
 const { getPlexJoinDate } = require("../utils/plex");
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
-const { UserAchievementQueries, UserQueries } = require("../utils/database");
+const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("../utils/database");
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
@@ -231,6 +231,8 @@ router.get("/badges", requireAuth, async (req, res) => {
 
     // ── 1. Unlocks déjà en cache DB (rapide, aucune requête Tautulli)
     const userUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
+    // ── 1b. Progression des badges collection (depuis dernière évaluation)
+    const progressMap = dbUserId ? AchievementProgressQueries.getForUser(dbUserId) : {};
 
     // ── 2. Évaluer les succès NON-SECRETS (conditions sur data)
     const allAchievements = ACHIEVEMENTS.getAll();
@@ -249,17 +251,36 @@ router.get("/badges", requireAuth, async (req, res) => {
     }
 
     // ── 3. Évaluer les succès secrets en ARRIÈRE-PLAN (ne bloque pas le rendu)
+    // Les badges revocable (collection) sont TOUJOURS re-évalués même si déjà débloqués
+    // Les badges événementiels (minuit, week-end...) ne sont évalués que s'ils ne sont pas encore débloqués
     const secretsToCheck = ACHIEVEMENTS.secrets
-      .filter(a => !a.isSecret && !userUnlockedMap[a.id])
+      .filter(a => !a.isSecret && (!userUnlockedMap[a.id] || a.revocable))
       .map(a => a.id);
 
+    // IDs des badges revocable déjà débloqués (pour détecter les régressions)
+    const revocableUnlocked = new Set(
+      ACHIEVEMENTS.secrets
+        .filter(a => a.revocable && userUnlockedMap[a.id])
+        .map(a => a.id)
+    );
+
     if (secretsToCheck.length > 0 && isTautulliReady()) {
-      // Lancer sans await : rendu immédiat, unlock persisté pour la prochaine visite
+      // Lancer sans await : rendu immédiat, unlock/revoke persisté pour la prochaine visite
       evaluateSecretAchievements(username, joinedAtTs, secretsToCheck)
         .then(newSecrets => {
+          // Débloquer les nouveaux succès
           for (const [id, date] of Object.entries(newSecrets)) {
             if (dbUserId) {
               try { UserAchievementQueries.unlock(dbUserId, id, date, 'auto'); } catch(e) {}
+            }
+          }
+          // Révoquer les badges revocable qui ne sont plus remplis
+          for (const id of revocableUnlocked) {
+            if (!newSecrets[id] && dbUserId) {
+              try {
+                UserAchievementQueries.revoke(dbUserId, id);
+                console.log(`[BADGES] 🔒 Badge "${id}" révoqué pour ${username} (condition non remplie)`);
+              } catch(e) {}
             }
           }
           if (Object.keys(newSecrets).length > 0) {
@@ -286,7 +307,8 @@ router.get("/badges", requireAuth, async (req, res) => {
       basePath: req.basePath,
       XP_SYSTEM,
       ACHIEVEMENTS: achievementsByCategory,
-      stats: stats_global
+      stats: stats_global,
+      progressMap
     });
   } catch (err) {
     console.error("[BADGES] Erreur:", err.message);
@@ -691,6 +713,20 @@ router.post("/api/sync-tautulli-history", requireAuth, async (req, res) => {
       message: err.message
     });
   }
+});
+
+/* ===============================
+   🔍 ADMIN: Révoquer un badge
+=============================== */
+router.delete("/api/admin/achievement/:achievementId", requireAuth, (req, res) => {
+  const { UserAchievementQueries, UserQueries } = require('../utils/database');
+  const username = req.session.user.username;
+  const user = UserQueries.getByUsername(username);
+  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  const { achievementId } = req.params;
+  UserAchievementQueries.revoke(user.id, achievementId);
+  console.log(`[ADMIN] 🗑️  Badge "${achievementId}" révoqué pour ${username}`);
+  res.json({ success: true, revoked: achievementId });
 });
 
 /* ===============================
