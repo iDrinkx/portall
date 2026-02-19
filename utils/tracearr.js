@@ -539,6 +539,10 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
       
       // 💾 SAUVEGARDER TOUS LES UTILISATEURS DANS LE CACHE (même ceux à 0 sessions)
       // Cela assure la persistance complète et permet le delta intelligent au prochain scan
+      // Log de debug pour un user spécifique
+      if (username === 'dinbac') {
+        console.log("[TRACEARR-SCAN] 🔍 DEBUG DinBac:", JSON.stringify(finalStats[username]));
+      }
       SessionStatsCache.set(username, finalStats[username]);
     }
     

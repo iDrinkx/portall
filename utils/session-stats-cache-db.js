@@ -40,6 +40,26 @@ class SessionStatsCacheDB {
    */
   static set(username, stats) {
     try {
+      // 🚨 VALIDATION STRICTE avant sauvegarde
+      if (!stats.watchStats) stats.watchStats = {};
+      
+      const watchStats = stats.watchStats;
+      const MAX_REASONABLE_HOURS = 1000; // Max ~42 ans continu
+      
+      // Nettoyer les valeurs aberrantes
+      if (!isFinite(watchStats.totalHours) || watchStats.totalHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: totalHours aberrante pour", username, ":", watchStats.totalHours);
+        watchStats.totalHours = 0;
+      }
+      if (!isFinite(watchStats.movieHours) || watchStats.movieHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: movieHours aberrante pour", username, ":", watchStats.movieHours);
+        watchStats.movieHours = 0;
+      }
+      if (!isFinite(watchStats.episodeHours) || watchStats.episodeHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: episodeHours aberrante pour", username, ":", watchStats.episodeHours);
+        watchStats.episodeHours = 0;
+      }
+      
       // Créer/mettre à jour l'utilisateur
       const user = db.UserQueries.upsert(
         username,
@@ -48,8 +68,16 @@ class SessionStatsCacheDB {
         stats.joinedAt || null
       );
       
-      // Insérer l'historique
-      db.WatchHistoryQueries.insert(user.id, new Date().toISOString(), stats.watchStats || stats);
+      // Insérer l'historique (avec données validées)
+      db.WatchHistoryQueries.insert(user.id, new Date().toISOString(), {
+        movieCount: stats.watchStats?.movieCount || 0,
+        movieHours: watchStats.movieHours,
+        episodeCount: stats.watchStats?.episodeCount || 0,
+        episodeHours: watchStats.episodeHours,
+        totalHours: watchStats.totalHours,
+        sessionCount: stats.sessionCount || 0,
+        lastSessionTimestamp: stats.lastSessionTimestamp || null
+      });
       
       console.log("[CACHE-DB] Stats sauvegardées pour", username);
     } catch (err) {
