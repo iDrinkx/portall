@@ -1,10 +1,59 @@
+<!-- DASHBOARD HEADER -->
 <div class="dashboard-header">
   <% if (user.thumb) { %>
-    <img src="<%= user.thumb %>" alt="<%= user.username %>" class="user-avatar" />
+    <img src="<%= user.thumb %>" alt="<%= user.username %>" class="user-avatar" id="dashboardAvatar" />
   <% } %>
   <div class="header-text">
-    <h1 class="dashboard-title">Bienvenue <%= user.username %></h1>
-    <p style="color: #aaa; margin-top: 10px;">Accédez à votre profil pour toutes les informations détaillées</p>
-    <a href="<%= basePath %>/profil" class="plex-btn" style="display: inline-block; margin-top: 15px;">Voir mon profil</a>
+    <p class="dashboard-greeting">Bon retour,</p>
+    <h1 class="dashboard-title"><%= user.username %></h1>
   </div>
 </div>
+
+<!-- HERO CARDS -->
+<div class="hero-cards">
+
+  <!-- Carte Profil -->
+  <a href="<%= basePath %>/profil" class="hero-card hero-card-profil">
+    <div class="hero-card-content">
+      <div class="hero-card-icon-wrap">
+        <% if (user.thumb) { %>
+          <img src="<%= user.thumb %>" class="hero-avatar" alt="<%= user.username %>" />
+        <% } else { %>
+          <div class="hero-avatar-placeholder">👤</div>
+        <% } %>
+      </div>
+      <div class="hero-card-info">
+        <p class="hero-card-label">Mon Profil</p>
+        <h2 class="hero-card-title"><%= user.username %></h2>
+        <p class="hero-card-desc">Statistiques · Badges · Historique</p>
+      </div>
+      <div class="hero-card-arrow">→</div>
+    </div>
+  </a>
+
+  <!-- Carte Demandes de Contenu -->
+  <a href="https://overseerr.idrinktv.ovh/" target="_blank" rel="noopener" class="hero-card hero-card-demandes">
+    <div class="hero-card-content">
+      <div class="hero-card-icon-wrap">
+        <div class="hero-icon">🎬</div>
+      </div>
+      <div class="hero-card-info">
+        <p class="hero-card-label">Demandes de Contenu</p>
+        <h2 class="hero-card-title">Overseerr</h2>
+        <p class="hero-card-desc">Demander films &amp; séries</p>
+      </div>
+      <div class="hero-card-arrow">↗</div>
+    </div>
+  </a>
+
+</div>
+
+<!-- SECONDARY CARDS -->
+<div class="cards-grid">
+  <%- include('./_subscription') %>
+  <%- include('./_stats') %>
+  <%- include('./_activity') %>
+  <%- include('./_overseerr') %>
+</div>
+
+<script src="<%= basePath %>/js/dashboard.js"></script>

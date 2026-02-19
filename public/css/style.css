@@ -213,17 +213,17 @@ body {
 .dashboard-header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 40px;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .user-avatar {
-  width: 70px;
-  height: 70px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--plex);
-  box-shadow: 0 8px 20px rgba(229, 160, 13, 0.2);
+  box-shadow: 0 6px 16px rgba(229, 160, 13, 0.2);
   flex-shrink: 0;
 }
 
@@ -231,11 +231,188 @@ body {
   flex: 1;
 }
 
+.dashboard-greeting {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
 .dashboard-title{
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 700;
-  margin-bottom: 28px;
   margin: 0;
+  color: #fff;
+}
+
+/* ========================
+   HERO CARDS
+======================== */
+
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.hero-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--line);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+  border-radius: 0;
+}
+
+.hero-card-profil {
+  background: linear-gradient(135deg, #1a1822 0%, #17152a 100%);
+  border-color: rgba(229, 160, 13, 0.2);
+}
+
+.hero-card-profil::before {
+  background: linear-gradient(180deg, #e5a00d, #ffb800);
+}
+
+.hero-card-profil:hover {
+  transform: translateY(-5px);
+  border-color: rgba(229, 160, 13, 0.55);
+  box-shadow: 0 20px 60px rgba(229, 160, 13, 0.13);
+}
+
+.hero-card-demandes {
+  background: linear-gradient(135deg, #151a22 0%, #121e2a 100%);
+  border-color: rgba(33, 150, 243, 0.2);
+}
+
+.hero-card-demandes::before {
+  background: linear-gradient(180deg, #2196f3, #00bcd4);
+}
+
+.hero-card-demandes:hover {
+  transform: translateY(-5px);
+  border-color: rgba(33, 150, 243, 0.55);
+  box-shadow: 0 20px 60px rgba(33, 150, 243, 0.12);
+}
+
+.hero-card-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 22px 22px 26px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-card-icon-wrap {
+  flex-shrink: 0;
+}
+
+.hero-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(229, 160, 13, 0.45);
+  box-shadow: 0 4px 14px rgba(229, 160, 13, 0.15);
+}
+
+.hero-avatar-placeholder,
+.hero-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.hero-avatar-placeholder {
+  background: rgba(229, 160, 13, 0.12);
+  border: 1px solid rgba(229, 160, 13, 0.25);
+}
+
+.hero-icon {
+  background: rgba(33, 150, 243, 0.12);
+  border: 1px solid rgba(33, 150, 243, 0.25);
+}
+
+.hero-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.hero-card-profil .hero-card-label {
+  color: rgba(229, 160, 13, 0.65);
+}
+
+.hero-card-demandes .hero-card-label {
+  color: rgba(33, 150, 243, 0.65);
+}
+
+.hero-card-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 3px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-card-desc {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.hero-card-arrow {
+  font-size: 20px;
+  color: #444;
+  flex-shrink: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.hero-card-profil:hover .hero-card-arrow {
+  color: var(--plex);
+  transform: translateX(5px);
+}
+
+.hero-card-demandes:hover .hero-card-arrow {
+  color: #2196f3;
+  transform: translate(4px, -4px);
+}
+
+/* nav link accent for demandes */
+.nav-link-demandes {
+  color: rgba(33, 150, 243, 0.8);
+}
+.nav-link-demandes:hover {
+  color: #60c4ff;
+}
+.nav-link-demandes::after {
+  background: #2196f3;
 }
 
 .cards-grid{
