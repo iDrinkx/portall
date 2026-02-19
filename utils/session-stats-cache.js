@@ -61,10 +61,9 @@ class SessionStatsCache {
       }
       
       if (needsClean) {
-        // Marquer pour rescan en supprimant le timestamp
+        // Nettoyer les stats aberrantes MAIS garder lastSessionTimestamp pour le delta
         cleaned[username] = {
           ...stats,
-          lastSessionTimestamp: null,  // Force rescan complet
           watchStats: {
             totalHours: 0,
             movieHours: 0,
@@ -72,8 +71,9 @@ class SessionStatsCache {
             episodeHours: 0,
             episodeCount: 0
           }
+          // ✅ GARDER lastSessionTimestamp pour que les prochains scans utilisant le delta
         };
-        console.log("[CACHE] ✅ Données nettoyées pour", username, "- prochain scan forcé");
+        console.log("[CACHE] ✅ Données nettoyées pour", username, "- stats réinitialisées, delta preserved");
       } else {
         cleaned[username] = stats;
       }
