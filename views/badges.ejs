@@ -1,23 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Badges - Plex Portal</title>
-  <link rel="stylesheet" href="<%= basePath %>/css/style.css">
-  <style>
-    .badges-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
+<style>
+  .badges-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
 
-    .badges-header {
-      margin-bottom: 40px;
-    }
+  .badges-header {
+    margin-bottom: 40px;
+  }
 
-    .badges-header h1 {
-      font-size: 32px;
+  .badges-header h1 {
+    font-size: 32px;
       color: #fff;
       margin-bottom: 10px;
     }
@@ -265,9 +258,6 @@
       to { transform: rotate(360deg); }
     }
   </style>
-</head>
-<body>
-  <%- include('./layout') %>
 
   <main class="badges-container">
     <div class="badges-header">
@@ -446,5 +436,4 @@
     // Charger à l'ouverture de la page
     loadBadgesData();
   </script>
-</body>
-</html>
+</main>
