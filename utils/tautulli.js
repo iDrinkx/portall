@@ -32,21 +32,41 @@ const DURATION_VALIDATION = {
 console.log("[TAUTULLI-BOOT] 💾 Cache DB initialisé (SQLite persistant)");
 
 /**
- * 🚀 Obtenir les stats de visionnage pour un utilisateur via l'API Tautulli
+ * 🚀 Obtenir les stats de visionnage pour un utilisateur
+ * Utilise la DB Tautulli directe en priorité
  */
 async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUserId, PLEX_URL, PLEX_TOKEN, joinedAtTimestamp = null) {
   try {
-    if (!TAUTULLI_URL || !TAUTULLI_API_KEY) {
-      console.log("[TAUTULLI] Config manquante");
-      return null;
-    }
-
-    console.log("[TAUTULLI] Recherche stats pour:", username);
-
-    // Normaliser le username en minuscules pour cohérence
     const normalizedUsername = username.toLowerCase();
-
-    // 1️⃣ D'abord, vérifier la BASE DE DONNÉES (ultra-rapide)
+    
+    // 1️⃣ Essayer de lire depuis la DB Tautulli directe (rapide)
+    try {
+      const { getUserStatsFromTautulli, isTautulliReady } = require("./tautulli-direct");
+      
+      if (isTautulliReady()) {
+        const directStats = getUserStatsFromTautulli(normalizedUsername);
+        if (directStats && directStats.sessionCount > 0) {
+          console.log("[TAUTULLI] ✅ Stats depuis DB Tautulli - sessionCount:", directStats.sessionCount);
+          return {
+            joinedAt: null,
+            lastActivity: directStats.lastSessionDate,
+            sessionCount: directStats.sessionCount,
+            lastSessionTimestamp: directStats.lastSessionDate,
+            watchStats: {
+              totalHours: directStats.totalHours,
+              movieHours: directStats.movieHours,
+              movieCount: directStats.movieCount,
+              episodeHours: directStats.episodeHours,
+              episodeCount: directStats.episodeCount
+            }
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[TAUTULLI] ⚠️  Impossible lire DB directe:", err.message);
+    }
+    
+    // 2️⃣ Fallback: vérifier la BASE DE DONNÉES locale
     console.log("[TAUTULLI] Recherche stats pour:", username);
     const dbStats = getStatsFromDatabase(normalizedUsername);
     
@@ -67,7 +87,7 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
       };
     }
     
-    // 2️⃣ Si DB vide, vérifier le cache SQLite
+    // 3️⃣ Fallback: vérifier le cache SQLite
     const cached = SessionStatsCache.get(normalizedUsername);
     if (cached && cached.sessionCount > 0) {
       console.log("[TAUTULLI] Retour du CACHE - sessionCount:", cached.sessionCount);
@@ -80,24 +100,9 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
       };
     }
 
-    // 3️⃣ Si un scan global est en cours, retourner "computing"
-    if (GLOBAL_SCAN_IN_PROGRESS) {
-      console.log("[TAUTULLI] 🔄 Scan global en cours - retour status 'computing'");
-      return {
-        status: "computing",
-        message: "Les données des sessions sont en cours de synchronisation... (rechargez dans quelques minutes)"
-      };
-    }
-
-    // ⚠️ FALLBACK: Lancer un scan si la DB est vide
-    console.log("[TAUTULLI] ⚠️  Pas de données en DB - lancement scan de secours");
-    const allUserStats = await scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY);
-    
-    // Chercher cet user dans les résultats du scan global
-    const sessionData = allUserStats[normalizedUsername];
-    
-    if (!sessionData) {
-      console.log("[TAUTULLI] ⚠️  Utilisateur non trouvé après scan");
+    // ⚠️ Pas de données trouvées
+    console.log("[TAUTULLI] ⚠️  Pas de données pour cet utilisateur");
+    return null;
       return null;
     }
 

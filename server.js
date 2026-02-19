@@ -9,7 +9,7 @@ const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
-const { syncTautulliHistoryToDatabase } = require("./utils/tautulli");  // 🔄 Tautulli sync
+const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,7 +89,30 @@ app.get("/", (req, res) => {
    START
 ========================= */
 
-// Fonction pour récupérer tous les utilisateurs Overseerr au démarrage
+/**
+ * 📊 Charger les stats de TOUS les utilisateurs depuis Tautulli
+ */
+async function loadAllUserStatsFromTautulli() {
+  try {
+    const stats = getAllUserStatsFromTautulli();
+    
+    if (!stats || stats.length === 0) {
+      console.warn("[SETUP] ⚠️  Aucune stat trouvée dans Tautulli");
+      return [];
+    }
+    
+    console.log("[SETUP] ✅ Récupéré stats de " + stats.length + " utilisateurs depuis Tautulli");
+    return stats;
+  } catch (err) {
+    console.error("[SETUP] ❌ Erreur chargement Tautulli:", err.message);
+    return [];
+  }
+}
+
+/**
+ * 👥 Récupérer la liste des utilisateurs pour le cron job
+ * (depuis Overseerr ou Tautulli)
+ */
 async function initializeAllUsersForCron() {
   try {
     const baseUrl = process.env.OVERSEERR_URL || "http://localhost:5055";
@@ -166,7 +189,7 @@ async function initializeAllUsersForCron() {
 app.listen(PORT, async () => {
   console.log("\n🚀 Server running on port", PORT);
   
-  // 🗄️  INITIALISER LA BASE DE DONNÉES
+  // 🗄️  INITIALISER LA BASE DE DONNÉES LOCALE
   try {
     initDatabase();
     console.log("[SETUP] ✅ Base de données SQLite initialisée");
@@ -175,23 +198,22 @@ app.listen(PORT, async () => {
     process.exit(1);
   }
   
+  // 📊 INITIALISER LA CONNEXION TAUTULLI DIRECTE
+  const tautulliReady = initTautulliDatabase();
+  if (tautulliReady) {
+    console.log("[SETUP] 📊 Chargement des stats de Tautulli pour TOUS les utilisateurs...");
+    try {
+      const allStats = await loadAllUserStatsFromTautulli();
+      console.log("[SETUP] ✅ Données Tautulli prêtes pour " + (allStats?.length || 0) + " utilisateurs");
+    } catch (err) {
+      console.warn("[SETUP] ⚠️  Impossible de charger les stats Tautulli:", err.message);
+    }
+  } else {
+    console.warn("[SETUP] ⚠️  Tautulli non configuré - certaines fonctionnalités désactivées");
+  }
+  
   // 🏥 HEALTH CHECK au démarrage
   await runHealthCheck();
-  
-  // 🔄 SYNC TAUTULLI HISTORIQUE en ARRIÈRE-PLAN (non-bloquant)
-  // Ne pas bloquer le démarrage du serveur - faire ça en async
-  console.log("[SETUP] Sync Tautulli lancé en arrière-plan (non-bloquant)...");
-  syncTautulliHistoryToDatabase()
-    .then(result => {
-      if (result.success) {
-        console.log("[SETUP-BG] ✅ Tautulli sync complétée:", result.sessionsInerted, "sessions");
-      } else {
-        console.warn("[SETUP-BG] ⚠️  Erreur Tautulli sync:", result.error);
-      }
-    })
-    .catch(err => {
-      console.warn("[SETUP-BG] ⚠️  Erreur lors du sync Tautulli:", err.message);
-    });
   
   // Initialiser le cron job avec tous les utilisateurs Overseerr
   console.log("[SETUP] Initialisation du cron job sessions...");

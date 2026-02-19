@@ -3,7 +3,7 @@ const router = express.Router();
 const fetch = require("node-fetch");
 
 const { computeSubscription } = require("../utils/wizarr");
-const { getTautulliStats, syncTautulliHistoryToDatabase } = require("../utils/tautulli");
+const { getTautulliStats } = require("../utils/tautulli");
 const { getOverseerrStats } = require("../utils/overseerr");
 const { getPlexJoinDate } = require("../utils/plex");
 const { XP_SYSTEM } = require("../utils/xp-system");
@@ -468,31 +468,41 @@ router.get("/api/all-users", async (req, res) => {
 
 /**
  * POST /api/sync-tautulli-history
- * Déclenche un sync de l'historique Tautulli vers SQLite
- * Body optionnel: { limit: 5000 } (0 = pas de limite)
+ * Recharge les données depuis la DB Tautulli directe
  */
 router.post("/api/sync-tautulli-history", requireAuth, async (req, res) => {
   try {
-    console.log("[API/SYNC] 🚀 Sync Tautulli démarrée par:", req.session.user?.username);
+    console.log("[API/SYNC] 🚀 Rechargement des données Tautulli par:", req.session.user?.username);
     
-    const limit = req.body?.limit || 5000;  // Par défaut 5000, customisable
+    const { getAllUserStatsFromTautulli, isTautulliReady } = require("../utils/tautulli-direct");
     
-    // Lancer le sync en background
-    const result = await syncTautulliHistoryToDatabase(limit);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: "Sync Tautulli complétée",
-        data: result
-      });
-    } else {
-      res.status(500).json({
+    if (!isTautulliReady()) {
+      return res.status(503).json({
         success: false,
-        message: "Erreur lors du sync",
-        error: result.error
+        message: "Tautulli DB non disponible - vérifiez TAUTULLI_DB_PATH"
       });
     }
+    
+    const startTime = Date.now();
+    const allStats = getAllUserStatsFromTautulli();
+    const durationMs = Date.now() - startTime;
+    
+    if (!allStats || allStats.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: "Aucune stat trouvée dans Tautulli"
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: "Données rechargées depuis Tautulli DB",
+      data: {
+        usersCount: allStats.length,
+        durationMs: durationMs,
+        stats: allStats
+      }
+    });
   } catch (err) {
     console.error("[API/SYNC] ❌ Erreur:", err.message);
     res.status(500).json({

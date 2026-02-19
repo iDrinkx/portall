@@ -24,8 +24,16 @@ services:
       # Intégrations optionnelles:
       # WIZARR_URL: "http://wizarr.local"
       # WIZARR_API_KEY: "your-key"
+      
+      # ⭐ TAUTULLI - Lecture directe de la DB (optimal)
+      # Chemin vers la DB Tautulli pour lectures optimisées
+      # Ex: /path/to/tautulli/library/plexpy.db
+      # TAUTULLI_DB_PATH: "/tautulli-data/plexpy.db"
+      
+      # Alternative: API Tautulli (si DB non accessible)
       # TAUTULLI_URL: "http://tautulli.local"
       # TAUTULLI_API_KEY: "your-key"
+      
       # OVERSEERR_URL: "http://overseerr.local"
       # OVERSEERR_API_KEY: "your-key"
       
@@ -37,6 +45,9 @@ services:
     volumes:
       # Logo et fichiers de config
       - ./config:/config
+      
+      # 🗄️ Optionnel: Volume de la DB Tautulli (si pas d'accès direct)
+      # - /path/to/tautulli/library:/tautulli-data
     
     restart: unless-stopped
     
