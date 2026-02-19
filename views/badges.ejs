@@ -10,19 +10,43 @@
     margin-bottom: 50px;
   }
 
+  .badges-header-top {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 15px;
+  }
+
+  .back-button {
+    color: #a0a0a0;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(160, 160, 160, 0.3);
+    display: inline-block;
+  }
+
+  .back-button:hover {
+    color: #E5A00D;
+    background: rgba(229, 160, 13, 0.1);
+    border-color: rgba(229, 160, 13, 0.5);
+  }
+
   .badges-title {
-    font-size: 42px;
+    font-size: 32px;
     font-weight: bold;
     color: #E5A00D;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 10px;
+    letter-spacing: 1px;
+    margin: 0;
   }
 
   .badges-subtitle {
     font-size: 14px;
     color: #a0a0a0;
-    margin-bottom: 30px;
+    margin: 0;
   }
 
   /* STATS */
@@ -251,9 +275,12 @@
 </style>
 
 <div class="badges-container">
-  <!-- HEADER -->
+  <!-- HEADER WITH BACK BUTTON -->
   <div class="badges-header">
-    <h1 class="badges-title">Mes Badges</h1>
+    <div class="badges-header-top">
+      <a href="<%= basePath %>/profil" class="back-button">← Retour au Profil</a>
+      <h1 class="badges-title">Mes Badges</h1>
+    </div>
     <p class="badges-subtitle">Débloquez des badges en regardant du contenu sur Dark TV !</p>
   </div>
 
