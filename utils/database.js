@@ -94,18 +94,61 @@ function runMigrations() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         username TEXT NOT NULL,
-        media_type TEXT,
-        title TEXT,
+        media_type TEXT NOT NULL,
+        title TEXT NOT NULL,
         duration_seconds INTEGER DEFAULT 0,
+        session_timestamp INTEGER NOT NULL,
         session_date DATETIME NOT NULL,
         watched_status REAL DEFAULT 0,
         rating_key INTEGER,
+        session_hash TEXT UNIQUE,
         synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-        UNIQUE(user_id, rating_key, session_date)
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
     console.log("[DB] ✅ Table 'tautulli_sessions' vérifiée");
+    
+    // Table: user_watch_stats - Stats pré-calculées PAR UTILISATEUR
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_watch_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE,
+        username TEXT NOT NULL UNIQUE,
+        
+        -- Stats globales
+        session_count INTEGER DEFAULT 0,
+        total_duration_seconds INTEGER DEFAULT 0,
+        last_session_date DATETIME,
+        
+        -- Stats films
+        movie_count INTEGER DEFAULT 0,
+        movie_duration_seconds INTEGER DEFAULT 0,
+        
+        -- Stats séries
+        episode_count INTEGER DEFAULT 0,
+        episode_duration_seconds INTEGER DEFAULT 0,
+        
+        -- Metadata
+        last_sync_timestamp INTEGER,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log("[DB] ✅ Table 'user_watch_stats' vérifiée");
+    
+    // Table: sync_metadata - Historique des syncs pour delta-sync intelligent
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_metadata (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_type TEXT NOT NULL,
+        last_timestamp INTEGER,
+        sessions_processed INTEGER DEFAULT 0,
+        sync_duration_seconds INTEGER DEFAULT 0,
+        synced_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("[DB] ✅ Table 'sync_metadata' vérifiée");
     
     // Index pour perf
     db.exec(`
@@ -114,6 +157,11 @@ function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_session_cache_user ON session_cache(user_id);
       CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_user ON tautulli_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_username ON tautulli_sessions(username);
+      CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_timestamp ON tautulli_sessions(session_timestamp);
+      CREATE INDEX IF NOT EXISTS idx_tautulli_sessions_hash ON tautulli_sessions(session_hash);
+      CREATE INDEX IF NOT EXISTS idx_user_watch_stats_user ON user_watch_stats(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sync_metadata_type ON sync_metadata(sync_type);
+    `);
     `);
     console.log("[DB] ✅ Indexes créés");
     

@@ -468,15 +468,17 @@ router.get("/api/all-users", async (req, res) => {
 
 /**
  * POST /api/sync-tautulli-history
- * Déclenche un sync complet de l'historique Tautulli vers SQLite
- * À faire une seule fois au boot, puis via cron daily
+ * Déclenche un sync de l'historique Tautulli vers SQLite
+ * Body optionnel: { limit: 5000 } (0 = pas de limite)
  */
 router.post("/api/sync-tautulli-history", requireAuth, async (req, res) => {
   try {
     console.log("[API/SYNC] 🚀 Sync Tautulli démarrée par:", req.session.user?.username);
     
+    const limit = req.body?.limit || 5000;  // Par défaut 5000, customisable
+    
     // Lancer le sync en background
-    const result = await syncTautulliHistoryToDatabase();
+    const result = await syncTautulliHistoryToDatabase(limit);
     
     if (result.success) {
       res.json({

@@ -15,6 +15,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 /* =========================
+   MIDDLEWARE
+========================= */
+
+app.use(express.json());  // Parse JSON bodies
+app.use(express.urlencoded({ extended: true }));  // Parse form data
+
+/* =========================
    SESSION
 ========================= */
 
@@ -171,18 +178,20 @@ app.listen(PORT, async () => {
   // 🏥 HEALTH CHECK au démarrage
   await runHealthCheck();
   
-  // 🔄 SYNC TAUTULLI HISTORIQUE au démarrage (première fois = long, ensuite rapide)
-  console.log("[SETUP] Sync Tautulli historique au boot...");
-  try {
-    const syncResult = await syncTautulliHistoryToDatabase();
-    if (syncResult.success) {
-      console.log("[SETUP] ✅ Tautulli sync complétée:", syncResult.sessionsInerted, "sessions insérées");
-    } else {
-      console.warn("[SETUP] ⚠️  Erreur Tautulli sync:", syncResult.error);
-    }
-  } catch (err) {
-    console.warn("[SETUP] ⚠️  Erreur lors du sync Tautulli:", err.message);
-  }
+  // 🔄 SYNC TAUTULLI HISTORIQUE en ARRIÈRE-PLAN (non-bloquant)
+  // Ne pas bloquer le démarrage du serveur - faire ça en async
+  console.log("[SETUP] Sync Tautulli lancé en arrière-plan (non-bloquant)...");
+  syncTautulliHistoryToDatabase()
+    .then(result => {
+      if (result.success) {
+        console.log("[SETUP-BG] ✅ Tautulli sync complétée:", result.sessionsInerted, "sessions");
+      } else {
+        console.warn("[SETUP-BG] ⚠️  Erreur Tautulli sync:", result.error);
+      }
+    })
+    .catch(err => {
+      console.warn("[SETUP-BG] ⚠️  Erreur lors du sync Tautulli:", err.message);
+    });
   
   // Initialiser le cron job avec tous les utilisateurs Overseerr
   console.log("[SETUP] Initialisation du cron job sessions...");
