@@ -415,6 +415,43 @@ body {
   background: #2196f3;
 }
 
+/* =========================
+   NAVBAR SUBSCRIPTION PILL
+========================= */
+.nav-sub-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1.5px solid #333;
+  background: #1a1a1a;
+  color: #aaa;
+  transition: transform .15s ease, box-shadow .15s ease;
+  letter-spacing: .3px;
+}
+.nav-sub-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+/* Variantes dynamiques */
+.nav-sub-pill--active   { border-color: #4caf50; color: #4caf50; background: rgba(76,175,80,.1); }
+.nav-sub-pill--warning  { border-color: #ff9800; color: #ff9800; background: rgba(255,152,0,.1); }
+.nav-sub-pill--expired  { border-color: #f44336; color: #f44336; background: rgba(244,67,54,.1); }
+.nav-sub-pill--unlimited{ border-color: #2196f3; color: #2196f3; background: rgba(33,150,243,.1); }
+.nav-sub-pill--not_found{ border-color: #555;    color: #666;    background: transparent; }
+
+/* Profil sub card — colle le style abonnement dans la grille profil */
+.profil-sub-card.active  { border-left: 4px solid #4caf50; }
+.profil-sub-card.warning { border-left: 4px solid #ff9800; }
+.profil-sub-card.expired { border-left: 4px solid #f44336; }
+.profil-sub-card.unlimited { border-left: 4px solid #2196f3; }
+.profil-sub-card.not_found { border-left: 4px solid #555; }
+
 .cards-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

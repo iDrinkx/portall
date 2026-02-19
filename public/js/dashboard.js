@@ -59,38 +59,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   /* ===============================
-     📅 SUBSCRIPTION
-  =============================== */
-
-  async function loadSubscription() {
-    const statusEl = document.getElementById("subscriptionStatus");
-    const contentEl = document.getElementById("subscriptionContent");
-
-    try {
-      // Vérifier cache local (5 minutes - moins fréquent que stats)
-      let sub = cacheManager.get("subscriptionCache", SUBSCRIPTION_CACHE_DURATION);
-
-      if (!sub) {
-        const res = await fetch(basePath + "/api/subscription");
-        if (!res.ok) throw new Error("API error");
-        sub = await res.json();
-        cacheManager.set("subscriptionCache", sub);
-      }
-
-      statusEl.className = "status-mini " + sub.status;
-      statusEl.textContent = sub.status || "Indispo";
-      
-      // Afficher "X jours restants" ou "Accès illimité"
-      const displayText = sub.daysLeft ? `${sub.daysLeft} jours restants` : "Accès illimité";
-      contentEl.innerHTML = `<p>${displayText}</p>`;
-
-    } catch (err) {
-      console.error("Subscription load error:", err);
-      statusEl.textContent = "Erreur";
-    }
-  }
-
-  /* ===============================
      🎮 UPDATE AVATAR XP COLOR
   =============================== */
 
@@ -138,9 +106,6 @@ document.addEventListener("DOMContentLoaded", async () => {
      🚀 LOAD ALL DATA
   =============================== */
 
-  await Promise.all([
-    loadSubscription(),
-    updateAvatarXpColor()
-  ]);
+  await updateAvatarXpColor();
 
 });

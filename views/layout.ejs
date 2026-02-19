@@ -28,6 +28,7 @@
 
     <!-- Desktop Logout -->
     <div class="nav-right desktop-menu">
+      <a href="<%= basePath %>/abonnement" class="nav-sub-pill" id="navSubPill">&#x2014;</a>
       <a class="logout-btn" href="<%= basePath %>/logout">Déconnexion</a>
     </div>
 
@@ -92,6 +93,23 @@
     });
 
   });
+
+  // --- Bulle abonnement navbar ---
+  (function () {
+    const pill = document.getElementById('navSubPill');
+    if (!pill) return;
+    fetch((window.APP_BASE_PATH || '') + '/api/subscription')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const days = data.daysLeft;
+        if (data.status === 'unlimited') pill.textContent = '\u221e';
+        else if (days) pill.textContent = days + '\u00a0j';
+        else pill.textContent = data.label || '\u2014';
+        pill.classList.add('nav-sub-pill--' + (data.status || 'loading'));
+      })
+      .catch(() => {});
+  })();
 </script>
 
 

@@ -56,10 +56,26 @@
     </div>
 
     <!-- CARTE ABONNEMENT -->
-    <div class="profil-card">
+    <div class="profil-card profil-sub-card" id="profilSubCard">
       <h2>📅 Abonnement</h2>
-      <div class="card-content" id="subscriptionCard">
-        <p style="color: #aaa;">Chargement des informations...</p>
+      <div class="card-content">
+        <div class="subscription-row">
+          <span class="label">Statut</span>
+          <span class="status-badge loading" id="profilSubStatus">Chargement...</span>
+        </div>
+        <div class="subscription-row">
+          <span class="label">Jours restants</span>
+          <span class="value" id="profilSubDays">—</span>
+        </div>
+        <div class="subscription-row">
+          <span class="label">Expire le</span>
+          <span class="value" id="profilSubExpire">—</span>
+        </div>
+        <div class="progress-wrapper">
+          <div class="progress-bar">
+            <div class="progress" id="profilSubProgress" style="width:0%"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1021,32 +1037,25 @@
       console.log("[PROFIL] ✅ Overseerr affiché:", overseerrData);
       
       // Afficher abonnement IMMÉDIATEMENT
-      const subCardEl = document.getElementById("subscriptionCard");
+      const profilSubCard    = document.getElementById('profilSubCard');
+      const profilSubStatus  = document.getElementById('profilSubStatus');
+      const profilSubDays    = document.getElementById('profilSubDays');
+      const profilSubExpire  = document.getElementById('profilSubExpire');
+      const profilSubProgress = document.getElementById('profilSubProgress');
+
       if (subscriptionData && subscriptionData.label) {
-        const subHtml = `
-          <div class="stat-row">
-            <span class="stat-label">Statut</span>
-            <span class="stat-value">${subscriptionData.label}</span>
-          </div>
-          ${subscriptionData.daysLeft ? `
-          <div class="stat-row">
-            <span class="stat-label">Jours restants</span>
-            <span class="stat-value">${subscriptionData.daysLeft}</span>
-          </div>
-          ` : ''}
-          ${subscriptionData.expiresAt ? `
-          <div class="stat-row">
-            <span class="stat-label">Expire le</span>
-            <span class="stat-value">${subscriptionData.expiresAt}</span>
-          </div>
-          ` : ''}
-        `;
-        if (subCardEl) {
-          subCardEl.innerHTML = subHtml;
-          console.log("[PROFIL] ✅ Abonnement affiché");
+        if (profilSubCard) profilSubCard.className = 'profil-card profil-sub-card ' + (subscriptionData.status || '');
+        if (profilSubStatus) {
+          profilSubStatus.className = 'status-badge ' + (subscriptionData.status || '');
+          profilSubStatus.textContent = subscriptionData.label;
         }
-      } else if (subCardEl) {
-        subCardEl.innerHTML = `<p style="color: #aaa;">Aucune donnée d'abonnement disponible</p>`;
+        if (profilSubDays) profilSubDays.textContent = subscriptionData.daysLeft ? subscriptionData.daysLeft + ' jours' : '\u2014';
+        if (profilSubExpire) profilSubExpire.textContent = subscriptionData.expiresAt || '\u2014';
+        if (profilSubProgress) profilSubProgress.style.width = (subscriptionData.progressPercent || 0) + '%';
+        console.log('[PROFIL] \u2705 Abonnement affiché');
+      } else if (profilSubStatus) {
+        profilSubStatus.className = 'status-badge not_found';
+        profilSubStatus.textContent = 'Non trouvé';
       }
       
       // ÉTAPE 3: Charger Tautulli en PARALLÈLE (peut prendre du temps)
