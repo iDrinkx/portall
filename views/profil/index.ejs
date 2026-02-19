@@ -156,21 +156,79 @@
 
   <!-- BREAKDOWN XP -->
   <div class="xp-breakdown">
-    <h3>Détail du Calcul XP</h3>
-    <div class="breakdown-grid">
-      <div class="breakdown-item">
-        <div class="breakdown-icon">🎮</div>
-        <div class="breakdown-detail">
-          <div class="breakdown-label">Sessions Tautulli</div>
-          <div class="breakdown-formula" id="sessionFormulaXp"></div>
-          <small id="sessionCount2"></small>
+    <h3>⚡ Répartition de mon XP</h3>
+    
+    <div class="xp-breakdown-grid">
+      <!-- SOURCES D'XP -->
+      <div class="xp-sources">
+        <h4>Sources d'XP</h4>
+        
+        <div class="xp-source">
+          <div class="source-header">
+            <span class="source-name">⏱️ Heures visionnées</span>
+            <span class="source-value" id="xpHoursValue">0</span>
+          </div>
+          <div class="source-bar">
+            <div class="source-bar-fill hours" id="xpHoursBar" style="width: 0%"></div>
+          </div>
+          <div class="source-percent">
+            <span id="xpHoursPercent">0%</span>
+          </div>
+        </div>
+
+        <div class="xp-source">
+          <div class="source-header">
+            <span class="source-name">🏅 Badges débloqués</span>
+            <span class="source-value" id="xpBadgesValue">0</span>
+          </div>
+          <div class="source-bar">
+            <div class="source-bar-fill badges" id="xpBadgesBar" style="width: 0%"></div>
+          </div>
+          <div class="source-percent">
+            <span id="xpBadgesPercent">0%</span>
+          </div>
+        </div>
+
+        <div class="xp-source">
+          <div class="source-header">
+            <span class="source-name">📅 Ancienneté</span>
+            <span class="source-value" id="xpAncienneteValue">0</span>
+          </div>
+          <div class="source-bar">
+            <div class="source-bar-fill anciennete" id="xpAncienneteBar" style="width: 0%"></div>
+          </div>
+          <div class="source-percent">
+            <span id="xpAnciennetePercent">0%</span>
+          </div>
         </div>
       </div>
-      <div class="breakdown-item highlight">
-        <div class="breakdown-icon">⭐</div>
-        <div class="breakdown-detail">
-          <div class="breakdown-label">Total XP</div>
-          <div class="breakdown-total" id="totalXpFormula">0 XP</div>
+
+      <!-- DÉTAILS PAR CATÉGORIE -->
+      <div class="xp-details">
+        <h4>Détails par catégorie</h4>
+        
+        <div class="detail-card hours-card">
+          <div class="detail-icon">⏱️</div>
+          <div class="detail-info">
+            <div class="detail-label">Heures visionnées</div>
+            <div class="detail-value" id="detailProfilHours">0h</div>
+          </div>
+        </div>
+
+        <div class="detail-card badges-card">
+          <div class="detail-icon">🏅</div>
+          <div class="detail-info">
+            <div class="detail-label">Badges débloqués</div>
+            <div class="detail-value" id="detailProfilBadges">0/46</div>
+          </div>
+        </div>
+
+        <div class="detail-card anciennete-card">
+          <div class="detail-icon">📅</div>
+          <div class="detail-info">
+            <div class="detail-label">Jours depuis inscription</div>
+            <div class="detail-value" id="detailProfilAnciennete">0 j</div>
+          </div>
         </div>
       </div>
     </div>
@@ -465,68 +523,167 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 24px;
+    margin-top: 40px;
   }
 
   .xp-breakdown h3 {
     margin-top: 0;
+    margin-bottom: 30px;
+    color: #E5A00D;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .xp-breakdown-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+
+  /* SOURCES D'XP */
+  .xp-sources h4 {
+    font-size: 14px;
+    color: #fff;
+    margin: 0 0 20px 0;
+    font-weight: 600;
+  }
+
+  .xp-source {
     margin-bottom: 20px;
+  }
+
+  .source-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .source-name {
+    font-size: 13px;
+    font-weight: 500;
     color: #fff;
   }
 
-  .breakdown-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+  .source-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
   }
 
-  .breakdown-item {
-    display: flex;
-    gap: 15px;
+  .source-bar {
+    width: 100%;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .source-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
+  .source-bar-fill.hours {
+    background: linear-gradient(90deg, #3498db, #2980b9);
+  }
+
+  .source-bar-fill.badges {
+    background: linear-gradient(90deg, #e67e22, #d35400);
+  }
+
+  .source-bar-fill.anciennete {
+    background: linear-gradient(90deg, #1abc9c, #16a085);
+  }
+
+  .source-percent {
+    font-size: 11px;
+    color: #a0a0a0;
+  }
+
+  /* DÉTAILS PAR CATÉGORIE */
+  .xp-details h4 {
+    font-size: 14px;
+    color: #fff;
+    margin: 0 0 20px 0;
+    font-weight: 600;
+  }
+
+  .detail-card {
     padding: 16px;
+    border-radius: 10px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 12px;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 8px;
-    border-left: 3px solid rgba(255, 255, 255, 0.1);
   }
 
-  .breakdown-item.highlight {
-    background: rgba(102, 126, 234, 0.1);
-    border-left-color: #667eea;
-  }
-
-  .breakdown-icon {
+  .detail-icon {
     font-size: 24px;
     flex-shrink: 0;
   }
 
-  .breakdown-detail {
+  .detail-info {
     flex: 1;
   }
 
-  .breakdown-label {
-    font-size: 12px;
-    color: #aaa;
+  .detail-label {
+    font-size: 11px;
+    color: #a0a0a0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
-  }
-
-  .breakdown-formula {
-    font-size: 16px;
-    font-weight: 600;
-    color: #fff;
     margin-bottom: 4px;
   }
 
-  .breakdown-formula small,
-  .breakdown-detail small {
-    color: #888;
-    font-size: 11px;
+  .detail-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
   }
 
-  .breakdown-total {
-    font-size: 18px;
-    font-weight: 700;
-    color: #667eea;
+  .hours-card {
+    border-left-color: #3498db;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(41, 128, 185, 0.05));
+  }
+
+  .hours-card .detail-value {
+    color: #3498db;
+  }
+
+  .badges-card {
+    border-left-color: #e67e22;
+    background: linear-gradient(135deg, rgba(230, 126, 34, 0.1), rgba(211, 84, 0, 0.05));
+  }
+
+  .badges-card .detail-value {
+    color: #e67e22;
+  }
+
+  .anciennete-card {
+    border-left-color: #1abc9c;
+    background: linear-gradient(135deg, rgba(26, 188, 156, 0.1), rgba(22, 160, 133, 0.05));
+  }
+
+  .anciennete-card .detail-value {
+    color: #1abc9c;
+  }
+
+  @media (max-width: 768px) {
+    .xp-breakdown-grid {
+      grid-template-columns: 1fr;
+      gap: 30px;
+    }
+  }
+
+  .breakdown-grid {
+    display: none;
+  }
+
+  .breakdown-item {
+    display: none;
   }
 
   /* RESPONSIVE */
@@ -1041,13 +1198,67 @@
         xpNeeded.textContent = progress.xpNeeded > 0 ? `${progress.xpNeeded} XP avant ${progress.next?.name || "max"}` : "Max atteint!";
       }
 
-      // Formules XP
+      // CALCUL XP BREAKDOWN avec 3 sources
+      const XP_MULTIPLIERS = {
+        HOURS: 8,
+        BADGE: 140,
+        ANCIENNETE: 5,
+        LEVEL: 100
+      };
+
+      const hoursXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
+      const badgesXp = 0; // À améliorer avec nombre de badges réels
+      const daysJoined = Math.floor((Date.now() - (joinedAtObj.getTime())) / (1000 * 60 * 60 * 24));
+      const ancienneteXp = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
+
+      const totalXpBreakdown = hoursXp + badgesXp + ancienneteXp;
+      
+      // Calculer les pourcentages
+      const hoursPercent = totalXpBreakdown > 0 ? Math.round((hoursXp / totalXpBreakdown) * 100) : 0;
+      const badgesPercent = totalXpBreakdown > 0 ? Math.round((badgesXp / totalXpBreakdown) * 100) : 0;
+      const anciennetePercent = totalXpBreakdown > 0 ? Math.round((ancienneteXp / totalXpBreakdown) * 100) : 0;
+
+      // Mettre à jour les sources d'XP
+      const xpHoursValue = document.getElementById("xpHoursValue");
+      const xpHoursBar = document.getElementById("xpHoursBar");
+      const xpHoursPercent = document.getElementById("xpHoursPercent");
+      
+      if (xpHoursValue) xpHoursValue.textContent = hoursXp.toLocaleString() + " XP";
+      if (xpHoursBar) xpHoursBar.style.width = hoursPercent + "%";
+      if (xpHoursPercent) xpHoursPercent.textContent = hoursPercent + "%";
+
+      const xpBadgesValue = document.getElementById("xpBadgesValue");
+      const xpBadgesBar = document.getElementById("xpBadgesBar");
+      const xpBadgesPercent = document.getElementById("xpBadgesPercent");
+      
+      if (xpBadgesValue) xpBadgesValue.textContent = badgesXp.toLocaleString() + " XP";
+      if (xpBadgesBar) xpBadgesBar.style.width = badgesPercent + "%";
+      if (xpBadgesPercent) xpBadgesPercent.textContent = badgesPercent + "%";
+
+      const xpAncienneteValue = document.getElementById("xpAncienneteValue");
+      const xpAncienneteBar = document.getElementById("xpAncienneteBar");
+      const xpAnciennetePercent = document.getElementById("xpAnciennetePercent");
+      
+      if (xpAncienneteValue) xpAncienneteValue.textContent = ancienneteXp.toLocaleString() + " XP";
+      if (xpAncienneteBar) xpAncienneteBar.style.width = anciennetePercent + "%";
+      if (xpAnciennetePercent) xpAnciennetePercent.textContent = anciennetePercent + "%";
+
+      // Mettre à jour les détails par catégorie
+      const detailProfilHours = document.getElementById("detailProfilHours");
+      const detailProfilBadges = document.getElementById("detailProfilBadges");
+      const detailProfilAnciennete = document.getElementById("detailProfilAnciennete");
+      
+      if (detailProfilHours) detailProfilHours.textContent = Math.round(totalHours * 10) / 10 + "h";
+      if (detailProfilBadges) detailProfilBadges.textContent = "0/46"; // À mettre à jour
+      if (detailProfilAnciennete) detailProfilAnciennete.textContent = daysJoined + " j";
+
+      // Formules XP (anciens éléments - les cacher)
       const formulaSessionEl = document.getElementById("sessionFormulaXp");
       const formulaTotalEl = document.getElementById("totalXpFormula");
       console.log("[DOM] FormulaSessions:", !!formulaSessionEl);
       
-      if (formulaSessionEl) formulaSessionEl.textContent = `${Math.round(totalHours * 10) / 10} heures × 1 = ${totalXp} XP`;
-      if (formulaTotalEl) formulaTotalEl.textContent = `${totalXp} XP`;
+      if (formulaSessionEl) formulaSessionEl.style.display = "none";
+      if (formulaTotalEl) formulaTotalEl.style.display = "none";
 
       // Activer les badges débloqués
       const badgeItems = document.querySelectorAll(".badge-item");
@@ -1103,12 +1314,43 @@
               }
             });
             
-            // Update formules
+            // Update formules / sources d'XP
+            const newHoursXp = Math.round(newTotalHours * 8);
+            const newDaysJoined = Math.floor((Date.now() - (new Date(readyStats.joinedAt).getTime())) / (1000 * 60 * 60 * 24));
+            const newAncienneteXp = newDaysJoined * 5;
+            const newTotalXpBreakdown = newHoursXp + 0 + newAncienneteXp;
+            
+            const newHoursPercent = newTotalXpBreakdown > 0 ? Math.round((newHoursXp / newTotalXpBreakdown) * 100) : 0;
+            const newAnciennetePercent = newTotalXpBreakdown > 0 ? Math.round((newAncienneteXp / newTotalXpBreakdown) * 100) : 0;
+            
+            const xpHoursValue = document.getElementById("xpHoursValue");
+            const xpHoursBar = document.getElementById("xpHoursBar");
+            const xpHoursPercent = document.getElementById("xpHoursPercent");
+            
+            if (xpHoursValue) xpHoursValue.textContent = newHoursXp.toLocaleString() + " XP";
+            if (xpHoursBar) xpHoursBar.style.width = newHoursPercent + "%";
+            if (xpHoursPercent) xpHoursPercent.textContent = newHoursPercent + "%";
+            
+            const xpAncienneteValue = document.getElementById("xpAncienneteValue");
+            const xpAncienneteBar = document.getElementById("xpAncienneteBar");
+            const xpAnciennetePercent = document.getElementById("xpAnciennetePercent");
+            
+            if (xpAncienneteValue) xpAncienneteValue.textContent = newAncienneteXp.toLocaleString() + " XP";
+            if (xpAncienneteBar) xpAncienneteBar.style.width = newAnciennetePercent + "%";
+            if (xpAnciennetePercent) xpAnciennetePercent.textContent = newAnciennetePercent + "%";
+            
+            const detailProfilHours = document.getElementById("detailProfilHours");
+            const detailProfilAnciennete = document.getElementById("detailProfilAnciennete");
+            
+            if (detailProfilHours) detailProfilHours.textContent = Math.round(newTotalHours * 10) / 10 + "h";
+            if (detailProfilAnciennete) detailProfilAnciennete.textContent = newDaysJoined + " j";
+            
+            // Old formulas (hide)
             const formulaSessionEl = document.getElementById("sessionFormulaXp");
             const formulaTotalEl = document.getElementById("totalXpFormula");
             
-            if (formulaSessionEl) formulaSessionEl.textContent = `${Math.round(newTotalHours * 10) / 10} heures × 1 = ${newTotalXp} XP`;
-            if (formulaTotalEl) formulaTotalEl.textContent = `${newTotalXp} XP`;
+            if (formulaSessionEl) formulaSessionEl.style.display = "none";
+            if (formulaTotalEl) formulaTotalEl.style.display = "none";
             
             // Update badge and avatar color
             const newBadge = XP_SYSTEM.getBadgeByXp(newTotalXp);
