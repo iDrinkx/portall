@@ -26,33 +26,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   /* ===============================
-     🕒 DATE UTILITIES
-  =============================== */
-
-  function formatRelativeTime(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
-    const diffWeek = Math.floor(diffDay / 7);
-    const diffMonth = Math.floor(diffDay / 30);
-    const diffYear = Math.floor(diffDay / 365);
-
-    if (diffYear > 0) return `il y a ${diffYear} an${diffYear > 1 ? 's' : ''}`;
-    if (diffMonth > 0) return `il y a ${diffMonth} mois`;
-    if (diffWeek > 0) return `il y a ${diffWeek} semaine${diffWeek > 1 ? 's' : ''}`;
-    if (diffDay > 0) return `il y a ${diffDay} jour${diffDay > 1 ? 's' : ''}`;
-    if (diffHour > 0) return `il y a ${diffHour}h`;
-    if (diffMin > 0) return `il y a ${diffMin}min`;
-    return 'À l\'instant';
-  }
-
-  window.formatRelativeTime = formatRelativeTime;
-
-  /* ===============================
      💾 CACHE UTILITIES
   =============================== */
 
@@ -82,15 +55,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const cacheKey = `${key}:${userId}`;
       sessionStorage.removeItem(cacheKey);
       sessionStorage.removeItem(`${cacheKey}:time`);
-    },
-
-    invalidateAll() {
-      ["subscriptionCache", "statsCache", "overseerrCache"].forEach(key => this.invalidate(key));
     }
   };
-
-  // Expose pour utilisation depuis le HTML si besoin
-  window.cacheManager = cacheManager;
 
   /* ===============================
      📅 SUBSCRIPTION
@@ -121,74 +87,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       console.error("Subscription load error:", err);
       statusEl.textContent = "Erreur";
-    }
-  }
-
-  /* =====================================
-     📊 STATS (Tautulli + Overseerr)
-  ===================================== */
-
-  async function loadStats() {
-    const statusEl = document.getElementById("statsStatus");
-    const contentEl = document.getElementById("statsContent");
-
-    try {
-      // Charger Tautulli stats
-      let tautulliData = cacheManager.get("statsCache", STATS_CACHE_DURATION);
-      if (!tautulliData) {
-        const res = await fetch(basePath + "/api/stats", {
-          headers: { "Accept": "application/json" }
-        });
-        if (!res.ok) throw new Error("stats_api_error");
-        tautulliData = await res.json();
-        cacheManager.set("statsCache", tautulliData);
-      }
-
-      // Charger Overseerr stats
-      let overseerrData = cacheManager.get("overseerrCache", STATS_CACHE_DURATION);
-      if (!overseerrData) {
-        const res = await fetch(basePath + "/api/overseerr", {
-          headers: { "Accept": "application/json" }
-        });
-        if (!res.ok) throw new Error("overseerr_api_error");
-        overseerrData = await res.json();
-        cacheManager.set("overseerrCache", overseerrData);
-      }
-
-      // Vérifier si on a au moins une donnée
-      const hasTautulliData = tautulliData && (tautulliData.joinedAt || tautulliData.lastActivity);
-      const hasOverseerrData = overseerrData && overseerrData.total > 0;
-
-      if (!hasTautulliData && !hasOverseerrData) {
-        statusEl.className = "status-mini loading";
-        statusEl.textContent = "Indispo";
-        contentEl.innerHTML = `<p class="subscription-loading">Données indisponibles.</p>`;
-        return;
-      }
-
-      statusEl.className = "status-mini active";
-      statusEl.textContent = "OK";
-
-      let html = "";
-
-      // Afficher derniere activité Tautulli en format relatif
-      if (hasTautulliData && tautulliData.lastActivity) {
-        const last = formatRelativeTime(tautulliData.lastActivity);
-        html += `<p style="font-size:14px; margin-bottom:6px;">🕒 Dernière activité : <strong>${last}</strong></p>`;
-      }
-
-      // Afficher nombre de demandes Overseerr
-      if (hasOverseerrData) {
-        html += `<p style="color:#bbb; font-size:13px;">🎬 Demandes : ${overseerrData.total}</p>`;
-      }
-
-      contentEl.innerHTML = html;
-
-    } catch (err) {
-      console.error("Stats load error:", err);
-      statusEl.className = "status-mini expired";
-      statusEl.textContent = "Erreur";
-      contentEl.innerHTML = `<p class="subscription-expired">Impossible de charger</p>`;
     }
   }
 
@@ -224,7 +122,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Calculer l'XP
       const sessionCount = tautulliData?.sessionCount || 0;
-      const totalRequests = overseerrData?.total || 0;
       const totalXp = sessionCount * 2; // Overseerr ne procure plus d'XP
 
       // Obtenir le badge couleur
@@ -243,7 +140,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await Promise.all([
     loadSubscription(),
-    loadStats(),
     updateAvatarXpColor()
   ]);
 
