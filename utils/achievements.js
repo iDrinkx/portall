@@ -331,8 +331,8 @@ const ACHIEVEMENTS = {
     }
   ],
 
-  // 🔒 SECRETS
-  secrets: [
+  // 🎬 COLLECTIONS
+  collections: [
     {
       id: "marvel-fan",
       name: "Marvel Fan",
@@ -342,7 +342,7 @@ const ACHIEVEMENTS = {
       conditionText: "A regardé toute la collection Marvel Cinematic Universe",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
-      category: "secrets",
+      category: "collections",
       isSecret: false,
       revocable: true
     },
@@ -355,7 +355,20 @@ const ACHIEVEMENTS = {
       conditionText: "Fan de l'univers de Star Wars",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
-      category: "secrets",
+      category: "collections",
+      isSecret: false,
+      revocable: true
+    },
+    {
+      id: "black-knight",
+      name: "Maître Jedi",
+      icon: "🧑‍⚖️",
+      description: "Fan de l'univers de Star Wars",
+      condition: (data) => false,
+      conditionText: "Fan de l'univers de Star Wars",
+      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
+      unlockedDate: null,
+      category: "collections",
       isSecret: false,
       revocable: true
     },
@@ -368,7 +381,7 @@ const ACHIEVEMENTS = {
       conditionText: "A survécu à tous les parcs — les 7 films Jurassic",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
-      category: "secrets",
+      category: "collections",
       isSecret: false,
       revocable: true
     },
@@ -381,11 +394,40 @@ const ACHIEVEMENTS = {
       conditionText: "Fan de l'univers d'Harry Potter",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
-      category: "secrets",
+      category: "collections",
       isSecret: false,
       revocable: true
     },
+    {
+      id: "tolkiendil",
+      name: "Tolkiendil",
+      icon: "👑",
+      description: "Fan de l'univers de Tolkien",
+      condition: (data) => false,
+      conditionText: "Fan de l'univers de Tolkien",
+      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
+      unlockedDate: null,
+      category: "collections",
+      isSecret: false,
+      revocable: true
+    },
+    {
+      id: "evolutionist",
+      name: "Évolutionniste",
+      icon: "🐵",
+      description: "Fan de l'univers de la Planète des Singes",
+      condition: (data) => false,
+      conditionText: "Fan de l'univers de la Planète des Singes",
+      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
+      unlockedDate: null,
+      category: "collections",
+      isSecret: false,
+      revocable: true
+    }
+  ],
 
+  // 🔒 SECRETS
+  secrets: [
     {
       id: "weekend-warrior",
       name: "Guerrier du Week-end",
@@ -397,19 +439,6 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "secrets",
       isSecret: false
-    },
-    {
-      id: "black-knight",
-      name: "Maître Jedi",
-      icon: "🧑‍⚖️",
-      description: "Fan de l'univers de Star Wars",
-      condition: (data) => false,
-      conditionText: "Fan de l'univers de Star Wars",
-      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: null,
-      category: "secrets",
-      isSecret: false,
-      revocable: true
     },
     {
       id: "countdown-pajama",
@@ -424,38 +453,12 @@ const ACHIEVEMENTS = {
       isSecret: false
     },
     {
-      id: "evolutionist",
-      name: "Évolutionniste",
-      icon: "🐵",
-      description: "Fan de l'univers de la Planète des Singes",
-      condition: (data) => false,
-      conditionText: "Fan de l'univers de la Planète des Singes",
-      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: null,
-      category: "secrets",
-      revocable: true,
-      isSecret: false
-    },
-    {
       id: "midnight-watcher",
       name: "Spectateur de Minuit",
       icon: "🌙",
       description: "Regarder un contenu exactement à minuit",
       condition: (data) => false,
       conditionText: "Regarder un contenu exactement à minuit",
-      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: null,
-      category: "secrets",
-      isSecret: false
-    },
-    {
-      id: "tolkiendil",
-      name: "Tolkiendil",
-      icon: "👑",
-      description: "Fan de l'univers de Tolkien",
-      revocable: true,
-      condition: (data) => false,
-      conditionText: "Fan de l'univers de Tolkien",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
@@ -471,6 +474,7 @@ const ACHIEVEMENTS = {
       ...this.films,
       ...this.series,
       ...this.mensuels,
+      ...this.collections,
       ...this.secrets
     ];
   },

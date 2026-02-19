@@ -206,6 +206,7 @@ router.get("/badges", requireAuth, async (req, res) => {
       films: { icon: "🎬", name: "Films", achievements: ACHIEVEMENTS.films },
       series: { icon: "📺", name: "Séries", achievements: ACHIEVEMENTS.series },
       mensuels: { icon: "📅", name: "Mensuels", achievements: ACHIEVEMENTS.mensuels },
+      collections: { icon: "🎥", name: "Collections", achievements: ACHIEVEMENTS.collections },
       secrets: { icon: "🔒", name: "Secrets", achievements: ACHIEVEMENTS.secrets }
     };
 
@@ -242,6 +243,7 @@ router.get("/badges", requireAuth, async (req, res) => {
       if (userUnlockedMap[a.id]) continue;          // déjà en cache → skip
       if (a.isSecret) continue;                     // secrets via Tautulli uniquement
       if (a.category === 'secrets') continue;       // secrets auto traités ci-dessous
+      if (a.category === 'collections') continue;   // collections auto traités via Tautulli
       if (!a.condition(data)) continue;             // condition non remplie → skip
       const date = computedDates[a.id] || today;
       if (dbUserId) {
@@ -253,13 +255,13 @@ router.get("/badges", requireAuth, async (req, res) => {
     // ── 3. Évaluer les succès secrets en ARRIÈRE-PLAN (ne bloque pas le rendu)
     // Les badges revocable (collection) sont TOUJOURS re-évalués même si déjà débloqués
     // Les badges événementiels (minuit, week-end...) ne sont évalués que s'ils ne sont pas encore débloqués
-    const secretsToCheck = ACHIEVEMENTS.secrets
+    const secretsToCheck = [...ACHIEVEMENTS.collections, ...ACHIEVEMENTS.secrets]
       .filter(a => !a.isSecret && (!userUnlockedMap[a.id] || a.revocable))
       .map(a => a.id);
 
     // IDs des badges revocable déjà débloqués (pour détecter les régressions)
     const revocableUnlocked = new Set(
-      ACHIEVEMENTS.secrets
+      [...ACHIEVEMENTS.collections, ...ACHIEVEMENTS.secrets]
         .filter(a => a.revocable && userUnlockedMap[a.id])
         .map(a => a.id)
     );
