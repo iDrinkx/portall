@@ -268,7 +268,7 @@ router.get("/badges", requireAuth, async (req, res) => {
 
     if (secretsToCheck.length > 0 && isTautulliReady()) {
       // Lancer sans await : rendu immédiat, unlock/revoke persisté pour la prochaine visite
-      evaluateSecretAchievements(username, joinedAtTs, secretsToCheck)
+      evaluateSecretAchievements(username, joinedAtTs, secretsToCheck, req.session.user.id)
         .then(({ unlocked: newSecrets, progress: newProgress }) => {
           // Débloquer les nouveaux succès
           for (const [id, date] of Object.entries(newSecrets)) {
@@ -856,15 +856,17 @@ router.get("/api/debug/collection/:collectionId", requireAuth, async (req, res) 
       const hasYear = cols.some(c => c.name === 'year');
       out.shm_has_year_column = hasYear;
 
-      // Tous les films jurassic regardés par l'utilisateur (version brute sans filtre title+year)
+      // Tous les films jurassic regardés par l'utilisateur (version brute par user_id)
+      const plexUserId = req.session.user.id;
       const rawJurassic = tDb.prepare(`
-        SELECT DISTINCT shm.title, shm.year, sh.media_type, sh.user
+        SELECT DISTINCT shm.title, shm.year, sh.media_type, sh.user, sh.user_id
         FROM session_history sh
         JOIN session_history_metadata shm ON sh.id = shm.id
-        WHERE LOWER(sh.user) = ? AND LOWER(shm.title) LIKE '%jurassic%'
+        WHERE sh.user_id = ? AND LOWER(shm.title) LIKE '%jurassic%'
         ORDER BY shm.title
-      `).all(username);
+      `).all(plexUserId);
       out.raw_jurassic_in_tautulli = rawJurassic;
+      out.searched_user_id = plexUserId;
 
       // Tester le matching title+year exact si on a les items Plex
       if (out.plex_collection_items && out.plex_collection_items.length > 0 && hasYear) {
@@ -874,12 +876,12 @@ router.get("/api/debug/collection/:collectionId", requireAuth, async (req, res) 
               SELECT COUNT(*) as cnt, shm.title as db_title, shm.year as db_year
               FROM session_history sh
               JOIN session_history_metadata shm ON sh.id = shm.id
-              WHERE LOWER(sh.user) = ?
+              WHERE sh.user_id = ?
                 AND sh.stopped > sh.started
                 AND sh.media_type = 'movie'
                 AND LOWER(shm.title) = ?
                 AND shm.year = ?
-            `).get(username, m.title.toLowerCase(), m.year);
+            `).get(plexUserId, m.title.toLowerCase(), m.year);
             return { plex_title: m.title, plex_year: m.year, found: (row?.cnt || 0) > 0, db_title: row?.db_title, db_year: row?.db_year };
           } catch(e) { return { plex_title: m.title, error: e.message }; }
         });
@@ -893,11 +895,11 @@ router.get("/api/debug/collection/:collectionId", requireAuth, async (req, res) 
           SELECT COUNT(DISTINCT shm.title) as cnt
           FROM session_history sh
           JOIN session_history_metadata shm ON sh.id = shm.id
-          WHERE LOWER(sh.user) = ?
+          WHERE sh.user_id = ?
             AND sh.stopped > sh.started
             AND sh.media_type = 'movie'
             AND LOWER(shm.title) LIKE '%jurassic%'
-        `).get(username);
+        `).get(plexUserId);
         out.fallback_like_count = likeRows?.cnt || 0;
       } catch(e) { out.fallback_like_error = e.message; }
 

@@ -427,7 +427,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
 /**
  * 🔍 Évaluer les succès secrets auto-détectables depuis l'historique Tautulli
  */
-async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckIds = []) {
+async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckIds = [], plexUserId = null) {
   const results = {};
   const progress = {};
   if (!tautulliDb || toCheckIds.length === 0) return { unlocked: results, progress };
@@ -435,6 +435,13 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const norm = username.toLowerCase();
   const fmt  = (ts) => ts ? new Date(ts * 1000).toLocaleDateString('fr-FR') : null;
   const today = new Date().toLocaleDateString('fr-FR');
+
+  // Préférer le filtrage par user_id numérique (stable même si le username change)
+  // car un même utilisateur Plex peut apparaître sous plusieurs noms dans Tautulli
+  const userFilter = plexUserId
+    ? { clause: 'sh.user_id = ?', param: plexUserId }
+    : { clause: 'LOWER(sh.user) = ?', param: norm };
+  console.log(`[TAUTULLI-DIRECT] 🔑 Filtre user: ${userFilter.clause} = ${userFilter.param}`);
 
   /**
    * Compte les films regardés par l'utilisateur via le titre (LIKE patterns).
@@ -452,9 +459,9 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       const row = tautulliDb.prepare(`
         SELECT COUNT(DISTINCT sh.rating_key) as cnt, MAX(sh.stopped) as last_stopped
         FROM session_history sh
-        WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+        WHERE ${userFilter.clause} AND sh.stopped > sh.started
           AND sh.media_type = 'movie' AND sh.rating_key IN (${ph})
-      `).get(norm, ...ratingKeys);
+      `).get(userFilter.param, ...ratingKeys);
       return row || { cnt: 0, last_stopped: null };
     } catch(e) {
       console.error('[TAUTULLI-DIRECT] ❌ countMoviesByLike error:', e.message);
@@ -470,13 +477,13 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
     if (!movies || !movies.length) return { cnt: 0, last_stopped: null };
     try {
       const orClauses = movies.map(() => '(LOWER(shm.title) = ? AND shm.year = ?)').join(' OR ');
-      const params = [norm, ...movies.flatMap(m => [m.title.toLowerCase(), m.year])];
+      const params = [userFilter.param, ...movies.flatMap(m => [m.title.toLowerCase(), m.year])];
       const row = tautulliDb.prepare(`
         SELECT COUNT(DISTINCT LOWER(shm.title) || COALESCE(shm.year,'')) as cnt,
                MAX(sh.stopped) as last_stopped
         FROM session_history sh
         JOIN session_history_metadata shm ON sh.id = shm.id
-        WHERE LOWER(sh.user) = ?
+        WHERE ${userFilter.clause}
           AND sh.stopped > sh.started
           AND sh.media_type = 'movie'
           AND (${orClauses})
@@ -584,10 +591,10 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           try {
             const r = tautulliDb.prepare(`
               SELECT sh.started FROM session_history sh
-              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+              WHERE ${userFilter.clause} AND sh.stopped > sh.started
                 AND CAST(strftime('%H', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) = 0
               ORDER BY sh.started ASC LIMIT 1
-            `).get(norm);
+            `).get(userFilter.param);
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { console.error('[TAUTULLI-DIRECT] midnight-watcher error:', e.message); }
           break;
@@ -602,11 +609,11 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 SUM(CAST(sh.stopped - sh.started AS REAL) / 3600) as hours,
                 MAX(sh.stopped) as last_stopped
               FROM session_history sh
-              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+              WHERE ${userFilter.clause} AND sh.stopped > sh.started
                 AND CAST(strftime('%w', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) IN (0, 6)
               GROUP BY week HAVING hours >= 20
               ORDER BY week ASC LIMIT 1
-            `).get(norm);
+            `).get(userFilter.param);
             if (r) results[id] = fmt(r.last_stopped) || today;
           } catch(e) { console.error('[TAUTULLI-DIRECT] weekend-warrior error:', e.message); }
           break;
@@ -617,10 +624,10 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           try {
             const r = tautulliDb.prepare(`
               SELECT sh.started FROM session_history sh
-              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+              WHERE ${userFilter.clause} AND sh.stopped > sh.started
                 AND strftime('%m-%d', datetime(sh.started, 'unixepoch', 'localtime')) = '12-31'
               ORDER BY sh.started ASC LIMIT 1
-            `).get(norm);
+            `).get(userFilter.param);
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { console.error('[TAUTULLI-DIRECT] countdown-pajama error:', e.message); }
           break;
