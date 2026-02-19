@@ -34,8 +34,8 @@ const COLLECTION_MIN = {
 };
 
 /**
- * Récupère les rating_keys des films d'une collection via l'API Tautulli.
- * Résultat mis en cache 24h. Renvoie null si API non configurée.
+ * Récupère les rating_keys des films d'une collection via l'API Plex.
+ * Résultat mis en cache 24h.
  */
 async function getCollectionItemKeys(collectionRatingKey) {
   const now = Date.now();
@@ -44,26 +44,25 @@ async function getCollectionItemKeys(collectionRatingKey) {
     return cached.keys;
   }
 
-  const TAUTULLI_URL = process.env.TAUTULLI_URL;
-  const TAUTULLI_API_KEY = process.env.TAUTULLI_API_KEY;
+  const PLEX_URL = process.env.PLEX_URL;
+  const PLEX_TOKEN = process.env.PLEX_TOKEN;
 
-  if (!TAUTULLI_URL || !TAUTULLI_API_KEY) {
-    return null; // API non configurée → fallback titre
+  if (!PLEX_URL || !PLEX_TOKEN) {
+    console.warn('[TAUTULLI-DIRECT] ⚠️  PLEX_URL/PLEX_TOKEN non configurés, fallback titre activé');
+    return null;
   }
 
   try {
-    const url = `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_children&rating_key=${collectionRatingKey}`;
-    const resp = await fetch(url);
+    const url = `${PLEX_URL}/library/collections/${collectionRatingKey}/children?X-Plex-Token=${PLEX_TOKEN}`;
+    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     const json = await resp.json();
-    // Tautulli peut retourner children_list ou data selon la version
-    const data = json?.response?.data;
-    const children = data?.children_list || data?.data || (Array.isArray(data) ? data : []);
-    const keys = children.map(c => Number(c.rating_key)).filter(Boolean);
+    const items = json?.MediaContainer?.Metadata || [];
+    const keys = items.map(c => Number(c.ratingKey)).filter(Boolean);
     collectionCache[collectionRatingKey] = { keys, ts: now };
     console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${keys.length} films →`, keys);
     return keys;
   } catch(e) {
-    console.error(`[TAUTULLI-DIRECT] ❌ Erreur get_children collection ${collectionRatingKey}:`, e.message);
+    console.error(`[TAUTULLI-DIRECT] ❌ Erreur collection Plex ${collectionRatingKey}:`, e.message);
     return null;
   }
 }
@@ -262,8 +261,7 @@ function getTimeBasedSessionCounts(username) {
     const nightStmt = tautulliDb.prepare(`
       SELECT COUNT(*) as cnt
       FROM session_history sh
-      JOIN users u ON sh.user_id = u.user_id
-      WHERE LOWER(u.username) = ?
+      WHERE LOWER(sh.user) = ?
         AND sh.stopped > sh.started
         AND (
           CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) >= 22
@@ -274,8 +272,7 @@ function getTimeBasedSessionCounts(username) {
     const morningStmt = tautulliDb.prepare(`
       SELECT COUNT(*) as cnt
       FROM session_history sh
-      JOIN users u ON sh.user_id = u.user_id
-      WHERE LOWER(u.username) = ?
+      WHERE LOWER(sh.user) = ?
         AND sh.stopped > sh.started
         AND CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) BETWEEN 6 AND 8
     `);
@@ -324,8 +321,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT sh.started
           FROM session_history sh
-          JOIN users u ON sh.user_id = u.user_id
-          WHERE LOWER(u.username) = ? AND sh.stopped > sh.started ${typeCond}
+          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started ${typeCond}
           ORDER BY sh.started ASC
           LIMIT 1 OFFSET ?
         `);
@@ -342,8 +338,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
             SELECT stopped, SUM(CAST((stopped - started) AS REAL) / 3600)
               OVER (ORDER BY started ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as cum_hours
             FROM session_history sh
-            JOIN users u ON sh.user_id = u.user_id
-            WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+            WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
             ORDER BY started
           ) WHERE cum_hours >= ?
           LIMIT 1
@@ -366,8 +361,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT sh.started
           FROM session_history sh
-          JOIN users u ON sh.user_id = u.user_id
-          WHERE LOWER(u.username) = ? AND sh.stopped > sh.started AND ${whereCond}
+          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started AND ${whereCond}
           ORDER BY sh.started ASC
           LIMIT 1 OFFSET ?
         `);
@@ -390,8 +384,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT strftime('%d/%m/%Y', MAX(sh.stopped), 'unixepoch') as unlock_date
           FROM session_history sh
-          JOIN users u ON sh.user_id = u.user_id
-          WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
           GROUP BY strftime('%Y-%m', sh.started, 'unixepoch')
           HAVING SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) >= ?
           ORDER BY strftime('%Y-%m', sh.started, 'unixepoch') ASC
@@ -452,8 +445,8 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       const ph = ratingKeys.map(() => '?').join(', ');
       const row = tautulliDb.prepare(`
         SELECT COUNT(DISTINCT sh.rating_key) as cnt, MAX(sh.stopped) as last_stopped
-        FROM session_history sh JOIN users u ON sh.user_id = u.user_id
-        WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+        FROM session_history sh
+        WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
           AND sh.media_type = 'movie' AND sh.rating_key IN (${ph})
       `).get(norm, ...ratingKeys);
       return row || { cnt: 0, last_stopped: null };
@@ -472,8 +465,8 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       const ph = ratingKeys.map(() => '?').join(', ');
       const row = tautulliDb.prepare(`
         SELECT COUNT(DISTINCT sh.rating_key) as cnt, MAX(sh.stopped) as last_stopped
-        FROM session_history sh JOIN users u ON sh.user_id = u.user_id
-        WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+        FROM session_history sh
+        WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
           AND sh.media_type = 'movie' AND sh.rating_key IN (${ph})
       `).get(norm, ...ratingKeys);
       return row || { cnt: 0, last_stopped: null };
@@ -570,8 +563,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           try {
             const r = tautulliDb.prepare(`
               SELECT sh.started FROM session_history sh
-              JOIN users u ON sh.user_id = u.user_id
-              WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
                 AND CAST(strftime('%H', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) = 0
               ORDER BY sh.started ASC LIMIT 1
             `).get(norm);
@@ -589,8 +581,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 SUM(CAST(sh.stopped - sh.started AS REAL) / 3600) as hours,
                 MAX(sh.stopped) as last_stopped
               FROM session_history sh
-              JOIN users u ON sh.user_id = u.user_id
-              WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
                 AND CAST(strftime('%w', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) IN (0, 6)
               GROUP BY week HAVING hours >= 20
               ORDER BY week ASC LIMIT 1
@@ -605,8 +596,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           try {
             const r = tautulliDb.prepare(`
               SELECT sh.started FROM session_history sh
-              JOIN users u ON sh.user_id = u.user_id
-              WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+              WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
                 AND strftime('%m-%d', datetime(sh.started, 'unixepoch', 'localtime')) = '12-31'
               ORDER BY sh.started ASC LIMIT 1
             `).get(norm);
