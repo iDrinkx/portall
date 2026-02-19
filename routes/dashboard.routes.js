@@ -109,8 +109,49 @@ router.get("/dashboard", requireAuth, (req, res) => {
   res.render("dashboard/index", { user: req.session.user, basePath: req.basePath });
 });
 
-router.get("/profil", requireAuth, (req, res) => {
-  res.render("profil/index", { user: req.session.user, basePath: req.basePath, XP_SYSTEM });
+router.get("/profil", requireAuth, async (req, res) => {
+  try {
+    // Récupérer les stats de l'utilisateur
+    const stats = await getTautulliStats(
+      req.session.user.username,
+      process.env.TAUTULLI_URL,
+      process.env.TAUTULLI_API_KEY,
+      req.session.user.id,
+      process.env.PLEX_URL,
+      process.env.PLEX_TOKEN,
+      req.session.user.joinedAtTimestamp
+    );
+
+    // Préparer les données pour les achievements
+    const data = {
+      totalHours: stats.watchStats?.totalHours || 0,
+      movieCount: stats.watchStats?.movieCount || 0,
+      episodeCount: stats.watchStats?.episodeCount || 0,
+      sessionCount: stats.sessionCount || 0,
+      daysSince: Math.floor((Date.now() - (req.session.user.joinedAtTimestamp * 1000)) / (1000 * 60 * 60 * 24))
+    };
+
+    // Compter les badges débloqués
+    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data);
+    const allAchievements = ACHIEVEMENTS.getAll();
+
+    res.render("profil/index", {
+      user: req.session.user,
+      basePath: req.basePath,
+      XP_SYSTEM,
+      unlockedBadgesCount: unlockedAchievements.length,
+      totalBadgesCount: allAchievements.length
+    });
+  } catch (err) {
+    console.error("[PROFIL] Erreur:", err.message);
+    res.render("profil/index", {
+      user: req.session.user,
+      basePath: req.basePath,
+      XP_SYSTEM,
+      unlockedBadgesCount: 0,
+      totalBadgesCount: 0
+    });
+  }
 });
 
 router.get("/abonnement", requireAuth, (req, res) => {

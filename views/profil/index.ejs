@@ -219,7 +219,7 @@
           <div class="detail-icon">🏅</div>
           <div class="detail-info">
             <div class="detail-label">Badges débloqués</div>
-            <div class="detail-value" id="detailProfilBadges">0/46</div>
+            <div class="detail-value" id="detailProfilBadges"><%= unlockedBadgesCount %><%= totalBadgesCount ? '/' + totalBadgesCount : '' %></div>
           </div>
         </div>
 
@@ -1250,7 +1250,6 @@
       const detailProfilAnciennete = document.getElementById("detailProfilAnciennete");
       
       if (detailProfilHours) detailProfilHours.textContent = Math.round(totalHours * 10) / 10 + "h";
-      if (detailProfilBadges) detailProfilBadges.textContent = "0/46"; // À mettre à jour
       if (detailProfilAnciennete) detailProfilAnciennete.textContent = daysJoined + " j";
 
       // Formules XP (anciens éléments - les cacher)
