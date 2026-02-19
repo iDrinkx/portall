@@ -778,6 +778,14 @@ body {
   letter-spacing: 0.3px;
 }
 
+.stat-sub {
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+  margin-top: 6px;
+  letter-spacing: 0.2px;
+}
+
 /* Animation d'apparition */
 @keyframes fadeInUp {
   from {

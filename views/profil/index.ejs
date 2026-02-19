@@ -95,15 +95,16 @@
     </div>
     
     <div class="stats-grid">
-      <!-- Carte : Temps Total -->
+      <!-- Carte : Lectures Totales -->
       <div class="stat-card">
-        <div class="stat-icon">⏱️</div>
+        <div class="stat-icon">📊</div>
         <div class="stat-content">
-          <p class="stat-label">Heures Visionnées</p>
-          <div class="stat-value counter" id="counterHours" data-target="0">
+          <p class="stat-label">Lectures Totales</p>
+          <div class="stat-value counter" id="counterSessions" data-target="0">
             0
           </div>
-          <p class="stat-unit">heures</p>
+          <p class="stat-unit">lectures</p>
+          <p class="stat-sub" id="statTotalHours">0h visionnées</p>
         </div>
       </div>
 
@@ -116,10 +117,11 @@
             0
           </div>
           <p class="stat-unit">films</p>
+          <p class="stat-sub" id="statMovieHours">0h de films</p>
         </div>
       </div>
 
-      <!-- Carte : Episodes Regardés -->
+      <!-- Carte : Épisodes Regardés -->
       <div class="stat-card">
         <div class="stat-icon">📺</div>
         <div class="stat-content">
@@ -128,18 +130,7 @@
             0
           </div>
           <p class="stat-unit">épisodes</p>
-        </div>
-      </div>
-
-      <!-- Carte : Nombre de Lectures Total -->
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-content">
-          <p class="stat-label">Lectures Totales</p>
-          <div class="stat-value counter" id="counterSessions" data-target="0">
-            0
-          </div>
-          <p class="stat-unit">fois</p>
+          <p class="stat-sub" id="statEpisodeHours">0h de séries</p>
         </div>
       </div>
     </div>
@@ -1075,13 +1066,18 @@
         const watchStats = tautulliData.watchStats;
         console.log("[WATCH-STATS] 📊 Mise à jour des compteurs:", watchStats);
         
-        // Heures
-        const hoursEl = document.getElementById('counterHours');
-        if (hoursEl) {
-          const hours = Math.round(watchStats.totalHours * 10) / 10;
-          hoursEl.textContent = hours;
-          hoursEl.setAttribute('data-target', hours);
-          console.log("[WATCH-STATS] ✅ Heures:", hours);
+        // Sessions (Lectures Totales)
+        const sessionsEl = document.getElementById('counterSessions');
+        if (sessionsEl) {
+          sessionsEl.textContent = tautulliData.sessionCount || 0;
+          sessionsEl.setAttribute('data-target', tautulliData.sessionCount || 0);
+          console.log("[WATCH-STATS] ✅ Sessions:", tautulliData.sessionCount);
+        }
+        // Sous-info : heures totales
+        const totalHoursEl = document.getElementById('statTotalHours');
+        if (totalHoursEl) {
+          const totalH = Math.round((watchStats.totalHours || 0) * 10) / 10;
+          totalHoursEl.textContent = totalH + 'h visionnées';
         }
         
         // Films
@@ -1091,6 +1087,12 @@
           moviesEl.setAttribute('data-target', watchStats.movieCount || 0);
           console.log("[WATCH-STATS] ✅ Films:", watchStats.movieCount);
         }
+        // Sous-info : heures films
+        const movieHoursEl = document.getElementById('statMovieHours');
+        if (movieHoursEl) {
+          const movieH = Math.round((watchStats.movieHours || 0) * 10) / 10;
+          movieHoursEl.textContent = movieH + 'h de films';
+        }
         
         // Épisodes
         const episodesEl = document.getElementById('counterEpisodes');
@@ -1099,13 +1101,11 @@
           episodesEl.setAttribute('data-target', watchStats.episodeCount || 0);
           console.log("[WATCH-STATS] ✅ Épisodes:", watchStats.episodeCount);
         }
-        
-        // Sessions (Lectures Totales)
-        const sessionsEl = document.getElementById('counterSessions');
-        if (sessionsEl) {
-          sessionsEl.textContent = tautulliData.sessionCount || 0;
-          sessionsEl.setAttribute('data-target', tautulliData.sessionCount || 0);
-          console.log("[WATCH-STATS] ✅ Sessions:", tautulliData.sessionCount);
+        // Sous-info : heures séries
+        const episodeHoursEl = document.getElementById('statEpisodeHours');
+        if (episodeHoursEl) {
+          const episodeH = Math.round((watchStats.episodeHours || 0) * 10) / 10;
+          episodeHoursEl.textContent = episodeH + 'h de séries';
         }
         
         console.log("[WATCH-STATS] 🎉 Compteurs mis à jour");
