@@ -331,8 +331,8 @@
               </div>
             <% } else { %>
               <!-- VERROUILLÉ -->
-              <% if (achievement.isSecret) { %>
-                <!-- SECRET VERROUILLÉ -->
+              <% if (achievement.isSecret || achievement.category === 'secrets') { %>
+                <!-- SECRET VERROUILLÉ : on ne révèle rien -->
                 <div class="achievement-secret-text">🔒 Badge secret</div>
               <% } else { %>
                 <!-- NON-SECRET VERROUILLÉ -->

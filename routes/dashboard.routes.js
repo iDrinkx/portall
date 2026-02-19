@@ -687,4 +687,70 @@ router.post("/api/sync-tautulli-history", requireAuth, async (req, res) => {
   }
 });
 
+/* ===============================
+   🔍 DEBUG SECRETS (dev only)
+=============================== */
+router.get("/api/debug/secrets", requireAuth, (req, res) => {
+  const { isTautulliReady } = require("../utils/tautulli-direct");
+  const { getDb } = require("../utils/database");
+  if (!isTautulliReady()) return res.json({ error: 'Tautulli DB non disponible' });
+
+  const Database = require('better-sqlite3');
+  const tDb = new Database(process.env.TAUTULLI_DB_PATH, { readonly: true });
+  const norm = (req.session.user.username || '').toLowerCase();
+  const out = {};
+
+  // Test 1 : session_history_metadata existe ?
+  try {
+    const sample = tDb.prepare(`SELECT id, title FROM session_history_metadata LIMIT 5`).all();
+    out.metadata_sample = sample;
+  } catch(e) { out.metadata_error = e.message; }
+
+  // Test 2 : Films regardés par cet utilisateur (via metadata)
+  try {
+    const movies = tDb.prepare(`
+      SELECT shm.title, sh.media_type, sh.stopped
+      FROM session_history sh
+      JOIN users u ON sh.user_id = u.user_id
+      JOIN session_history_metadata shm ON sh.id = shm.id
+      WHERE LOWER(u.username) = ? AND sh.media_type = 'movie'
+      ORDER BY sh.stopped DESC LIMIT 20
+    `).all(norm);
+    out.movies_via_metadata = movies;
+  } catch(e) { out.movies_via_metadata_error = e.message; }
+
+  // Test 3 : Films regardés via rating_key (fallback)
+  try {
+    const movies2 = tDb.prepare(`
+      SELECT sh.rating_key, sh.media_type, sh.stopped
+      FROM session_history sh
+      JOIN users u ON sh.user_id = u.user_id
+      WHERE LOWER(u.username) = ? AND sh.media_type = 'movie'
+      ORDER BY sh.stopped DESC LIMIT 20
+    `).all(norm);
+    out.movies_via_session_history = movies2;
+  } catch(e) { out.movies_session_error = e.message; }
+
+  // Test 4 : Chercher Harry Potter spécifiquement
+  try {
+    const hp = tDb.prepare(`
+      SELECT shm.title, sh.stopped
+      FROM session_history sh
+      JOIN users u ON sh.user_id = u.user_id
+      JOIN session_history_metadata shm ON sh.id = shm.id
+      WHERE LOWER(u.username) = ? AND LOWER(shm.title) LIKE 'harry potter%'
+    `).all(norm);
+    out.harry_potter = hp;
+  } catch(e) { out.harry_potter_error = e.message; }
+
+  // Test 5 : Tables disponibles dans la DB Tautulli
+  try {
+    const tables = tDb.prepare(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`).all();
+    out.tables = tables.map(t => t.name);
+  } catch(e) { out.tables_error = e.message; }
+
+  tDb.close();
+  res.json(out);
+});
+
 module.exports = router;
