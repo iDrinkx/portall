@@ -217,7 +217,8 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
       };
     }
 
-    console.log("[TRACEARR] Pas de cache - appel SCAN INTELLIGENT global");
+    console.log("[TRACEARR] 🚀 Pas de cache récent - lancement SCAN INTELLIGENT global");
+    console.log("[TRACEARR]    (Sera utilisé pour tous les utilisateurs + delta intelligent au prochain scan)");
 
     // 🚀 APPELER LE SCAN GLOBAL INTELLIGENT au lieu de refaire un per-user!
     const allUserStats = await scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY);
@@ -226,11 +227,24 @@ async function getTracearrStats(username, TRACEARR_URL, TRACEARR_API_KEY, plexUs
     const sessionData = allUserStats[username];
     
     if (!sessionData) {
-      console.log("[TRACEARR] Utilisateur non trouvé dans le scan global");
+      console.log("[TRACEARR] ⚠️  Utilisateur non trouvé dans le scan global");
+      // Retourner les données en cache même si le scan ne les a pas trouvé
+      // (peut arriver si l'utilisateur a 0 sessions)
+      const fallbackCache = SessionStatsCache.get(username);
+      if (fallbackCache) {
+        console.log("[TRACEARR] ✅ Fallback: données du cache trouvées pour", username);
+        return {
+          joinedAt: fallbackCache.joinedAt,
+          lastActivity: fallbackCache.lastActivity,
+          sessionCount: fallbackCache.sessionCount || 0,
+          cachedAt: fallbackCache.lastUpdated,
+          timeSince: "du scan actuel"
+        };
+      }
       return null;
     }
 
-    console.log("[TRACEARR] Utilisateur trouve dans scan global:", username);
+    console.log("[TRACEARR] ✅ Utilisateur trouvé dans le scan global:", username);
     
     // Récupérer les infos de base de l'utilisateur (joinedAt, etc)
     let page = 1;
@@ -321,6 +335,39 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
     console.log("\n[TRACEARR-SCAN] 🚀 DÉBUT SCAN INTELLIGENT - Scan delta avec arrêt smart");
     const scanStartTime = Date.now();
     
+    // 1️⃣ Récupérer TOUS les utilisateurs de Tracearr
+    console.log("[TRACEARR-SCAN] 📥 Récupération des utilisateurs Tracearr...");
+    const tracearrUsers = [];
+    let userPage = 1;
+    let userTotalPages = 1;
+    
+    while (userPage <= userTotalPages) {
+      const userRes = await fetch(
+        `${TRACEARR_URL}/api/v1/public/users?page=${userPage}&pageSize=50`,
+        {
+          headers: {
+            Authorization: `Bearer ${TRACEARR_API_KEY}`,
+            Accept: "application/json"
+          }
+        }
+      );
+      
+      if (!userRes.ok) {
+        console.error("[TRACEARR-SCAN] ❌ Erreur récupération utilisateurs:", userRes.status);
+        break;
+      }
+      
+      const userJson = await userRes.json();
+      if (!userJson?.data) break;
+      
+      tracearrUsers.push(...(userJson.data || []));
+      userTotalPages = Math.ceil((userJson.meta?.total || 0) / 50);
+      console.log("[TRACEARR-SCAN]   Page", userPage, '/', userTotalPages, '-', (userJson.data || []).length, 'users');
+      userPage++;
+    }
+    
+    console.log("[TRACEARR-SCAN] ✅ Utilisateurs Tracearr trouvés:", tracearrUsers.length);
+    
     // Charger les timestamps du cache pour chaque utilisateur
     const cachedUsers = SessionStatsCache.getAll();
     const userCacheLimits = {};
@@ -333,6 +380,23 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
     
     // Objet pour accumuler les stats par utilisateur
     const userStats = {};
+    
+    // Initialiser les stats pour TOUS les utilisateurs Tracearr (même 0 sessions)
+    for (const user of tracearrUsers) {
+      const username = user.username?.toLowerCase();
+      if (username) {
+        userStats[username] = {
+          sessionCount: 0,
+          latestSessionTime: null,
+          totalDurationMs: 0,
+          movieDurationMs: 0,
+          episodeDurationMs: 0,
+          movieCount: 0,
+          episodeCount: 0
+        };
+      }
+    }
+    console.log("[TRACEARR-SCAN] Stats initialisées pour:", Object.keys(userStats).length, 'utilisateurs');
     
     // Tracker quels users ont "atteint leur limite de cache" (on a scanné jusqu'aux vieilles données)
     const usersReachedCacheLimit = {};
@@ -473,9 +537,12 @@ async function scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY) {
         }
       };
       
-      // 💾 METTRE EN CACHE IMMÉDIATEMENT pour cet user
+      // 💾 SAUVEGARDER TOUS LES UTILISATEURS DANS LE CACHE (même ceux à 0 sessions)
+      // Cela assure la persistance complète et permet le delta intelligent au prochain scan
       SessionStatsCache.set(username, finalStats[username]);
     }
+    
+    console.log("[TRACEARR-SCAN] 💾 Utilisateurs sauvegardés en cache:", Object.keys(finalStats).length, '(persistance)');
 
     const duration = Math.round((Date.now() - scanStartTime) / 1000);
     const pagesSkipped = historyTotalPages - pagesScannedIntelligently;

@@ -23,6 +23,7 @@ function startSessionCronJob(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKE
       const scanStartTime = Date.now();
       
       // Utiliser le scan intelligent qui arrête quand il atteint le cache existant
+      // La fonction récupère elle-même tous les utilisateurs de Tracearr
       const result = await scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY);
       
       const duration = Math.round((Date.now() - scanStartTime) / 1000);
