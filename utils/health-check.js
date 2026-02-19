@@ -4,7 +4,7 @@
  */
 
 const SessionStatsCache = require('./session-stats-cache-db');  // 🗄️ Utiliser SQLite
-const TracearrEvents = require('./tracearr-events');
+const TautulliEvents = require('./tautulli-events');  // 📢 EventEmitter
 
 async function runHealthCheck() {
   console.log("\n========== [HEALTH-CHECK] 🏥 VÉRIFICATION SYSTÈME ==========\n");

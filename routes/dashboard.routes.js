@@ -3,12 +3,12 @@ const router = express.Router();
 const fetch = require("node-fetch");
 
 const { computeSubscription } = require("../utils/wizarr");
-const { getTracearrStats } = require("../utils/tracearr");
+const { getTautulliStats } = require("../utils/tautulli");
 const { getOverseerrStats } = require("../utils/overseerr");
 const { getPlexJoinDate } = require("../utils/plex");
 const { XP_SYSTEM } = require("../utils/xp-system");
 const CacheManager = require("../utils/cache");
-const TracearrEvents = require("../utils/tracearr-events");  // 📢 Import EventEmitter
+const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
 
 /* ===============================
    🔐 AUTH
@@ -154,10 +154,10 @@ router.get("/api/stats", requireAuth, async (req, res) => {
     
     // Wrapper pour ajouter un timeout
     const statsWithTimeout = await Promise.race([
-      getTracearrStats(
+      getTautulliStats(
         req.session.user.username,
-        process.env.TRACEARR_URL,
-        process.env.TRACEARR_API_KEY,
+        process.env.TAUTULLI_URL,
+        process.env.TAUTULLI_API_KEY,
         req.session.user.id,
         process.env.PLEX_URL,
         process.env.PLEX_TOKEN,
@@ -202,15 +202,15 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
     
     // Attendre que le scan finisse (avec timeout de 5 min)
     const startWait = Date.now();
-    await TracearrEvents.waitForScanComplete(300000);  // 5 min max
+    await TautulliEvents.waitForScanComplete(300000);  // 5 min max
     const waitDuration = Math.round((Date.now() - startWait) / 1000);
     console.log("[API/STATS-WAIT] ✅ Scan terminé après", waitDuration, 'secondes - Récupération des données...');
     
     // Maintenant récupérer les stats (doivent être en cache)
-    const stats = await getTracearrStats(
+    const stats = await getTautulliStats(
       username,
-      process.env.TRACEARR_URL,
-      process.env.TRACEARR_API_KEY,
+      process.env.TAUTULLI_URL,
+      process.env.TAUTULLI_API_KEY,
       req.session.user.id,
       process.env.PLEX_URL,
       process.env.PLEX_TOKEN,

@@ -175,8 +175,8 @@ app.listen(PORT, async () => {
   const allUsers = await initializeAllUsersForCron();
   
   startSessionCronJob(
-    process.env.TRACEARR_URL,
-    process.env.TRACEARR_API_KEY,
+    process.env.TAUTULLI_URL,
+    process.env.TAUTULLI_API_KEY,
     process.env.PLEX_URL,
     process.env.PLEX_TOKEN,
     allUsers // ✅ Liste réelle de tous les utilisateurs

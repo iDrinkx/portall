@@ -1,19 +1,19 @@
 const cron = require('node-cron');
-const { scanTracearrHistoryForAllUsers } = require('./tracearr');
+const { scanTautulliHistoryForAllUsers } = require('./tautulli');
 const SessionStatsCache = require('./session-stats-cache-db');  // 🗄️ Utiliser SQLite
 
 /**
  * Lance un job cron pour mettre à jour les sessions en cache
  * Utilise le scan intelligent (delta) pour une perf optimale
  */
-function startSessionCronJob(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKEN, userList = []) {
+function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKEN, userList = []) {
   // Job cron: tous les jours à 2h du matin
   const cronJob = cron.schedule('0 2 * * *', async () => {
     console.log("\n========== [CRON-JOB] 🕐 DEBUT MISE A JOUR CACHE (2h du matin) ==========");
     console.log("[CRON-JOB] Timestamp:", new Date().toISOString());
 
-    if (!TRACEARR_URL || !TRACEARR_API_KEY) {
-      console.error("[CRON-JOB] ❌ Tracearr URL ou API Key manquants - Skipped");
+    if (!TAUTULLI_URL || !TAUTULLI_API_KEY) {
+      console.error("[CRON-JOB] ❌ Tautulli URL ou API Key manquants - Skipped");
       console.log("========== [CRON-JOB] FIN ==========\n");
       return;
     }
@@ -23,8 +23,8 @@ function startSessionCronJob(TRACEARR_URL, TRACEARR_API_KEY, PLEX_URL, PLEX_TOKE
       const scanStartTime = Date.now();
       
       // Utiliser le scan intelligent qui arrête quand il atteint le cache existant
-      // La fonction récupère elle-même tous les utilisateurs de Tracearr
-      const result = await scanTracearrHistoryForAllUsers(TRACEARR_URL, TRACEARR_API_KEY);
+      // La fonction récupère elle-même tous les utilisateurs de Tautulli
+      const result = await scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY);
       
       const duration = Math.round((Date.now() - scanStartTime) / 1000);
       const cachedCount = SessionStatsCache.getKeys().length;
