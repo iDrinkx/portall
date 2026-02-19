@@ -242,22 +242,18 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         }
         
         const histJson = await histRes.json();
-        console.log("[TAUTULLI-SCAN] get_history réponse brute:", {
-          type: typeof histJson,
-          isArray: Array.isArray(histJson),
-          keys: Object.keys(histJson || {}),
-          hasData: !!histJson?.data,
+        
+        // L'API Tautulli/get_history retourne { response: [...], draw, filter_duration, ... }
+        // response est directement un array de sessions (pas de .data)
+        const sessions = histJson.response || histJson.data || [];
+        
+        console.log("[TAUTULLI-SCAN] Page", pagesScanned, '- Structure:', {
           hasResponse: !!histJson?.response,
-          responseKeys: Object.keys(histJson?.response || {})
+          hasData: !!histJson?.data,
+          sessionsCount: Array.isArray(sessions) ? sessions.length : 'NOT_ARRAY',
+          recordsTotal: histJson.recordsTotal,
+          draw: histJson.draw
         });
-        console.log("[TAUTULLI-SCAN] Snippet réponse:", JSON.stringify(histJson).substring(0, 300));
-        
-        // L'API Tautulli retourne directement data (pas response.data)
-        const sessions = histJson.data || histJson.response?.data || [];
-        
-        if (!Array.isArray(sessions)) {
-          console.log("[TAUTULLI-SCAN] ⚠️  sessions n'est pas un array:", typeof sessions, sessions);
-        }
         
         if (!sessions || sessions.length === 0) {
           console.log("[TAUTULLI-SCAN] ✅ Pas plus de sessions - fin du scan");
