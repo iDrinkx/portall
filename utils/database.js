@@ -2,10 +2,11 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, '../data/plex-portal.db');
+// 🗄️ Utiliser le dossier /config pour la persistance (volumes Docker/Unraid)
+const DB_PATH = process.env.DB_PATH || '/config/plex-portal.db';
 const dataDir = path.dirname(DB_PATH);
 
-// Créer le répertoire data s'il n'existe pas
+// Créer le répertoire config s'il n'existe pas
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
