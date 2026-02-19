@@ -34,10 +34,32 @@ function initDatabase() {
 }
 
 /**
+ * Ajouter une colonne à une table existante (ne fait rien si elle existe déjà)
+ */
+function attemptAddColumn(tableName, columnName, columnDef) {
+  try {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+    console.log(`[DB] ✅ Colonne ajoutée: ${tableName}.${columnName}`);
+  } catch (err) {
+    // Ignorer l'erreur si la colonne existe déjà (ou autre erreur table inexistante)
+    if (!err.message.includes('duplicate column') && !err.message.includes('no such table')) {
+      console.warn(`[DB] ⚠️  Impossible d'ajouter ${tableName}.${columnName}:`, err.message);
+    }
+  }
+}
+
+/**
  * Exécuter les migrations (créer les tables si elles n'existent pas)
  */
 function runMigrations() {
   try {
+    // 🔧 MIGRATIONS DE SCHÉMA - Ajouter les colonnes manquantes aux tables existantes
+    attemptAddColumn('tautulli_sessions', 'session_timestamp', 'INTEGER NOT NULL DEFAULT 0');
+    attemptAddColumn('tautulli_sessions', 'session_date', 'DATETIME');
+    attemptAddColumn('tautulli_sessions', 'watched_status', 'REAL DEFAULT 0');
+    attemptAddColumn('tautulli_sessions', 'rating_key', 'INTEGER');
+    attemptAddColumn('tautulli_sessions', 'session_hash', 'TEXT UNIQUE');
+    
     // Table: users
     db.exec(`
       CREATE TABLE IF NOT EXISTS users (
