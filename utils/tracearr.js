@@ -126,14 +126,23 @@ async function countSessionsOptimized(username, TRACEARR_URL, TRACEARR_API_KEY) 
         
         // Compter les heures et types
         const durationMs = session.totalDurationMs || 0;
-        totalDurationMs += durationMs;
+        const sanitizedDuration = DURATION_VALIDATION.sanitize(durationMs);
         
-        if (session.mediaType === "movie") {
-          movieDurationMs += durationMs;
-          movieCount++;
-        } else if (session.mediaType === "episode") {
-          episodeDurationMs += durationMs;
-          episodeCount++;
+        if (sanitizedDuration > 0) {
+          totalDurationMs += sanitizedDuration;
+        }
+        
+        // Valider la durée AVANT de l'accumuler (prevent corruption)
+        const sanitizedDuration = DURATION_VALIDATION.sanitize(durationMs);
+        
+        if (sanitizedDuration > 0) {
+          if (session.mediaType === "movie") {
+            movieDurationMs += sanitizedDuration;
+            movieCount++;
+          } else if (session.mediaType === "episode") {
+            episodeDurationMs += sanitizedDuration;
+            episodeCount++;
+          }
         }
       }
 

@@ -17,12 +17,69 @@ class SessionStatsCache {
     try {
       if (fs.existsSync(CACHE_FILE)) {
         const data = fs.readFileSync(CACHE_FILE, 'utf-8');
-        return JSON.parse(data);
+        let cache = JSON.parse(data);
+        
+        // 🚨 Nettoyer les données aberrantes à la lecture
+        cache = this._sanitizeCache(cache);
+        
+        return cache;
       }
     } catch (err) {
       console.error("[CACHE] Erreur lecture cache:", err.message);
     }
     return {};
+  }
+
+  /**
+   * Nettoyer les données aberrantes du cache (heures impossibles)
+   */
+  static _sanitizeCache(cache) {
+    const cleaned = {};
+    const MAX_REASONABLE_HOURS = 1000;  // Max ~42 ans de visionnage continu
+    
+    for (const [username, stats] of Object.entries(cache)) {
+      if (!stats || !stats.watchStats) {
+        cleaned[username] = stats;
+        continue;
+      }
+      
+      const watchStats = stats.watchStats;
+      let needsClean = false;
+      
+      // Vérifier si les heures sont aberrantes
+      if (!isFinite(watchStats.totalHours) || watchStats.totalHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- totalHours:", watchStats.totalHours);
+        needsClean = true;
+      }
+      if (!isFinite(watchStats.movieHours) || watchStats.movieHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- movieHours:", watchStats.movieHours);
+        needsClean = true;
+      }
+      if (!isFinite(watchStats.episodeHours) || watchStats.episodeHours > MAX_REASONABLE_HOURS) {
+        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- episodeHours:", watchStats.episodeHours);
+        needsClean = true;
+      }
+      
+      if (needsClean) {
+        // Marquer pour rescan en supprimant le timestamp
+        cleaned[username] = {
+          ...stats,
+          lastSessionTimestamp: null,  // Force rescan complet
+          watchStats: {
+            totalHours: 0,
+            movieHours: 0,
+            movieCount: 0,
+            episodeHours: 0,
+            episodeCount: 0
+          }
+        };
+        console.log("[CACHE] ✅ Données nettoyées pour", username, "- prochain scan forcé");
+      } else {
+        cleaned[username] = stats;
+      }
+    }
+    
+    return cleaned;
   }
 
   /**
