@@ -247,6 +247,7 @@
   }
 
   @keyframes spin {
+    from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
 
@@ -367,79 +368,138 @@
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Les données sont déjà affichées via EJS
+  document.addEventListener("DOMContentLoaded", function () {
     console.log("🏆 Page Badges chargée!");
 
-    // Récupérer les stats pour calculer les progressions
-    fetch('<%= basePath %>/api/stats')
-      .then(res => res.json())
-      .then(stats => {
-        // Utiliser stats.joinedAt (API) en priorité, sinon joinedAtTimestamp de session
-        const joinedAtMs = stats.joinedAt
-          ? new Date(stats.joinedAt).getTime()
-          : (<%= user.joinedAtTimestamp || 0 %> * 1000);
-        const data = {
-          totalHours: stats.watchStats?.totalHours || 0,
-          movieCount: stats.watchStats?.movieCount || 0,
-          episodeCount: stats.watchStats?.episodeCount || 0,
-          sessionCount: stats.sessionCount || 0,
-          monthlyHours: stats.monthlyHours || 0,
-          nightCount: stats.nightCount || 0,
-          morningCount: stats.morningCount || 0,
-          daysSince: joinedAtMs > 0 ? Math.floor((Date.now() - joinedAtMs) / (1000 * 60 * 60 * 24)) : 0
-        };
+    const BASE = '<%= basePath %>';
+    const JOINED_AT_MS = (() => {
+      const ts = <%= user.joinedAtTimestamp || 0 %>;
+      return ts > 0 ? ts * 1000 : 0;
+    })();
 
-        console.log("[BADGES-JS] Data:", data);
+    let retryCount = 0;
+    const MAX_RETRIES = 10;
+    const RETRY_DELAY = 2000; // ms entre chaque tentative
 
-        // Mettre à jour les barres de progression des achievements débloqués
-        // Temporels
-        updateProgress('first-anniversary', Math.min(data.daysSince, 365), 365);
-        updateProgress('veteran', Math.min(data.daysSince, 730), 730);
-        updateProgress('old-timer', Math.min(data.daysSince, 1825), 1825);
+    // Indicateur visuel discret pendant le chargement
+    const loadingBanner = document.createElement('div');
+    loadingBanner.id = 'badgesLoading';
+    loadingBanner.style.cssText = [
+      'position:fixed', 'bottom:18px', 'right:18px', 'z-index:9999',
+      'background:rgba(30,30,30,.92)', 'border:1px solid rgba(229,160,13,.35)',
+      'border-radius:8px', 'padding:10px 18px', 'font-size:13px',
+      'color:#E5A00D', 'display:flex', 'align-items:center', 'gap:8px',
+      'box-shadow:0 4px 20px rgba(0,0,0,.5)', 'transition:opacity .4s ease'
+    ].join(';');
+    loadingBanner.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> Chargement de la progression…';
+    document.body.appendChild(loadingBanner);
 
-        // Activités
-        updateProgress('first-watch', Math.min(data.sessionCount, 1), 1);
-        updateProgress('regular', Math.min(data.sessionCount, 7), 7);
-        updateProgress('night-owl', Math.min(data.nightCount, 30), 30);
-        updateProgress('early-bird', Math.min(data.morningCount, 50), 50);
-        updateProgress('centurion', Math.min(Math.round(data.totalHours), 100), 100);
-        updateProgress('marathoner', Math.min(Math.round(data.totalHours), 500), 500);
+    function hideBanner() {
+      loadingBanner.style.opacity = '0';
+      setTimeout(() => loadingBanner.remove(), 500);
+    }
 
-        // Films
-        updateProgress('cinema-marathon', Math.min(data.movieCount, 5), 5);
-        updateProgress('cinephile', Math.min(data.movieCount, 50), 50);
-        updateProgress('film-critic', Math.min(data.movieCount, 100), 100);
-        updateProgress('hollywood-legend', Math.min(data.movieCount, 500), 500);
-        updateProgress('cinema-god', Math.min(data.movieCount, 1000), 1000);
-        updateProgress('cinema-universe', Math.min(data.movieCount, 2000), 2000);
+    function fetchAndApply() {
+      fetch(BASE + '/api/stats')
+        .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(stats => {
+          const sessionCount = stats.sessionCount || 0;
+          const totalHours   = stats.watchStats?.totalHours || 0;
+          const movieCount   = stats.watchStats?.movieCount || 0;
+          const episodeCount = stats.watchStats?.episodeCount || 0;
 
-        // Séries
-        updateProgress('binge-watcher', Math.min(data.episodeCount, 10), 10);
-        updateProgress('series-addict', Math.min(data.episodeCount, 100), 100);
-        updateProgress('series-master', Math.min(data.episodeCount, 500), 500);
-        updateProgress('serial-killer-legend', Math.min(data.episodeCount, 1000), 1000);
-        updateProgress('series-overlord', Math.min(data.episodeCount, 2000), 2000);
-        updateProgress('series-titan', Math.min(data.episodeCount, 5000), 5000);
+          // Données encore vides → Tautulli n'a pas encore répondu, on réessaie
+          const isEmpty = sessionCount === 0 && totalHours === 0 && movieCount === 0 && episodeCount === 0;
+          if (isEmpty && retryCount < MAX_RETRIES) {
+            retryCount++;
+            console.log('[BADGES-JS] Données vides, retry ' + retryCount + '/' + MAX_RETRIES + '…');
+            setTimeout(fetchAndApply, RETRY_DELAY);
+            return;
+          }
 
-        // Mensuels
-        updateProgress('busy-month', Math.min(data.monthlyHours, 50), 50);
-        updateProgress('intense-month', Math.min(data.monthlyHours, 100), 100);
-      })
-      .catch(err => console.error('[BADGES-JS] Erreur:', err));
+          hideBanner();
+
+          const joinedAtMs = stats.joinedAt
+            ? new Date(stats.joinedAt).getTime()
+            : JOINED_AT_MS;
+
+          const data = {
+            totalHours,
+            movieCount,
+            episodeCount,
+            sessionCount,
+            monthlyHours: stats.monthlyHours || 0,
+            nightCount:   stats.nightCount   || 0,
+            morningCount: stats.morningCount || 0,
+            daysSince: joinedAtMs > 0
+              ? Math.floor((Date.now() - joinedAtMs) / (1000 * 60 * 60 * 24))
+              : 0
+          };
+
+          console.log('[BADGES-JS] ✅ Data reçue (retry=' + retryCount + '):', data);
+          applyAll(data);
+        })
+        .catch(err => {
+          console.error('[BADGES-JS] Erreur fetch:', err);
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            setTimeout(fetchAndApply, RETRY_DELAY);
+          } else {
+            hideBanner();
+          }
+        });
+    }
+
+    function applyAll(data) {
+      // Temporels
+      updateProgress('first-anniversary', Math.min(data.daysSince, 365),  365);
+      updateProgress('veteran',           Math.min(data.daysSince, 730),   730);
+      updateProgress('old-timer',         Math.min(data.daysSince, 1825), 1825);
+
+      // Activités
+      updateProgress('first-watch',  Math.min(data.sessionCount, 1),   1);
+      updateProgress('regular',      Math.min(data.sessionCount, 7),   7);
+      updateProgress('night-owl',    Math.min(data.nightCount,   30),  30);
+      updateProgress('early-bird',   Math.min(data.morningCount, 50),  50);
+      updateProgress('centurion',    Math.min(Math.round(data.totalHours), 100),  100);
+      updateProgress('marathoner',   Math.min(Math.round(data.totalHours), 500),  500);
+
+      // Films
+      updateProgress('cinema-marathon',   Math.min(data.movieCount, 5),    5);
+      updateProgress('cinephile',         Math.min(data.movieCount, 50),   50);
+      updateProgress('film-critic',       Math.min(data.movieCount, 100),  100);
+      updateProgress('hollywood-legend',  Math.min(data.movieCount, 500),  500);
+      updateProgress('cinema-god',        Math.min(data.movieCount, 1000), 1000);
+      updateProgress('cinema-universe',   Math.min(data.movieCount, 2000), 2000);
+
+      // Séries
+      updateProgress('binge-watcher',        Math.min(data.episodeCount, 10),   10);
+      updateProgress('series-addict',        Math.min(data.episodeCount, 100),  100);
+      updateProgress('series-master',        Math.min(data.episodeCount, 500),  500);
+      updateProgress('serial-killer-legend', Math.min(data.episodeCount, 1000), 1000);
+      updateProgress('series-overlord',      Math.min(data.episodeCount, 2000), 2000);
+      updateProgress('series-titan',         Math.min(data.episodeCount, 5000), 5000);
+
+      // Mensuels
+      updateProgress('busy-month',    Math.min(data.monthlyHours, 50),  50);
+      updateProgress('intense-month', Math.min(data.monthlyHours, 100), 100);
+    }
 
     function updateProgress(achievementId, current, total) {
       const progressEl = document.getElementById('progress-' + achievementId);
-      const fillEl = document.getElementById('fill-' + achievementId);
-      
+      const fillEl     = document.getElementById('fill-'     + achievementId);
       if (!progressEl || !fillEl) return;
 
       const percent = Math.min(Math.round((current / total) * 100), 100);
-      
       progressEl.querySelector('.current').textContent = current;
-      progressEl.querySelector('.total').textContent = total;
+      progressEl.querySelector('.total').textContent   = total;
       progressEl.querySelector('.percent').textContent = percent;
+      // Transition CSS fluide sur la barre
+      fillEl.style.transition = 'width .6s ease';
       fillEl.style.width = percent + '%';
     }
+
+    // Lancer immédiatement
+    fetchAndApply();
   });
 </script>

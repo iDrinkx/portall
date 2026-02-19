@@ -166,9 +166,7 @@ router.get("/profil", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/abonnement", requireAuth, (req, res) => {
-  res.render("abonnement/index", { user: req.session.user, basePath: req.basePath });
-});
+// Route /abonnement supprimée — infos intégrées dans /profil
 
 router.get("/statistiques", requireAuth, (req, res) => {
   res.render("statistiques/index", { user: req.session.user, basePath: req.basePath });
