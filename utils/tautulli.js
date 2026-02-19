@@ -242,10 +242,22 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         }
         
         const histJson = await histRes.json();
-        console.log("[TAUTULLI-SCAN] Réponse API page", pagesScanned, "- recordsTotal:", histJson.recordsTotal, "data items:", histJson.data?.length || 0);
+        console.log("[TAUTULLI-SCAN] get_history réponse brute:", {
+          type: typeof histJson,
+          isArray: Array.isArray(histJson),
+          keys: Object.keys(histJson || {}),
+          hasData: !!histJson?.data,
+          hasResponse: !!histJson?.response,
+          responseKeys: Object.keys(histJson?.response || {})
+        });
+        console.log("[TAUTULLI-SCAN] Snippet réponse:", JSON.stringify(histJson).substring(0, 300));
         
         // L'API Tautulli retourne directement data (pas response.data)
         const sessions = histJson.data || histJson.response?.data || [];
+        
+        if (!Array.isArray(sessions)) {
+          console.log("[TAUTULLI-SCAN] ⚠️  sessions n'est pas un array:", typeof sessions, sessions);
+        }
         
         if (!sessions || sessions.length === 0) {
           console.log("[TAUTULLI-SCAN] ✅ Pas plus de sessions - fin du scan");
