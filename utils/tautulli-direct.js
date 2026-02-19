@@ -294,12 +294,58 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
       } catch(e) { return null; }
     };
 
+    // Helper : date de la Nème session nocturne (22h-6h) ou matinale (6h-9h)
+    const nthTimeSession = (n, hourStart, hourEnd) => {
+      try {
+        let whereCond;
+        if (hourStart < hourEnd) {
+          whereCond = `strftime('%H', sh.started, 'unixepoch', 'localtime') BETWEEN '${String(hourStart).padStart(2,'0')}' AND '${String(hourEnd - 1).padStart(2,'0')}'`;
+        } else {
+          // Wrap autour de minuit (ex: 22h-6h : heure >= 22 OU heure < 6)
+          whereCond = `(CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) >= ${hourStart} OR CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) < ${hourEnd})`;
+        }
+        const stmt = tautulliDb.prepare(`
+          SELECT sh.started
+          FROM session_history sh
+          JOIN users u ON sh.user_id = u.user_id
+          WHERE LOWER(u.username) = ? AND sh.stopped > sh.started AND ${whereCond}
+          ORDER BY sh.started ASC
+          LIMIT 1 OFFSET ?
+        `);
+        const row = stmt.get(norm, n - 1);
+        return row?.started ? fmt(row.started) : null;
+      } catch(e) { return null; }
+    };
+
     // Activités
     dates['first-watch'] = nthSession(1);
     dates['regular']     = nthSession(7);
-    dates['early-bird']  = nthSession(50);
+    dates['night-owl']   = nthTimeSession(30, 22, 6);   // 30ème session nocturne (22h-6h)
+    dates['early-bird']  = nthTimeSession(50, 6,  9);   // 50ème session matinale (6h-9h)
     dates['centurion']   = hoursThreshold(100);
     dates['marathoner']  = hoursThreshold(500);
+
+    // Helper : premier mois où les heures mensuelles ont dépassé un seuil
+    const firstMonthOver = (targetHours) => {
+      try {
+        const stmt = tautulliDb.prepare(`
+          SELECT strftime('%d/%m/%Y', MAX(sh.stopped), 'unixepoch') as unlock_date
+          FROM session_history sh
+          JOIN users u ON sh.user_id = u.user_id
+          WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+          GROUP BY strftime('%Y-%m', sh.started, 'unixepoch')
+          HAVING SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) >= ?
+          ORDER BY strftime('%Y-%m', sh.started, 'unixepoch') ASC
+          LIMIT 1
+        `);
+        const row = stmt.get(norm, targetHours);
+        return row?.unlock_date || null;
+      } catch(e) { return null; }
+    };
+
+    // Mensuels
+    dates['busy-month']    = firstMonthOver(50);
+    dates['intense-month'] = firstMonthOver(100);
 
     // Films
     dates['cinema-marathon']   = nthSession(5,   'movie');

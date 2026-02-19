@@ -172,8 +172,25 @@ function runMigrations() {
     `);
     console.log("[DB] ✅ Table 'sync_metadata' vérifiée");
     
+    // Table: user_achievements - Succès débloqués manuellement par utilisateur
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_achievements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        achievement_id TEXT NOT NULL,
+        unlocked_date TEXT NOT NULL,
+        granted_by TEXT DEFAULT 'admin',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, achievement_id),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log("[DB] ✅ Table 'user_achievements' vérifiée");
+
     // Index pour perf
     db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
       CREATE INDEX IF NOT EXISTS idx_watch_history_user ON watch_history(user_id);
       CREATE INDEX IF NOT EXISTS idx_watch_history_scanned ON watch_history(scannedAt);
       CREATE INDEX IF NOT EXISTS idx_session_cache_user ON session_cache(user_id);
@@ -403,6 +420,54 @@ const SessionCacheQueries = {
 };
 
 /**
+ * User achievements queries (succès secrets débloqués manuellement)
+ */
+const UserAchievementQueries = {
+  /**
+   * Débloquer un succès pour un utilisateur
+   */
+  unlock(userId, achievementId, unlockedDate, grantedBy = 'admin') {
+    const db = getDb();
+    return db.prepare(`
+      INSERT OR REPLACE INTO user_achievements (user_id, achievement_id, unlocked_date, granted_by)
+      VALUES (?, ?, ?, ?)
+    `).run(userId, achievementId, unlockedDate, grantedBy);
+  },
+
+  /**
+   * Obtenir tous les succès débloqués pour un utilisateur
+   * Retourne un objet { achievementId: unlockedDate }
+   */
+  getForUser(userId) {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT achievement_id, unlocked_date FROM user_achievements WHERE user_id = ?
+    `).all(userId);
+    return Object.fromEntries(rows.map(r => [r.achievement_id, r.unlocked_date]));
+  },
+
+  /**
+   * Vérifier si un succès est débloqué pour un utilisateur
+   */
+  isUnlocked(userId, achievementId) {
+    const db = getDb();
+    return !!db.prepare(`
+      SELECT 1 FROM user_achievements WHERE user_id = ? AND achievement_id = ?
+    `).get(userId, achievementId);
+  },
+
+  /**
+   * Révoquer un succès pour un utilisateur
+   */
+  revoke(userId, achievementId) {
+    const db = getDb();
+    return db.prepare(`
+      DELETE FROM user_achievements WHERE user_id = ? AND achievement_id = ?
+    `).run(userId, achievementId);
+  }
+};
+
+/**
  * Transactions helper
  */
 function transaction(callback) {
@@ -419,5 +484,6 @@ module.exports = {
   UserQueries,
   WatchHistoryQueries,
   SessionCacheQueries,
+  UserAchievementQueries,
   DB_PATH
 };

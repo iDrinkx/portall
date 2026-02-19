@@ -8,6 +8,8 @@ const { getOverseerrStats } = require("../utils/overseerr");
 const { getPlexJoinDate } = require("../utils/plex");
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
+const { UserAchievementQueries } = require("../utils/database");
+const { getAchievementUnlockDates } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
 
@@ -134,8 +136,9 @@ router.get("/profil", requireAuth, async (req, res) => {
       daysSince: Math.floor((Date.now() - (req.session.user.joinedAtTimestamp * 1000)) / (1000 * 60 * 60 * 24))
     };
 
-    // Compter les badges débloqués
-    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data);
+    // Compter les badges débloqués (avec succ\u00e8s manuels depuis la DB)
+    const userUnlockedMap = UserAchievementQueries.getForUser(req.session.user.id);
+    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
     const allAchievements = ACHIEVEMENTS.getAll();
 
     res.render("profil/index", {
@@ -198,17 +201,26 @@ router.get("/badges", requireAuth, async (req, res) => {
       secrets: { icon: "🔒", name: "Secrets", achievements: ACHIEVEMENTS.secrets }
     };
 
-    // Ajouter le statut unlocked à chaque achievement
-    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data);
+    // Dates de déblocage calculées depuis Tautulli (temporels, activités, films, séries)
+    const computedDates = getAchievementUnlockDates(
+      req.session.user.username,
+      req.session.user.joinedAtTimestamp
+    );
+
+    // Ajouter le statut unlocked à chaque achievement (avec succès manuels depuis la DB)
+    const userUnlockedMap = UserAchievementQueries.getForUser(req.session.user.id);
+    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
     for (const category in achievementsByCategory) {
       achievementsByCategory[category].achievements = achievementsByCategory[category].achievements.map(achievement => ({
         ...achievement,
-        unlocked: unlockedAchievements.includes(achievement)
+        unlocked: unlockedAchievements.some(u => u.id === achievement.id),
+        // Priorité : DB manuelle > date calculée Tautulli > date statique sur l'achievement
+        unlockedDate: userUnlockedMap[achievement.id] || computedDates[achievement.id] || achievement.unlockedDate || null
       }));
     }
 
     // Obtenir les stats globales
-    const stats_global = ACHIEVEMENTS.getStats(data);
+    const stats_global = ACHIEVEMENTS.getStats(data, userUnlockedMap);
 
     res.render("badges", {
       user: req.session.user,

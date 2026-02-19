@@ -389,7 +389,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers de Marvel",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -401,7 +401,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Utilisateur expert Dark TV en phase beta",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -413,7 +413,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers de Star Wars",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -437,7 +437,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers d'Harry Potter",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -461,7 +461,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Plus de 20 heures de visionnage un week-end",
       getProgress: (data) => ({ current: 0, total: 20, percent: 0 }),
-      unlockedDate: "28/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -473,7 +473,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers de Star Wars",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -485,7 +485,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fous d'articles détente, scicore and chilling!",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "01/01/2026",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -497,7 +497,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers de la Planète des Singes",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -509,7 +509,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Regarder un contenu exactement à minuit",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "29/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     },
@@ -521,7 +521,7 @@ const ACHIEVEMENTS = {
       condition: (data) => false,
       conditionText: "Fan de l'univers de Tolkien",
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
-      unlockedDate: "31/12/2025",
+      unlockedDate: null,
       category: "secrets",
       isSecret: false
     }
@@ -539,25 +539,27 @@ const ACHIEVEMENTS = {
     ];
   },
 
-  // Obtenir les achievements débloqués basé sur les données
-  getUnlocked(data) {
+  // Obtenir les achievements débloqués basé sur les données + succès manuels de la DB
+  // userUnlockedMap : { achievementId: "dd/mm/yyyy" } depuis UserAchievementQueries.getForUser(userId)
+  getUnlocked(data, userUnlockedMap = {}) {
     return this.getAll().filter(achievement => {
-      // Si l'achievement a une date de déblocage définie, il est débloqué
-      if (achievement.unlockedDate) return true;
-      // Sinon on vérifie la condition
+      // Succès débloqué manuellement (DB) : présent dans la map de l'utilisateur
+      if (userUnlockedMap[achievement.id]) return true;
+      // Sinon on vérifie la condition calculée (non-secrets)
       return achievement.condition(data);
     });
   },
 
   // Obtenir les achievements verrouillés
-  getLocked(data) {
-    return this.getAll().filter(achievement => !this.getUnlocked(data).includes(achievement));
+  getLocked(data, userUnlockedMap = {}) {
+    const unlocked = this.getUnlocked(data, userUnlockedMap);
+    return this.getAll().filter(achievement => !unlocked.includes(achievement));
   },
 
   // Obtenir les stats
-  getStats(data) {
+  getStats(data, userUnlockedMap = {}) {
     const all = this.getAll();
-    const unlocked = this.getUnlocked(data);
+    const unlocked = this.getUnlocked(data, userUnlockedMap);
     return {
       total: all.length,
       unlocked: unlocked.length,
