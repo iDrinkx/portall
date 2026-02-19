@@ -109,14 +109,6 @@
           <small id="sessionCount2"></small>
         </div>
       </div>
-      <div class="breakdown-item">
-        <div class="breakdown-icon">📝</div>
-        <div class="breakdown-detail">
-          <div class="breakdown-label">Demandes Overseerr</div>
-          <div class="breakdown-formula" id="requestFormulaXp"></div>
-          <small id="requestCount2"></small>
-        </div>
-      </div>
       <div class="breakdown-item highlight">
         <div class="breakdown-icon">⭐</div>
         <div class="breakdown-detail">
@@ -915,12 +907,10 @@
 
       // Formules XP
       const formulaSessionEl = document.getElementById("sessionFormulaXp");
-      const formulaRequestEl = document.getElementById("requestFormulaXp");
       const formulaTotalEl = document.getElementById("totalXpFormula");
-      console.log("[DOM] FormulaSessions:", !!formulaSessionEl, "Requests:", !!formulaRequestEl);
+      console.log("[DOM] FormulaSessions:", !!formulaSessionEl);
       
       if (formulaSessionEl) formulaSessionEl.textContent = `${tautulliSessionCount} × 2 = ${tautulliSessionCount * 2} XP`;
-      if (formulaRequestEl) formulaRequestEl.style.display = 'none'; // Overseerr ne procure pas d'XP
       if (formulaTotalEl) formulaTotalEl.textContent = `${totalXp} XP`;
 
       // Activer les badges débloqués
@@ -979,11 +969,9 @@
             
             // Update formules
             const formulaSessionEl = document.getElementById("sessionFormulaXp");
-            const formulaRequestEl = document.getElementById("requestFormulaXp");
             const formulaTotalEl = document.getElementById("totalXpFormula");
             
             if (formulaSessionEl) formulaSessionEl.textContent = `${newSessionCount} × 2 = ${newSessionCount * 2} XP`;
-            if (formulaRequestEl) formulaRequestEl.style.display = 'none'; // Overseerr ne procure pas d'XP
             if (formulaTotalEl) formulaTotalEl.textContent = `${newTotalXp} XP`;
             
             console.log("[PROFIL-UPDATE] ✅ Tous les éléments mis à jour!");

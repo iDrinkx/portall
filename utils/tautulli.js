@@ -42,8 +42,11 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
 
     console.log("[TAUTULLI] Recherche stats pour:", username);
 
+    // Normaliser le username en minuscules pour cohérence
+    const normalizedUsername = username.toLowerCase();
+
     // D'abord, vérifier le cache
-    const cached = SessionStatsCache.getWithTimestamp(username);
+    const cached = SessionStatsCache.getWithTimestamp(normalizedUsername);
     if (cached) {
       console.log("[TAUTULLI] Retour du CACHE - sessionCount:", cached.sessionCount, "Mis a jour", cached.timeSince);
       return {
@@ -69,15 +72,15 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
     // 🚀 APPELER LE SCAN GLOBAL INTELLIGENT
     const allUserStats = await scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY);
     
-    // Chercher cet user dans les résultats du scan global
-    const sessionData = allUserStats[username];
+    // Chercher cet user dans les résultats du scan global (username déjà normalisé plus haut)
+    const sessionData = allUserStats[normalizedUsername];
     
     if (!sessionData) {
       console.log("[TAUTULLI] ⚠️  Utilisateur non trouvé dans le scan global");
       // Fallback au cache
-      const fallbackCache = SessionStatsCache.get(username);
+      const fallbackCache = SessionStatsCache.get(normalizedUsername);
       if (fallbackCache) {
-        console.log("[TAUTULLI] ✅ Fallback: données du cache trouvées pour", username);
+        console.log("[TAUTULLI] ✅ Fallback: données du cache trouvées pour", normalizedUsername);
         return {
           joinedAt: fallbackCache.joinedAt,
           lastActivity: fallbackCache.lastActivity,
@@ -114,7 +117,7 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
     };
 
     // 💾 SAUVEGARDER DANS LE CACHE
-    SessionStatsCache.set(username, result);
+    SessionStatsCache.set(normalizedUsername, result);
     
     return result;
 
