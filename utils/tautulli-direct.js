@@ -55,10 +55,12 @@ async function getCollectionItemKeys(collectionRatingKey) {
     const url = `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_children&rating_key=${collectionRatingKey}`;
     const resp = await fetch(url);
     const json = await resp.json();
-    const children = json?.response?.data?.children_list || [];
-    const keys = children.map(c => c.rating_key).filter(Boolean);
+    // Tautulli peut retourner children_list ou data selon la version
+    const data = json?.response?.data;
+    const children = data?.children_list || data?.data || (Array.isArray(data) ? data : []);
+    const keys = children.map(c => Number(c.rating_key)).filter(Boolean);
     collectionCache[collectionRatingKey] = { keys, ts: now };
-    console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${keys.length} films cachés`);
+    console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${keys.length} films →`, keys);
     return keys;
   } catch(e) {
     console.error(`[TAUTULLI-DIRECT] ❌ Erreur get_children collection ${collectionRatingKey}:`, e.message);

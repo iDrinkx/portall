@@ -248,19 +248,25 @@ router.get("/badges", requireAuth, async (req, res) => {
       userUnlockedMap[a.id] = date;                 // toujours afficher même sans DB
     }
 
-    // ── 3. Évaluer les succès secrets auto-détectables non encore en DB
+    // ── 3. Évaluer les succès secrets en ARRIÈRE-PLAN (ne bloque pas le rendu)
     const secretsToCheck = ACHIEVEMENTS.secrets
       .filter(a => !a.isSecret && !userUnlockedMap[a.id])
       .map(a => a.id);
 
     if (secretsToCheck.length > 0 && isTautulliReady()) {
-      const newSecrets = await evaluateSecretAchievements(username, joinedAtTs, secretsToCheck);
-      for (const [id, date] of Object.entries(newSecrets)) {
-        if (dbUserId) {
-          try { UserAchievementQueries.unlock(dbUserId, id, date, 'auto'); } catch(e) {}
-        }
-        userUnlockedMap[id] = date;                 // toujours afficher même sans DB
-      }
+      // Lancer sans await : rendu immédiat, unlock persisté pour la prochaine visite
+      evaluateSecretAchievements(username, joinedAtTs, secretsToCheck)
+        .then(newSecrets => {
+          for (const [id, date] of Object.entries(newSecrets)) {
+            if (dbUserId) {
+              try { UserAchievementQueries.unlock(dbUserId, id, date, 'auto'); } catch(e) {}
+            }
+          }
+          if (Object.keys(newSecrets).length > 0) {
+            console.log(`[BADGES] 🔓 Secrets débloqués en background pour ${username}:`, Object.keys(newSecrets).join(', '));
+          }
+        })
+        .catch(e => console.error('[BADGES] Erreur secrets background:', e.message));
     }
 
     // ── 4. Construire les cards avec statut et date
