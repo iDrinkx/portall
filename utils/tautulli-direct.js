@@ -65,6 +65,12 @@ async function getCollectionItemGuids(collectionRatingKey) {
     }).filter(Boolean);
     collectionCache[collectionRatingKey] = { guids, ts: now };
     console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${guids.length} GUIDs cachés`);
+    // Debug: afficher les 2 premiers GUIDs et un échantillon DB pour vérifier le format
+    if (guids.length > 0 && tautulliDb) {
+      console.log(`[TAUTULLI-DIRECT] 🔍 Exemple GUID Plex:`, guids[0]);
+      const dbSample = tautulliDb.prepare(`SELECT guid FROM session_history_metadata WHERE media_type = 'movie' LIMIT 1`).get();
+      console.log(`[TAUTULLI-DIRECT] 🔍 Exemple GUID DB:`, dbSample?.guid);
+    }
     return guids;
   } catch(e) {
     console.error(`[TAUTULLI-DIRECT] ❌ Erreur collection Plex ${collectionRatingKey}:`, e.message);
@@ -475,7 +481,14 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
         SELECT DISTINCT rating_key FROM session_history_metadata
         WHERE guid IN (${ph})
       `).all(...guids);
-      if (!keys.length) return { cnt: 0, last_stopped: null };
+      // Debug : afficher combien de rating_keys trouvés
+      console.log(`[TAUTULLI-DIRECT] 🔍 GUIDs soumis: ${guids.length}, rating_keys trouvés en DB: ${keys.length}`);
+      if (!keys.length) {
+        // Essai avec LIKE sur le premier GUID pour diagnoc
+        const sample = tautulliDb.prepare(`SELECT guid, rating_key FROM session_history_metadata WHERE media_type='movie' AND guid LIKE 'plex://%' LIMIT 3`).all();
+        console.log(`[TAUTULLI-DIRECT] 🔍 Échantillon guid DB:`, sample.map(r => r.guid));
+        return { cnt: 0, last_stopped: null };
+      }
       const ratingKeys = keys.map(k => k.rating_key);
       const ph2 = ratingKeys.map(() => '?').join(', ');
       const row = tautulliDb.prepare(`
