@@ -13,11 +13,12 @@
 
   const XP_SYSTEM = {
     badges: [
-      { level: 1, name: "Bronze", icon: "🔵", minXp: 0, maxXp: 500, color: "#5B9BD5", bgColor: "rgba(91, 155, 213, 0.2)", borderColor: "#5B9BD5" },
-      { level: 2, name: "Argent", icon: "⚪", minXp: 500, maxXp: 1500, color: "#C0C0C0", bgColor: "rgba(192, 192, 192, 0.2)", borderColor: "#C0C0C0" },
-      { level: 3, name: "Or", icon: "🟡", minXp: 1500, maxXp: 3500, color: "#E5A00D", bgColor: "rgba(229, 160, 13, 0.2)", borderColor: "#E5A00D" },
-      { level: 4, name: "Platine", icon: "💎", minXp: 3500, maxXp: 7000, color: "#00D9FF", bgColor: "rgba(0, 217, 255, 0.2)", borderColor: "#00D9FF" },
-      { level: 5, name: "Diamant", icon: "💜", minXp: 7000, maxXp: 10000, color: "#FF1493", bgColor: "rgba(255, 20, 147, 0.2)", borderColor: "#FF1493" }
+      { level: 1, name: "Bronze",  icon: "🥉", minXp: 0,     maxXp: 500,   color: "#CD7F32", bgColor: "rgba(205, 127, 50, 0.2)",   borderColor: "#CD7F32" },
+      { level: 2, name: "Argent",  icon: "🥈", minXp: 500,   maxXp: 1500,  color: "#C0C0C0", bgColor: "rgba(192, 192, 192, 0.2)",  borderColor: "#C0C0C0" },
+      { level: 3, name: "Or",      icon: "🥇", minXp: 1500,  maxXp: 3500,  color: "#E5A00D", bgColor: "rgba(229, 160, 13, 0.2)",   borderColor: "#E5A00D" },
+      { level: 4, name: "Platine", icon: "💠", minXp: 3500,  maxXp: 7000,  color: "#00D9FF", bgColor: "rgba(0, 217, 255, 0.2)",    borderColor: "#00D9FF" },
+      { level: 5, name: "Diamant", icon: "💎", minXp: 7000,  maxXp: 10000, color: "#FF1493", bgColor: "rgba(255, 20, 147, 0.2)",   borderColor: "#FF1493" },
+      { level: 6, name: "Légende", icon: "👑", minXp: 10000, maxXp: 100000,color: "#7C3AED", bgColor: "rgba(124, 58, 237, 0.2)",   borderColor: "#7C3AED" }
     ]
   };
 
