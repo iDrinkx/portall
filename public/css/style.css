@@ -405,6 +405,16 @@ body {
   transform: translate(4px, -4px);
 }
 
+/* Logo Seerr dans la navbar */
+.nav-seerr-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-bottom: 2px;
+  border-radius: 3px;
+}
+
 /* Logo Seerr dans la hero card */
 .hero-icon--seerr {
   background: rgba(33, 150, 243, 0.08);

@@ -176,7 +176,7 @@
     if (seerrData) {
       html += `
         <div>
-          <h4 style="margin-bottom: 10px;">🎬 Demandes de contenu</h4>
+          <h4 style="margin-bottom: 10px;"><img src="${window.APP_BASE_PATH || ''}/img/seerr-icon.png" alt="Seerr" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:3px;"> Demandes de contenu</h4>
           <div class="subscription-row">
             <span class="label">📊 Total demandes</span>
             <span class="value">${seerrData.total}</span>
