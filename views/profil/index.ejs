@@ -64,7 +64,10 @@
   <div class="xp-progress-section">
     <div class="progress-header">
       <span>Progression vers le niveau suivant</span>
-      <span class="xp-needed" id="xpNeeded">-</span>
+      <div class="progress-header-right">
+        <span class="xp-needed" id="xpNeeded">-</span>
+        <a href="<%= basePath %>/badges" class="xp-badges-btn">🏆 Mes succès</a>
+      </div>
     </div>
     <div class="xp-bar-wrapper">
       <div class="xp-bar-fill" id="xpBarFill"></div>
@@ -183,14 +186,19 @@
   <div class="badges-section">
     <div class="badges-header-with-link">
       <h2>🏆 Progression des Succès</h2>
-      <a href="<%= basePath %>/badges" class="view-more-link">Voir plus →</a>
+      <button class="view-more-link" onclick="openXpModal()">⚡ Répartition XP →</button>
     </div>
     <div class="badges-container" id="badgesContainer"></div>
   </div>
 
-  <!-- BREAKDOWN XP -->
+  <!-- MODAL RÉPARTITION XP -->
+  <div id="xpModal" class="xp-modal" onclick="if(event.target===this)closeXpModal()">
+    <div class="xp-modal-content">
+      <div class="xp-modal-header">
+        <h3>⚡ Répartition de mon XP</h3>
+        <button class="xp-modal-close" onclick="closeXpModal()">✕</button>
+      </div>
   <div class="xp-breakdown">
-    <h3>⚡ Répartition de mon XP</h3>
     
     <div class="xp-breakdown-grid">
       <!-- SOURCES D'XP -->
@@ -265,6 +273,8 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
     </div>
   </div>
 </div>
@@ -540,18 +550,43 @@
   /* XP PROGRESS */
   .xp-progress-section {
     background: rgba(255, 255, 255, 0.03);
-    padding: 20px;
+    padding: 12px 18px;
     border-radius: 12px;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .progress-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 13px;
     color: #aaa;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+  }
+
+  .progress-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .xp-badges-btn {
+    color: #DAA520;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(218, 165, 32, 0.4);
+    background: rgba(218, 165, 32, 0.08);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .xp-badges-btn:hover {
+    background: rgba(218, 165, 32, 0.2);
+    border-color: rgba(218, 165, 32, 0.7);
   }
 
   .xp-needed {
@@ -674,19 +709,88 @@
   }
 
   .view-more-link {
-    color: #DAA520;
+    color: #00D9FF;
     text-decoration: none;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     transition: all 0.3s ease;
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 6px;
-    border: 1px solid rgba(218, 165, 32, 0.3);
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    background: none;
+    cursor: pointer;
   }
 
   .view-more-link:hover {
-    background: rgba(218, 165, 32, 0.2);
-    border-color: rgba(218, 165, 32, 0.6);
+    background: rgba(0, 217, 255, 0.1);
+    border-color: rgba(0, 217, 255, 0.6);
+  }
+
+  /* MODAL XP */
+  .xp-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .xp-modal.active {
+    display: flex;
+  }
+
+  .xp-modal-content {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: modalIn 0.22s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .xp-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .xp-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #fff;
+  }
+
+  .xp-modal-close {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #aaa;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .xp-modal-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
   }
 
   .badges-container {
@@ -729,21 +833,9 @@
     font-size: 10px;
   }
 
-  /* XP BREAKDOWN */
+  /* XP BREAKDOWN (inside modal) */
   .xp-breakdown {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 24px;
-    margin-top: 40px;
-  }
-
-  .xp-breakdown h3 {
-    margin-top: 0;
-    margin-bottom: 30px;
-    color: #E5A00D;
-    font-size: 18px;
-    font-weight: 600;
+    padding: 0;
   }
 
   .xp-breakdown-grid {
@@ -2016,5 +2108,19 @@
     // Démarrage initial
     refreshNowPlaying();
     startPolling();
+  });
+
+  function openXpModal() {
+    document.getElementById('xpModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeXpModal() {
+    document.getElementById('xpModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeXpModal();
   });
 </script>
