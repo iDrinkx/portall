@@ -656,6 +656,10 @@ body {
   margin-top: 20px;
 }
 
+.progress-wrapper .progress-bar {
+  margin-top: 0;   /* évite le double-margin avec progress-wrapper */
+}
+
 .progress-bar {
   width: 100%;
   height: 8px;
