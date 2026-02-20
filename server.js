@@ -6,6 +6,7 @@ const path = require("path");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const overseerrRoutes = require("./routes/overseerr.routes");
+const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
@@ -19,8 +20,8 @@ const PORT = process.env.PORT || 3000;
    MIDDLEWARE
 ========================= */
 
-app.use(express.json());  // Parse JSON bodies
-app.use(express.urlencoded({ extended: true }));  // Parse form data
+// 1. Détection reverse proxy (définit req.basePath, req.appUrl)
+app.use(reverseProxyMiddleware);
 
 /* =========================
    SESSION
@@ -38,11 +39,20 @@ app.use(session({
   }
 }));
 
+// 2. ⚠️  Proxy Seerr enregistré AVANT express.json() pour ne pas consommer
+//    les corps de requêtes avant que le proxy puisse les streamer vers Seerr.
+//    La session est déjà active ici, donc requireAuth fonctionne.
+app.use("/", seeerrProxyRoutes);
+
+// 3. Body parsers (après le proxy Seerr)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 /* =========================
    REVERSE PROXY DETECTION
 ========================= */
 
-app.use(reverseProxyMiddleware);
+// (déjà appliqué en premier ci-dessus)
 
 /* =========================
    STATIC FILES

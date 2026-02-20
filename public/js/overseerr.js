@@ -367,13 +367,15 @@
 
   /* ===============================
      REQUESTS VIEW
+     L'endpoint /request retourne uniquement les IDs dans media
+     (tmdbId, mediaType, status) — pas de titre ni de poster.
+     On enrichit chaque demande en parallèle via /movie/{id} ou /tv/{id}.
   =============================== */
   async function loadRequests(filter = "all") {
     showView("requests");
     setActiveNav("nav-requests");
     state.currentFilter = filter;
 
-    // Mettre à jour les boutons de filtre
     $$(".seerr-filter-btn").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.filter === filter);
     });
@@ -391,16 +393,66 @@
         return;
       }
 
+      // Enrichir toutes les demandes en parallèle :
+      // /request ne retourne PAS title/posterPath, il faut appeler /movie/{id} ou /tv/{id}
+      const enriched = await Promise.allSettled(
+        requests.map(req => enrichRequest(req))
+      );
+
       container.innerHTML = "";
       container.className = "seerr-request-row";
 
-      for (const req of requests) {
-        const card = buildRequestCard(req);
-        container.appendChild(card);
-      }
+      enriched.forEach((result, i) => {
+        const reqData = result.status === "fulfilled" ? result.value : requests[i];
+        container.appendChild(buildRequestCard(reqData));
+      });
+
     } catch (e) {
       container.innerHTML = emptyHTML("Erreur", e.message);
     }
+  }
+
+  // Cache pour éviter de re-fetcher le même tmdbId si plusieurs demandes portent sur le même média
+  const _mediaDetailsCache = new Map();
+
+  async function enrichRequest(req) {
+    const media = req.media || {};
+    const tmdbId = media.tmdbId;
+    const type   = media.mediaType; // "movie" ou "tv"
+
+    if (!tmdbId || !type) return req;
+
+    const cacheKey = `${type}:${tmdbId}`;
+
+    let details;
+    if (_mediaDetailsCache.has(cacheKey)) {
+      details = _mediaDetailsCache.get(cacheKey);
+    } else {
+      try {
+        const endpoint = type === "movie" ? `/movie/${tmdbId}` : `/tv/${tmdbId}`;
+        details = await apiGet(endpoint);
+        _mediaDetailsCache.set(cacheKey, details);
+      } catch (_) {
+        return req; // fallback : retourner la demande sans enrichissement
+      }
+    }
+
+    // Fusionner les détails TMDB dans l'objet media de la demande
+    return {
+      ...req,
+      media: {
+        ...media,
+        title:        details.title        || details.name || "",
+        name:         details.name         || details.title || "",
+        posterPath:   details.posterPath   || null,
+        backdropPath: details.backdropPath || null,
+        releaseDate:  details.releaseDate  || null,
+        firstAirDate: details.firstAirDate || null,
+        voteAverage:  details.voteAverage  || null,
+        // Préserver le statut Seerr (pas celui de TMDB)
+        status: media.status
+      }
+    };
   }
 
   function buildRequestCard(req) {
@@ -409,7 +461,7 @@
     const poster = tmdbImg(media.posterPath, "w154");
     const st     = formatRequestStatus(req.status);
     const year   = yearFromDate(isTV ? media.firstAirDate : media.releaseDate);
-    const name   = media.title || media.name || "Sans titre";
+    const name   = media.title || media.name || "Titre inconnu";
     const by     = req.requestedBy;
 
     const card = document.createElement("div");
@@ -417,10 +469,14 @@
 
     card.innerHTML = `
       ${poster
-        ? `<img class="seerr-request-poster" src="${poster}" alt="" loading="lazy">`
-        : `<div class="seerr-request-poster-placeholder">🎬</div>`}
+        ? `<img class="seerr-request-poster" src="${poster}" alt="" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ""}
+      <div class="seerr-request-poster-placeholder" style="display:${poster ? "none" : "flex"}">🎬</div>
       <div class="seerr-request-info">
-        <span class="seerr-request-year">${year}${isTV && req.seasons?.length ? ` · Saison${req.seasons.length > 1 ? "s" : ""} ${req.seasons.map(s => s.seasonNumber).join(", ")}` : ""}</span>
+        <span class="seerr-request-year">${year}${isTV && req.seasons?.length
+          ? ` · Saison${req.seasons.length > 1 ? "s" : ""} ${req.seasons.map(s => s.seasonNumber).join(", ")}`
+          : ""}</span>
         <div class="seerr-request-title">${name}</div>
         <div class="seerr-request-by">
           ${by?.avatar ? `<img class="seerr-request-avatar-mini" src="${by.avatar}" alt="">` : ""}
