@@ -43,7 +43,7 @@ async function runHealthCheck() {
   // ✅ Vérifier l'EventEmitter
   console.log("[HC] 📢 Vérification EventEmitter...");
   try {
-    if (TautulliEvents && TautulliEvents.on) {
+    if (TautulliEvents && TautulliEvents.emitter && typeof TautulliEvents.emitter.on === 'function') {
       console.log("[HC]   ✅ EventEmitter opérationnel");
       checks.push({ name: "EventEmitter", status: "✅ OK", detail: "À l'écoute des événements" });
     } else {
@@ -74,10 +74,12 @@ async function runHealthCheck() {
     if (status === "❌") issuesFound++;
   }
 
+  const missCount = Object.values(configChecks).filter(s => s === "❌").length;
+  if (missCount > 0) issuesFound += missCount;
   checks.push({ 
     name: "Configuration", 
-    status: issuesFound === 0 ? "✅ OK" : "❌ ERREUR", 
-    detail: Object.values(configChecks).filter(s => s === "❌").length + " configs manquantes"
+    status: missCount === 0 ? "✅ OK" : "❌ ERREUR", 
+    detail: missCount + " configs manquantes"
   });
 
   // 📊 Résumé
