@@ -5,7 +5,6 @@ const path = require("path");
 
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
-const overseerrRoutes = require("./routes/overseerr.routes");
 const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
@@ -28,6 +27,7 @@ app.use(reverseProxyMiddleware);
 ========================= */
 
 app.use(session({
+  name: "plex-portal.sid", // ⚠️  Nom unique pour éviter le conflit avec connect.sid de Seerr
   secret: process.env.SESSION_SECRET || "monplex-secret-key",
   resave: false,
   saveUninitialized: false,
@@ -87,7 +87,6 @@ app.set("layout", "layout");
 
 app.use("/", authRoutes);
 app.use("/", dashboardRoutes);
-app.use("/", overseerrRoutes);
 
 app.get("/", (req, res) => {
   if (req.session.user) {
