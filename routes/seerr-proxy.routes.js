@@ -75,23 +75,18 @@ async function doSeerrAuth(req) {
 }
 
 /* ===============================
-   PAGE /overseerr → iframe wrapper
+   PAGE /overseerr → SSO puis redirect full-page vers Seerr
+   (pas d'iframe — Next.js ne peut pas fonctionner correctement en iframe
+    si BASE_URL n'est pas configuré, car /_next/* ne serait pas proxifié)
 =============================== */
 router.get("/overseerr", requireAuth, async (req, res) => {
-  // Authentification SSO automatique si pas encore de cookie Seerr
   if (!req.session.overseerrCookie) {
     await doSeerrAuth(req);
   }
-
-  // Sauvegarde explicite de la session avant de rendre la page
-  // (nécessaire pour que le cookie soit disponible dès le premier appel /overseerr-frame/)
+  // Sauvegarde explicite avant redirect pour que le cookie soit dispo dès la prochaine requête
   await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
-
-  res.render("overseerr/iframe", {
-    user: req.session.user,
-    basePath: req.basePath || "",
-    layout: false
-  });
+  // Navigation directe vers Seerr (full-page, pas iframe)
+  res.redirect((req.basePath || "") + "/overseerr-frame/");
 });
 
 /* ===============================
@@ -229,5 +224,81 @@ const proxyMiddleware = createProxyMiddleware({
 
 // Appliquer l'auth guard puis le proxy pour tous les appels /overseerr-frame/*
 router.use("/overseerr-frame", requireAuth, proxyMiddleware);
+
+/* ===============================
+   PROXY SUPPLÉMENTAIRES — assets Next.js & API Seerr
+   Seerr (Next.js) génère des paths sans préfixe dans son HTML :
+     /_next/static/...     → assets JS/CSS
+     /api/v1/...           → API REST Seerr
+     /images/...           → images du serveur Seerr
+     /imageproxy/...       → proxy d'images TMDB
+   Sans ces routes, le navigateur les demande à plex-portal → 404 → Seerr pense
+   que l'utilisateur est déconnecté → redirect app.plex.tv
+   Note: ces routes ne sont actives que si OVERSEERR_URL est configuré.
+=============================== */
+if (process.env.OVERSEERR_URL) {
+  const makePassthroughProxy = (pathPrefix) => createProxyMiddleware({
+    target: seerrTarget,
+    changeOrigin: true,
+    secure: false,
+    proxyTimeout: 30000,
+    timeout: 30000,
+    on: {
+      proxyReq: (proxyReq, req) => {
+        if (req.session?.overseerrCookie) {
+          proxyReq.setHeader("Cookie", req.session.overseerrCookie);
+        }
+        try {
+          const target = new URL(seerrTarget);
+          proxyReq.setHeader("Host", target.host);
+        } catch (_) {}
+        proxyReq.removeHeader("Accept-Encoding");
+      },
+      proxyRes: (proxyRes, req) => {
+        // Capturer les cookies renouvelés
+        const setCookies = proxyRes.headers["set-cookie"];
+        if (setCookies && req.session) {
+          const c = (Array.isArray(setCookies) ? setCookies : [setCookies])
+            .map(c => c.split(";")[0]).join("; ");
+          if (c) req.session.overseerrCookie = c;
+        }
+        delete proxyRes.headers["set-cookie"];
+        delete proxyRes.headers["x-frame-options"];
+        delete proxyRes.headers["content-security-policy"];
+        delete proxyRes.headers["content-security-policy-report-only"];
+
+        // Intercepter les redirects d'auth
+        const basePath = req.basePath || "";
+        const isRedirect = [301, 302, 303, 307, 308].includes(proxyRes.statusCode);
+        if (isRedirect) {
+          const location = proxyRes.headers["location"] || "";
+          const staysInProxy =
+            location.startsWith("/overseerr-frame") ||
+            location.startsWith("/_next") ||
+            location.startsWith("/api/v1") ||
+            location.startsWith("/images") ||
+            location.startsWith("/imageproxy");
+          if (!staysInProxy) {
+            console.warn(`[SeerrProxy] Redirect auth intercepté (${pathPrefix}): ${location}`);
+            proxyRes.headers["location"] = `${basePath}/overseerr-frame-reauth`;
+          }
+        }
+      },
+      error: (err, req, res) => {
+        if (!res.headersSent) res.status(502).send("Seerr proxy error");
+      }
+    }
+  });
+
+  // Assets Next.js (JS, CSS, images statiques)
+  router.use("/_next", requireAuth, makePassthroughProxy("/_next"));
+  // API REST Seerr (auth/me, discover, request, etc.)
+  router.use("/api/v1", requireAuth, makePassthroughProxy("/api/v1"));
+  // Images et proxy d'images TMDB
+  router.use("/images", requireAuth, makePassthroughProxy("/images"));
+  router.use("/imageproxy", requireAuth, makePassthroughProxy("/imageproxy"));
+
+  console.log(`[SeerrProxy] Routes supplémentaires actives (/_next, /api/v1, /images, /imageproxy) → ${seerrTarget}`);
+}
 
 module.exports = router;
