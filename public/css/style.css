@@ -417,14 +417,17 @@ body {
 
 /* Logo Seerr dans la hero card */
 .hero-icon--seerr {
-  background: rgba(33, 150, 243, 0.08);
-  border: 1px solid rgba(33, 150, 243, 0.2);
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 .hero-icon-logo {
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
-  border-radius: 8px;
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(33, 150, 243, 0.45);
+  box-shadow: 0 4px 14px rgba(33, 150, 243, 0.15);
 }
 
 /* Logo Seerr dans les card-header (widget overseerr) */
