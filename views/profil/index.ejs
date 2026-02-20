@@ -1,4 +1,4 @@
-﻿<div class="profil-container">
+<div class="profil-container">
   <!-- HEADER AVEC AVATAR ET XP -->
   <div class="profil-header">
     <% 
@@ -60,18 +60,28 @@
     </div>
   </div>
 
-  <!-- PROGRESS BAR XP -->
-  <div class="xp-progress-section">
-    <div class="progress-header">
-      <span>Progression vers le niveau suivant</span>
-      <div class="progress-header-right">
+  <!-- XP ROW : carte succès + barre progression -->
+  <div class="xp-row-layout">
+
+    <!-- GAUCHE : succès -->
+    <div class="xp-left-card">
+      <div class="xp-left-icon">🏆</div>
+      <div class="xp-left-label">Succès</div>
+      <div class="xp-left-count"><span id="xpUnlockedCount" class="skel"> </span></div>
+      <button class="action-pill action-pill--gold" onclick="openBadgesModal()">Voir mes succès →</button>
+    </div>
+
+    <!-- DROITE : barre XP -->
+    <div class="xp-progress-section">
+      <div class="progress-header">
+        <span>Progression vers le niveau suivant</span>
         <span class="xp-needed" id="xpNeeded">-</span>
-        <a href="<%= basePath %>/badges" class="xp-badges-btn">🏆 Mes succès</a>
+      </div>
+      <div class="xp-bar-wrapper">
+        <div class="xp-bar-fill" id="xpBarFill"></div>
       </div>
     </div>
-    <div class="xp-bar-wrapper">
-      <div class="xp-bar-fill" id="xpBarFill"></div>
-    </div>
+
   </div>
 
   <!-- GRID DE CARTES -->
@@ -182,13 +192,24 @@
     </div>
   </div>
 
-  <!-- SECTION SUCCÈS -->
+  <!-- SECTION SUCCÈS (header + bouton XP uniquement) -->
   <div class="badges-section">
     <div class="badges-header-with-link">
       <h2>🏆 Progression des Succès</h2>
-      <button class="view-more-link" onclick="openXpModal()">⚡ Répartition XP →</button>
+      <button class="action-pill" onclick="openXpModal()">⚡ Répartition XP →</button>
     </div>
-    <div class="badges-container" id="badgesContainer"></div>
+    <div id="badgesContainerProxy"></div>
+  </div>
+
+  <!-- MODAL SUCCÈS -->
+  <div id="badgesModal" class="xp-modal" onclick="if(event.target===this)closeBadgesModal()">
+    <div class="xp-modal-content xp-modal-content--wide">
+      <div class="xp-modal-header">
+        <h3>🏆 Progression des Succès</h3>
+        <button class="xp-modal-close" onclick="closeBadgesModal()">✕</button>
+      </div>
+      <div class="badges-container" id="badgesContainer"></div>
+    </div>
   </div>
 
   <!-- MODAL RÉPARTITION XP -->
@@ -548,12 +569,58 @@
   }
 
   /* XP PROGRESS */
-  .xp-progress-section {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 12px 18px;
-    border-radius: 12px;
+  /* XP ROW LAYOUT */
+  .xp-row-layout {
+    display: flex;
+    gap: 16px;
     margin-bottom: 24px;
+    align-items: stretch;
+  }
+
+  /* CARTE GAUCHE SUCCÈS */
+  .xp-left-card {
+    flex: 0 0 140px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+  }
+
+  .xp-left-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .xp-left-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .xp-left-count {
+    font-size: 11px;
+    color: #aaa;
+    min-height: 14px;
+  }
+
+  /* BARRE XP DROITE */
+  .xp-progress-section {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 14px 18px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .progress-header {
@@ -565,28 +632,35 @@
     margin-bottom: 10px;
   }
 
-  .progress-header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .xp-badges-btn {
-    color: #DAA520;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 4px 12px;
+  /* BOUTONS PILLS (action-pill) */
+  .action-pill {
+    color: #00D9FF;
+    background: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
     border-radius: 20px;
-    border: 1px solid rgba(218, 165, 32, 0.4);
-    background: rgba(218, 165, 32, 0.08);
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
   }
 
-  .xp-badges-btn:hover {
-    background: rgba(218, 165, 32, 0.2);
-    border-color: rgba(218, 165, 32, 0.7);
+  .action-pill:hover {
+    background: rgba(0, 217, 255, 0.1);
+    border-color: rgba(0, 217, 255, 0.6);
+  }
+
+  .action-pill--gold {
+    color: #DAA520;
+    border-color: rgba(218, 165, 32, 0.3);
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  .action-pill--gold:hover {
+    background: rgba(218, 165, 32, 0.12);
+    border-color: rgba(218, 165, 32, 0.65);
   }
 
   .xp-needed {
@@ -708,22 +782,9 @@
     margin: 0;
   }
 
-  .view-more-link {
-    color: #00D9FF;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 217, 255, 0.3);
-    background: none;
-    cursor: pointer;
-  }
-
-  .view-more-link:hover {
-    background: rgba(0, 217, 255, 0.1);
-    border-color: rgba(0, 217, 255, 0.6);
+  /* wide modal pour badges */
+  .xp-modal-content--wide {
+    max-width: 900px;
   }
 
   /* MODAL XP */
@@ -1776,8 +1837,15 @@
         const rankData = XP_SYSTEM.ranks[rankIdx];
         if (rankData) item.classList.toggle("unlocked", currentLevel >= rankData.minLevel);
       });
+      {
+        const unlockedCount = [...badgeItems].filter(i => i.classList.contains("unlocked")).length;
+        if (document.getElementById("detailProfilBadges"))
+          document.getElementById("detailProfilBadges").textContent = unlockedCount + "/" + XP_SYSTEM.ranks.length;
+        const uc = document.getElementById("xpUnlockedCount");
+        if (uc) { uc.textContent = unlockedCount + " / " + XP_SYSTEM.ranks.length; uc.classList.remove("skel"); }
+      }
 
-      // 🧹 Nettoyer skeletons — batch 2 (Tautulli)
+      // Nettoyer skeletons batch 2 (Tautulli)
       clearSkel('counterSessions','statTotalHours','counterMovies','statMovieHours',
                 'counterEpisodes','statEpisodeHours','joinedDate','lastActivity');
       saveProfilSnapshot(); // snapshot complet (toutes données)
@@ -2074,6 +2142,8 @@
       if (el("detailProfilBadges")) {
         const unlockedCount = [...badgeItems].filter(i => i.classList.contains("unlocked")).length;
         el("detailProfilBadges").textContent = unlockedCount + "/" + XP_SYSTEM.ranks.length;
+        const uc = document.getElementById("xpUnlockedCount");
+        if (uc) { uc.textContent = unlockedCount + " / " + XP_SYSTEM.ranks.length; uc.classList.remove("skel"); }
       }
     }
 
@@ -2114,13 +2184,19 @@
     document.getElementById('xpModal').classList.add('active');
     document.body.style.overflow = 'hidden';
   }
-
   function closeXpModal() {
     document.getElementById('xpModal').classList.remove('active');
     document.body.style.overflow = '';
   }
-
+  function openBadgesModal() {
+    document.getElementById('badgesModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeBadgesModal() {
+    document.getElementById('badgesModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeXpModal();
+    if (e.key === 'Escape') { closeXpModal(); closeBadgesModal(); }
   });
 </script>
