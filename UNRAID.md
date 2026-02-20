@@ -82,6 +82,7 @@ Recommandé: 300x300px ou 400x400px
 
 5. **Environment Variables:**
    - `SESSION_SECRET` = `your-secret-key` ⚠️ **OBLIGATOIRE**
+   - `COOKIE_SECURE` = `true` ⚠️ **OBLIGATOIRE en production (HTTPS)**
    - `DEBUG` = `true` (optionnel, pour voir les logs)
 
 6. Cliquer sur **Apply**
@@ -95,14 +96,16 @@ version: '3.8'
 
 services:
   plex-portal:
-    build: .
+    image: ghcr.io/idrinkx/plex-portal:latest
     container_name: plex-portal
     ports:
       - "3000:3000"
     environment:
       SESSION_SECRET: "change-me-to-a-secure-key"
+      COOKIE_SECURE: "true"   # HTTPS via reverse proxy
     volumes:
       - /mnt/user/appdata/plex-portal/config:/config
+      - /mnt/user/appdata/tautulli:/tautulli-data  # optionnel
     restart: unless-stopped
 ```
 
@@ -277,24 +280,25 @@ ngx proxy manager va générer automatiquement un certificat Let's Encrypt. ✅
 
 ### Wizarr (Gestion des invitations)
 
-1. IP interne Wizarr: `192.168.10.100:5290`
+1. IP interne Wizarr: `192.168.x.x:5690`
 2. Obtenir la clé API dans Wizarr: Settings ➜ API
 
 Ajouter aux environment variables:
 ```
-WIZARR_URL=http://192.168.10.100:5290
+WIZARR_URL=http://192.168.x.x:5690
 WIZARR_API_KEY=your-key
 ```
 
 ### Tautulli (Statistiques de visionnage)
 
-1. IP interne Tautulli: `192.168.10.100:8181`
+1. IP interne Tautulli: `192.168.x.x:8181`
 2. Obtenir la clé API dans Tautulli: Web Interface ➜ Settings ➜ API
 
 Ajouter aux environment variables:
 ```
-TAUTULLI_URL=http://192.168.10.100:8181
+TAUTULLI_URL=http://192.168.x.x:8181
 TAUTULLI_API_KEY=your-key
+TAUTULLI_DB_PATH=/tautulli-data/tautulli.db
 ```
 
 ---
@@ -305,6 +309,7 @@ TAUTULLI_API_KEY=your-key
 Container Path    │ Host Path
 ─────────────────┼────────────────────────────────
 /config          │ /mnt/user/appdata/plex-portal/config
+/tautulli-data   │ /mnt/user/appdata/tautulli          (optionnel, lecture DB directe)
 ```
 
 ---

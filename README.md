@@ -106,12 +106,12 @@ plex-portal/
     health-check.js                 # Vérification santé services
     plex.js                         # Whitelist utilisateurs Plex
     seerr.js                        # API Seerr (stats demandes)
-    seerr-new.js                    # API Seerr alternative
     session-stats-cache.js
     session-stats-cache-db.js
     tautulli.js                     # API Tautulli
     tautulli-direct.js              # Lecture directe DB Tautulli
     tautulli-events.js
+    logger.js                       # Logger unifié (timestamp + couleurs)
     wizarr.js                       # API Wizarr
     xp-system.js                    # Calcul XP et niveaux
 
@@ -129,6 +129,7 @@ plex-portal/
 
 ```yaml
 SESSION_SECRET: "votre-cle-secrete"     # Clé de session (obligatoire)
+COOKIE_SECURE: "true"                   # true en production (HTTPS), false en local
 ```
 
 #### Intégrations
@@ -176,6 +177,7 @@ services:
       - proxy
     environment:
       - SESSION_SECRET=votre-cle-secrete
+      - COOKIE_SECURE=true
       - WIZARR_URL=http://Wizarr:5690
       - WIZARR_API_KEY=votre-cle
       - TAUTULLI_URL=http://tautulli:8181
@@ -234,6 +236,7 @@ GET  /logout                    Déconnexion
 GET  /api/subscription          Infos abonnement Wizarr
 GET  /api/stats                 Statistiques Tautulli
 GET  /api/seerr                 Stats demandes Seerr
+GET  /api/server-stats          Stats librairies serveur (films, séries, musiques)
 POST /api/cache/invalidate      Invalide le cache utilisateur
 ```
 
