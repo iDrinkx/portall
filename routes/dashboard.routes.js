@@ -639,10 +639,23 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
   const thumbPath = req.query.path;
   if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
 
+  // Validation anti-SSRF : le chemin doit commencer par /library/ ou /photo/
+  // et ne pas contenir de séquences de traversal
+  const allowedPrefixes = ["/library/", "/photo/"];
+  const isAllowed = allowedPrefixes.some(p => thumbPath.startsWith(p));
+  const hasTraversal = /(\.\.|%2e%2e|%252e)/i.test(thumbPath);
+  if (!isAllowed || hasTraversal) {
+    console.warn(`[Plex-Thumb] ⛔ Chemin refusé: ${thumbPath}`);
+    return res.status(400).end();
+  }
+
   try {
     const r = await fetch(`${plexUrl}${thumbPath}?X-Plex-Token=${plexToken}`, { timeout: 8000 });
     if (!r.ok) return res.status(404).end();
-    res.set("Content-Type", r.headers.get("content-type") || "image/jpeg");
+    const ct = r.headers.get("content-type") || "";
+    // N'accepter que des images en réponse
+    if (!ct.startsWith("image/")) return res.status(400).end();
+    res.set("Content-Type", ct);
     res.set("Cache-Control", "public, max-age=60");
     r.body.pipe(res);
   } catch (e) {

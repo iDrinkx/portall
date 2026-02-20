@@ -26,14 +26,23 @@ app.use(reverseProxyMiddleware);
    SESSION
 ========================= */
 
+// ⚠️  SESSION_SECRET check au démarrage
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET || SESSION_SECRET === "change-me-to-a-secure-key" || SESSION_SECRET === "monplex-secret-key") {
+  console.warn("\n⚠️  [SÉCURITÉ] SESSION_SECRET non défini ou valeur par défaut détectée !");
+  console.warn("   Définissez une clé aléatoire forte dans docker-compose.yml :\n");
+  console.warn(`   SESSION_SECRET: \"${require('crypto').randomBytes(32).toString('hex')}\"\n`);
+}
+
 app.use(session({
-  name: "plex-portal.sid", // ⚠️  Nom unique pour éviter le conflit avec connect.sid de Seerr
-  secret: process.env.SESSION_SECRET || "monplex-secret-key",
+  name: "plex-portal.sid", // Nom unique pour éviter le conflit avec connect.sid de Seerr
+  secret: SESSION_SECRET || require('crypto').randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: false, // ⚠️ mettre true si HTTPS plus tard
+    // secure: true dès que la requête arrive via HTTPS (reverse proxy)
+    secure: process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true',
     sameSite: "lax",
     maxAge: 1000 * 60 * 60 * 24 // 24h
   }

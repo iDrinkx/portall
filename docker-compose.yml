@@ -8,8 +8,11 @@ services:
       - "3000:3000"
     
     environment:
-      # ⚠️ Obligatoire - Changez cette valeur en production!
+      # ⚠️ OBLIGATOIRE — Remplacez par une clé aléatoire forte (ex: openssl rand -hex 32)
       SESSION_SECRET: "change-me-to-a-secure-key"
+      # Activer les cookies sécurisés HTTPS (mettre true si derrière un reverse proxy HTTPS)
+      COOKIE_SECURE: "true"
+      NODE_ENV: "production"
 
       # ===Optionnel ===
       # L'app détecte automatiquement si elle est derrière un reverse proxy

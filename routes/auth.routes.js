@@ -123,7 +123,6 @@ router.get("/auth-complete", async (req, res) => {
   console.info(`  ID: ${user.id}`);
   console.info(`  Email: ${user.email}`);
   console.info(`  Username: ${user.username}`);
-  console.debug(`[Auth] Full user response from plex.tv:`, JSON.stringify(user, null, 2));
 
   // Vérifier que l'utilisateur a accès au serveur Plex Dark TV
   // - Si PLEX_URL/PLEX_TOKEN ne sont pas configurés → on laisse passer (fail-open)
