@@ -98,15 +98,15 @@ async function validateSeerrCookie(cookie) {
 router.get("/overseerr", requireAuth, async (req, res) => {
   const basePath = req.basePath || "";
 
-  // 1. Obtenir le cookie si absent
+  // 1. Obtenir le cookie Seerr si absent
   if (!req.session.overseerrCookie) {
     await doSeerrAuth(req);
   }
 
-  // 2. Vérifier que le cookie est vraiment valide côté Seerr
+  // 2. Vérifier que le cookie est valide
   const valid = await validateSeerrCookie(req.session.overseerrCookie);
   if (!valid) {
-    console.warn("[SeerrProxy] Cookie invalide ou expiré — nouvelle tentative d'auth");
+    console.warn("[SeerrProxy] Cookie invalide — nouvelle tentative d'auth");
     delete req.session.overseerrCookie;
     await doSeerrAuth(req);
 
@@ -118,8 +118,7 @@ router.get("/overseerr", requireAuth, async (req, res) => {
           <div style="text-align:center">
             <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
             <h2>Impossible de connecter votre compte à Seerr</h2>
-            <p style="color:#94a3b8">Seerr a bien répondu mais n'accepte pas votre session.</p>
-            <p style="color:#64748b;font-size:.75rem">Vérifiez que votre compte Plex est bien autorisé dans Seerr (Settings → Users).</p>
+            <p style="color:#94a3b8">Vérifiez que votre compte Plex est autorisé dans Seerr (Settings → Users).</p>
             <a href="${basePath}/dashboard" style="margin-top:1.5rem;display:inline-block;background:#6366f1;color:#fff;padding:.6rem 1.5rem;border-radius:.5rem;text-decoration:none">← Dashboard</a>
           </div>
         </body></html>
@@ -127,24 +126,49 @@ router.get("/overseerr", requireAuth, async (req, res) => {
     }
   }
 
-  // 3. Cookie valide → sauvegarder et rediriger
+  // 3. ✅ Envoyer le cookie Seerr directement au browser
+  //    Restreint au path /overseerr-frame → le browser l'inclut automatiquement
+  //    dans TOUTES les requêtes sous /overseerr-frame/* (JS inclus, SSR inclus)
+  //    Sans ça, Seerr côté client ne sait pas que l'utilisateur est connecté.
+  const rawCookie = req.session.overseerrCookie; // "connect.sid=s%3A..."
+  const eqIdx = rawCookie.indexOf("=");
+  const cookieName  = rawCookie.slice(0, eqIdx);
+  const cookieValue = rawCookie.slice(eqIdx + 1);
+
+  res.cookie(cookieName, cookieValue, {
+    path: basePath + "/overseerr-frame",
+    httpOnly: true,
+    sameSite: "lax",
+    // Pas de maxAge → cookie de session (supprimé à la fermeture du tab)
+  });
+
+  // 4. Sauvegarder la session plex-portal et rediriger
   await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
-  console.log(`[SeerrProxy] ✅ Redirection vers ${basePath}/overseerr-frame/`);
+  console.log(`[SeerrProxy] ✅ Cookie Seerr envoyé au browser → redirect ${basePath}/overseerr-frame/`);
   res.redirect(basePath + "/overseerr-frame/");
 });
 
 /* ===============================
    RE-AUTH depuis le proxy (redirect intercepté)
-   Seerr redirige parfois vers son login ou app.plex.tv quand le cookie expire.
-   On intercepte ça côté proxy et on redirige vers cette route.
 =============================== */
 router.get("/overseerr-frame-reauth", requireAuth, async (req, res) => {
+  const basePath = req.basePath || "";
   console.log("[SeerrProxy] Re-auth demandée (cookie Seerr expiré ou invalide)");
   delete req.session.overseerrCookie;
   delete req.session.overseerrUser;
   await doSeerrAuth(req);
   await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
-  res.redirect((req.basePath || "") + "/overseerr-frame/");
+
+  // Re-envoyer le nouveau cookie au browser
+  if (req.session.overseerrCookie) {
+    const eqIdx = req.session.overseerrCookie.indexOf("=");
+    res.cookie(
+      req.session.overseerrCookie.slice(0, eqIdx),
+      req.session.overseerrCookie.slice(eqIdx + 1),
+      { path: basePath + "/overseerr-frame", httpOnly: true, sameSite: "lax" }
+    );
+  }
+  res.redirect(basePath + "/overseerr-frame/");
 });
 
 /* ===============================
