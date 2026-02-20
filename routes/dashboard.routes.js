@@ -599,7 +599,7 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
     const progressPct = duration > 0 ? Math.round((viewOffset / duration) * 100) : 0;
 
     const thumb = mySession.thumb
-      ? `${plexUrl}${mySession.thumb}?X-Plex-Token=${plexToken}`
+      ? (req.basePath || "") + "/api/plex-thumb?path=" + encodeURIComponent(mySession.thumb)
       : null;
 
     res.json({
@@ -616,6 +616,28 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
   } catch (e) {
     console.warn("[NowPlaying] Erreur:", e.message);
     res.json({ playing: false });
+  }
+});
+
+/* ===============================
+   🖼️ PROXY MINIATURE PLEX
+   Le browser ne peut pas accéder à l'URL interne plex:32400.
+   On proxifie l'image côté serveur et on la renvoie au browser.
+=============================== */
+router.get("/api/plex-thumb", requireAuth, async (req, res) => {
+  const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
+  const plexToken = process.env.PLEX_TOKEN  || "";
+  const thumbPath = req.query.path;
+  if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
+
+  try {
+    const r = await fetch(`${plexUrl}${thumbPath}?X-Plex-Token=${plexToken}`, { timeout: 8000 });
+    if (!r.ok) return res.status(404).end();
+    res.set("Content-Type", r.headers.get("content-type") || "image/jpeg");
+    res.set("Cache-Control", "public, max-age=60");
+    r.body.pipe(res);
+  } catch (e) {
+    res.status(502).end();
   }
 });
 
