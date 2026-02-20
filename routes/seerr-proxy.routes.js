@@ -5,9 +5,9 @@
  *
  * Auth SSO (Organizr style) :
  *   Au login, auth.routes.js  grabSeerrCookie() r�cup�re le connect.sid de Seerr
- *   et le pose dans le browser avec domain=.idrinktv.ovh (parent commun entre
- *   plex-portal.idrinktv.ovh et overseerr.idrinktv.ovh).
- *   Le browser l'envoie automatiquement quand l'iframe charge overseerr.idrinktv.ovh  SSO.
+ *   et le pose dans le browser avec domain=.votredomaine.com (parent commun entre
+ *   plex-portal.votredomaine.com et seerr.votredomaine.com).
+ *   Le browser l'envoie automatiquement quand l'iframe charge seerr.votredomaine.com  SSO.
  *
  * Config requise :
  *   SEERR_URL        = URL interne (pour l'API auth au login)

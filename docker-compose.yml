@@ -41,12 +41,12 @@ services:
       # SEERR_URL      → URL INTERNE pour grab le cookie au login (API auth)
       # SEERR_PUBLIC_URL → URL PUBLIQUE affichée dans l'iframe (même domaine parent que le portail)
       # Exemples :
-      #   SEERR_URL: "http://192.168.1.100:5055"        ← IP Unraid + port
+      #   SEERR_URL: "http://192.168.1.x:5055"           ← IP Unraid + port
       #   SEERR_URL: "http://overseerr:5055"            ← réseau Docker custom
-      #   SEERR_PUBLIC_URL: "https://seerr.idrinktv.ovh"  ← URL publique HTTPS
-      SEERR_URL: "http://192.168.1.100:5055"
-      SEERR_PUBLIC_URL: "https://seerr.idrinktv.ovh"
-      SEERR_API_KEY: "your-key"
+      #   SEERR_PUBLIC_URL: "https://seerr.votredomaine.com"  ← URL publique HTTPS
+      # SEERR_URL: "http://192.168.1.x:5055"
+      # SEERR_PUBLIC_URL: "https://seerr.votredomaine.com"
+      # SEERR_API_KEY: "your-key"
       
       # ⚠️ SÉCURITÉ - Whitelist utilisateurs Plex (FORTEMENT RECOMMANDÉ)
       # Permet de restreindre l'accès aux utilisateurs du serveur Plex

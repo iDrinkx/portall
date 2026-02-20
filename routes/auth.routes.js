@@ -10,17 +10,17 @@ const { isUserAuthorized } = require("../utils/plex");
  * Grab le cookie connect.sid de Seerr via le token Plex.
  * Même logique qu'Organizr sso-functions.php#L335.
  *
- * Approche iframe : le cookie est posé avec domain=.idrinktv.ovh (parent commun
- * entre plex-portal.idrinktv.ovh et overseerr.idrinktv.ovh) → le browser l'envoie
- * automatiquement quand l'iframe charge overseerr.idrinktv.ovh.
+ * Approche iframe : le cookie est posé avec domain=.votredomaine.com (parent commun
+ * entre plex-portal.votredomaine.com et seerr.votredomaine.com) → le browser l'envoie
+ * automatiquement quand l'iframe charge seerr.votredomaine.com.
  */
 function getSeerrCookieDomain() {
   const publicUrl = process.env.SEERR_PUBLIC_URL || "";
   if (!publicUrl) return null;
   try {
-    const hostname = new URL(publicUrl).hostname; // ex: overseerr.idrinktv.ovh
+    const hostname = new URL(publicUrl).hostname; // ex: seerr.votredomaine.com
     const parts = hostname.split(".");
-    if (parts.length >= 2) return "." + parts.slice(-2).join("."); // .idrinktv.ovh
+    if (parts.length >= 2) return "." + parts.slice(-2).join("."); // .votredomaine.com
   } catch (e) {}
   return null;
 }
@@ -159,7 +159,7 @@ router.get("/auth-complete", async (req, res) => {
   delete req.session.pinId;
 
   // Grab le cookie Seerr immédiatement au login (same as Organizr)
-  // Le cookie connect.sid est posé en cross-subdomain → l'iframe overseerr.idrinktv.ovh
+  // Le cookie connect.sid est posé en cross-subdomain → l'iframe seerr.votredomaine.com
   // est authentifiée automatiquement sans que l'utilisateur ait à se re-connecter.
   await grabSeerrCookie(authToken, res);
 

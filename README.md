@@ -208,7 +208,7 @@ Plex Portal intègre Seerr (ex-Overseerr / Jellyseerr) via **SSO Organizr-style*
 
 **Prérequis :**
 - `SEERR_PUBLIC_URL` et l'URL de plex-portal doivent partager le même domaine parent
-  _(ex: `plex-portal.idrinktv.ovh` + `seerr.idrinktv.ovh`  parent `.idrinktv.ovh`)_
+  _(ex: `plex-portal.votredomaine.com` + `seerr.votredomaine.com`  parent `.votredomaine.com`)_
 - HTTPS obligatoire en production (cookie `secure: true`)
 
 ---

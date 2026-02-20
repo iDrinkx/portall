@@ -68,8 +68,7 @@ Recommandé: 300x300px ou 400x400px
 
 2. **Configuration:**
    - Name: `plex-portal`
-   - Repository: `theopoleme/plex-portal:latest`
-   - (ou `ghcr.io/theopoleme/plex-portal:latest`)
+   - Repository: `ghcr.io/idrinkx/plex-portal:latest`
 
 3. **Ports:**
    - Container Port: `3000`

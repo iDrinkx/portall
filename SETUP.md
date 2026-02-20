@@ -14,13 +14,13 @@
 ### Option A: Git (recommandé)
 
 ```bash
-git clone https://github.com/theopoleme/plex-portal.git
+git clone https://github.com/idrinkx/plex-portal.git
 cd plex-portal
 ```
 
 ### Option B: Télécharger le ZIP
 
-1. Aller sur [GitHub](https://github.com/theopoleme/plex-portal)
+1. Aller sur [GitHub](https://github.com/idrinkx/plex-portal)
 2. Cliquer sur **Code** ➜ **Download ZIP**
 3. Extraire le fichier
 4. Ouvrir le dossier
