@@ -292,11 +292,11 @@
     rows.forEach(id => { if ($(id)) $(id).innerHTML = loadingHTML(); });
 
     const [movies, tv, trending, upMovies, upTV, watchlist] = await Promise.allSettled([
-      apiGet("/discover/movies",          { take: 20 }),
-      apiGet("/discover/tv",              { take: 20 }),
+      apiGet("/discover/movies",          { page: 1 }),
+      apiGet("/discover/tv",              { page: 1 }),
       apiGet("/discover/trending",        { page: 1 }),
-      apiGet("/discover/movies/upcoming", { take: 20 }),
-      apiGet("/discover/tv/upcoming",     { take: 20 }),
+      apiGet("/discover/movies/upcoming", { page: 1 }),
+      apiGet("/discover/tv/upcoming",     { page: 1 }),
       apiGet("/discover/watchlist",       { page: 1 })
     ]);
 
@@ -339,7 +339,7 @@
     if (!grid) return;
     grid.innerHTML = loadingHTML();
     try {
-      const data = await apiGet("/discover/movies", { take: 60 });
+      const data = await apiGet("/discover/movies", { page: 1 });
       grid.className = "seerr-media-grid";
       buildCardRow(data.results || [], grid);
     } catch (e) {
@@ -357,7 +357,7 @@
     if (!grid) return;
     grid.innerHTML = loadingHTML();
     try {
-      const data = await apiGet("/discover/tv", { take: 60 });
+      const data = await apiGet("/discover/tv", { page: 1 });
       grid.className = "seerr-media-grid";
       buildCardRow(data.results || [], grid);
     } catch (e) {
