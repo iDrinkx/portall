@@ -17,8 +17,8 @@
       <p class="profile-email"><%= user.email %></p>
       
       <div class="xp-status" id="xpStatus">
-        <span class="xp-badge" id="xpBadge">🔵 Bronze</span>
-        <span class="xp-amount" id="xpAmount">0 XP</span>
+        <span class="xp-badge xp-skel" id="xpBadge"></span>
+        <span class="xp-amount xp-skel" id="xpAmount"></span>
       </div>
     </div>
 
@@ -914,6 +914,27 @@
     .breakdown-grid {
       grid-template-columns: 1fr;
     }
+  /* XP SKELETON ================================================= */
+  .xp-skel {
+    display: inline-block;
+    min-width: 90px;
+    min-height: 22px;
+    border-radius: 8px;
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.06) 25%,
+      rgba(255,255,255,0.14) 50%,
+      rgba(255,255,255,0.06) 75%
+    );
+    background-size: 300% 100%;
+    animation: xp-shimmer 1.5s ease-in-out infinite;
+    color: transparent !important;
+    border-color: transparent !important;
+    pointer-events: none;
+  }
+  @keyframes xp-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 </style>
 
@@ -950,6 +971,72 @@
       xpNeeded: Math.max(nextBadge.minXp - totalXp, 0)
     };
   };
+
+  /* ===============================
+     💾 XP SNAPSHOT — stale-while-revalidate
+     Stocke le dernier XP calculé en localStorage pour un affichage
+     instantané (sans flash "Bronze / 0 XP") à la prochaine visite.
+  =============================== */
+
+  // Clé unique par utilisateur, max 24h de validité
+  const _XP_CACHE_KEY = () => `xp_snapshot_${document.body.getAttribute("data-user-id") || "guest"}`;
+  const _XP_CACHE_TTL  = 24 * 60 * 60 * 1000;
+
+  function applyXpDisplay(snap) {
+    const b = snap.badge;
+    const xpBadgeEl = document.getElementById("xpBadge");
+    const xpAmountEl = document.getElementById("xpAmount");
+    const badgeRing  = document.getElementById("badgeRing");
+    const avatarEl   = document.getElementById("profileAvatar");
+    const xpBarFill  = document.getElementById("xpBarFill");
+    const xpNeededEl = document.getElementById("xpNeeded");
+
+    if (xpBadgeEl) {
+      xpBadgeEl.textContent    = `${b.icon} ${b.name}`;
+      xpBadgeEl.style.background   = b.bgColor;
+      xpBadgeEl.style.color        = b.color;
+      xpBadgeEl.style.borderColor  = b.borderColor;
+      xpBadgeEl.classList.remove("xp-skel");
+    }
+    if (xpAmountEl) {
+      xpAmountEl.textContent = `${(snap.totalXp || 0).toLocaleString("fr-FR")} XP`;
+      xpAmountEl.classList.remove("xp-skel");
+    }
+    if (avatarEl) avatarEl.style.borderColor  = b.borderColor;
+    if (badgeRing) badgeRing.style.borderColor = b.borderColor;
+    if (xpBarFill)  xpBarFill.style.width = (snap.progressPercent || 0) + "%";
+    if (xpNeededEl) {
+      xpNeededEl.textContent = snap.xpNeeded > 0
+        ? `${snap.xpNeeded.toLocaleString("fr-FR")} XP avant ${snap.nextBadgeName || "max"}`
+        : "Max atteint !";
+    }
+  }
+
+  function saveXpSnapshot(totalXp, badge, progress) {
+    try {
+      localStorage.setItem(_XP_CACHE_KEY(), JSON.stringify({
+        totalXp,
+        badge: { icon: badge.icon, name: badge.name, color: badge.color, bgColor: badge.bgColor, borderColor: badge.borderColor },
+        progressPercent: progress.progressPercent,
+        xpNeeded: progress.xpNeeded,
+        nextBadgeName: progress.next?.name || null,
+        savedAt: Date.now()
+      }));
+    } catch (_) {}
+  }
+
+  function loadXpSnapshot() {
+    try {
+      const raw  = localStorage.getItem(_XP_CACHE_KEY());
+      if (!raw) return null;
+      const snap = JSON.parse(raw);
+      if (!snap.savedAt || Date.now() - snap.savedAt > _XP_CACHE_TTL) {
+        localStorage.removeItem(_XP_CACHE_KEY());
+        return null;
+      }
+      return snap;
+    } catch (_) { return null; }
+  }
 
   const basePath = window.APP_BASE_PATH || "";
   const CACHE_DURATION = 30000; // 30 secondes
@@ -1207,6 +1294,14 @@
     
     renderBadges();
 
+    // ⚡ Stale-While-Revalidate : afficher instantanément la dernière
+    //    valeur XP connue pendant que les APIs chargent en arrière-plan.
+    const _cachedSnap = loadXpSnapshot();
+    if (_cachedSnap) {
+      applyXpDisplay(_cachedSnap);
+      console.log("[XP-CACHE] ⚡ Snapshot restauré:", _cachedSnap.badge?.name, _cachedSnap.totalXp, "XP");
+    }
+
     try {
       console.log("[PROFIL] 🚀 Chargement progressif des données");
       
@@ -1399,9 +1494,11 @@
         xpBadgeEl.style.background = badge.bgColor;
         xpBadgeEl.style.color = badge.color;
         xpBadgeEl.style.borderColor = badge.borderColor;
+        xpBadgeEl.classList.remove("xp-skel");
       }
       if (xpAmountEl) {
-        xpAmountEl.textContent = `${totalXp} XP`;
+        xpAmountEl.textContent = `${totalXp.toLocaleString("fr-FR")} XP`;
+        xpAmountEl.classList.remove("xp-skel");
       }
 
       // Barre de progression
@@ -1419,8 +1516,11 @@
       }
       
       if (xpNeeded) {
-        xpNeeded.textContent = progress.xpNeeded > 0 ? `${progress.xpNeeded} XP avant ${progress.next?.name || "max"}` : "Max atteint!";
+        xpNeeded.textContent = progress.xpNeeded > 0 ? `${progress.xpNeeded.toLocaleString("fr-FR")} XP avant ${progress.next?.name || "max"}` : "Max atteint !";
       }
+
+      // 💾 Persister pour affichage instantané à la prochaine visite
+      saveXpSnapshot(totalXp, badge, progress);
 
       // Calculer les pourcentages de répartition
       const totalXpBreakdown = hoursXp + badgesXp + ancienneteXp;
@@ -1579,6 +1679,13 @@
               xpBadgeEl.style.background = newBadge.bgColor;
               xpBadgeEl.style.color = newBadge.color;
               xpBadgeEl.style.borderColor = newBadge.borderColor;
+              xpBadgeEl.classList.remove("xp-skel");
+            }
+
+            const xpAmountEl2 = document.getElementById("xpAmount");
+            if (xpAmountEl2) {
+              xpAmountEl2.textContent = `${newTotalXp.toLocaleString("fr-FR")} XP`;
+              xpAmountEl2.classList.remove("xp-skel");
             }
             
             // Update progress bar
@@ -1590,8 +1697,11 @@
               xpBarFill.style.width = newProgress.progressPercent + "%";
             }
             if (xpNeeded) {
-              xpNeeded.textContent = newProgress.xpNeeded > 0 ? `${newProgress.xpNeeded} XP avant ${newProgress.next?.name || "max"}` : "Max atteint!";
+              xpNeeded.textContent = newProgress.xpNeeded > 0 ? `${newProgress.xpNeeded.toLocaleString("fr-FR")} XP avant ${newProgress.next?.name || "max"}` : "Max atteint !";
             }
+
+            // 💾 Persister
+            saveXpSnapshot(newTotalXp, newBadge, newProgress);
             
             console.log("[PROFIL-UPDATE] ✅ Tous les éléments mis à jour!");
           } catch (err) {
@@ -1736,6 +1846,7 @@
       const avatar       = el("profileAvatar");
       const badgeRing    = el("badgeRing");
       const xpBadgeEl    = el("xpBadge");
+      const xpAmountEl   = el("xpAmount");
       if (avatar)    avatar.style.borderColor    = currentBadge.borderColor;
       if (badgeRing) badgeRing.style.borderColor = currentBadge.borderColor;
       if (xpBadgeEl) {
@@ -1743,11 +1854,19 @@
         xpBadgeEl.style.background  = currentBadge.bgColor;
         xpBadgeEl.style.color       = currentBadge.color;
         xpBadgeEl.style.borderColor = currentBadge.borderColor;
+        xpBadgeEl.classList.remove("xp-skel");
+      }
+      if (xpAmountEl) {
+        xpAmountEl.textContent = `${totalXp.toLocaleString("fr-FR")} XP`;
+        xpAmountEl.classList.remove("xp-skel");
       }
       if (el("xpBarFill")) el("xpBarFill").style.width = progress.progressPercent + "%";
       if (el("xpNeeded"))  el("xpNeeded").textContent  = progress.xpNeeded > 0
-        ? `${progress.xpNeeded} XP avant ${progress.next?.name || "max"}`
-        : "Max atteint!";
+        ? `${progress.xpNeeded.toLocaleString("fr-FR")} XP avant ${progress.next?.name || "max"}`
+        : "Max atteint !";
+
+      // 💾 Persister
+      saveXpSnapshot(totalXp, currentBadge, progress);
 
       // Badges débloqués
       const badgeItems = document.querySelectorAll(".badge-item");
