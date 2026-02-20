@@ -18,20 +18,37 @@ async function getServerOwnerId(PLEX_TOKEN) {
 }
 
 /**
- * Récupère la liste des amis/partagés du compte admin via l'API cloud plex.tv.
- * Ces utilisateurs ont accès à au moins un des serveurs du compte admin.
+ * Récupère la liste complète des amis/partagés du compte admin via l'API cloud plex.tv.
+ * Gère la pagination : boucle jusqu'à ce que toutes les pages soient récupérées.
  */
 async function getPlexFriends(PLEX_TOKEN) {
-  const res = await fetch("https://plex.tv/api/v2/friends", {
-    headers: {
-      "X-Plex-Token": PLEX_TOKEN,
-      "X-Plex-Client-Identifier": "plex-portal-app",
-      "Accept": "application/json"
-    }
-  });
-  if (!res.ok) throw new Error(`plex.tv/api/v2/friends → HTTP ${res.status}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  const PAGE_SIZE = 100;
+  let offset = 0;
+  let allFriends = [];
+
+  while (true) {
+    const url = `https://plex.tv/api/v2/friends?includeSharedServers=1&count=${PAGE_SIZE}&offset=${offset}`;
+    const res = await fetch(url, {
+      headers: {
+        "X-Plex-Token": PLEX_TOKEN,
+        "X-Plex-Client-Identifier": "plex-portal-app",
+        "Accept": "application/json"
+      }
+    });
+    if (!res.ok) throw new Error(`plex.tv/api/v2/friends → HTTP ${res.status}`);
+    const page = await res.json();
+    if (!Array.isArray(page) || page.length === 0) break;
+
+    allFriends = allFriends.concat(page);
+    console.debug(`[Plex] Friends page offset=${offset}: ${page.length} reçus, total=${allFriends.length}`);
+
+    // Si la page est moins remplie que PAGE_SIZE, c'est la dernière
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  console.info(`[Plex] ✅ Total amis récupérés: ${allFriends.length}`);
+  return allFriends;
 }
 
 /**
