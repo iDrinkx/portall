@@ -39,12 +39,10 @@ app.use(session({
   }
 }));
 
-// 2. ⚠️  Proxy Seerr enregistré AVANT express.json() pour ne pas consommer
-//    les corps de requêtes avant que le proxy puisse les streamer vers Seerr.
-//    La session est déjà active ici, donc requireAuth fonctionne.
+// 2. Route Overseerr (iframe SSO Organizr-style — simple GET, pas de proxy)
 app.use("/", seeerrProxyRoutes);
 
-// 3. Body parsers (après le proxy Seerr)
+// 3. Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

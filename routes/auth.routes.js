@@ -7,10 +7,23 @@ const { isUserAuthorized } = require("../utils/plex");
 /**
  * Grab le cookie connect.sid de Seerr via le token Plex.
  * Même logique qu'Organizr sso-functions.php#L335.
- * Le cookie est posé directement dans le browser → envoyé automatiquement
- * à toutes les requêtes sous /overseerr-frame/.
+ *
+ * Approche iframe : le cookie est posé avec domain=.idrinktv.ovh (parent commun
+ * entre plex-portal.idrinktv.ovh et overseerr.idrinktv.ovh) → le browser l'envoie
+ * automatiquement quand l'iframe charge overseerr.idrinktv.ovh.
  */
-async function grabSeerrCookie(authToken, res, basePath) {
+function getSeerrCookieDomain() {
+  const publicUrl = process.env.OVERSEERR_PUBLIC_URL || "";
+  if (!publicUrl) return null;
+  try {
+    const hostname = new URL(publicUrl).hostname; // ex: overseerr.idrinktv.ovh
+    const parts = hostname.split(".");
+    if (parts.length >= 2) return "." + parts.slice(-2).join("."); // .idrinktv.ovh
+  } catch (e) {}
+  return null;
+}
+
+async function grabSeerrCookie(authToken, res) {
   const overseerrUrl = (process.env.OVERSEERR_URL || "").replace(/\/$/, "");
   if (!overseerrUrl || !authToken) return;
   try {
@@ -27,13 +40,16 @@ async function grabSeerrCookie(authToken, res, basePath) {
     const sidCookie = setCookies.find(c => c.startsWith("connect.sid="));
     if (sidCookie) {
       const value = sidCookie.split(";")[0].replace("connect.sid=", "");
-      // Poser le cookie dans le browser, restreint au path du proxy Seerr
-      res.cookie("connect.sid", decodeURIComponent(value), {
-        path: basePath + "/overseerr-frame",
+      const cookieDomain = getSeerrCookieDomain();
+      const cookieOpts = {
+        path: "/",
         httpOnly: true,
-        sameSite: "lax"
-      });
-      console.info(`[Auth] ✅ Cookie Seerr posé dans le browser (connect.sid @ ${basePath}/overseerr-frame)`);
+        sameSite: "lax",
+        secure: true  // HTTPS requis pour cross-subdomain
+      };
+      if (cookieDomain) cookieOpts.domain = cookieDomain;
+      res.cookie("connect.sid", decodeURIComponent(value), cookieOpts);
+      console.info(`[Auth] ✅ Cookie Seerr posé dans le browser (connect.sid, domain=${cookieDomain || "courant"})`);
     } else {
       console.warn("[Auth] Seerr n'a pas retourné de connect.sid");
     }
@@ -122,8 +138,9 @@ router.get("/auth-complete", async (req, res) => {
   delete req.session.pinId;
 
   // Grab le cookie Seerr immédiatement au login (same as Organizr)
-  // Le cookie connect.sid est posé dans le browser → pas besoin d'injection proxy
-  await grabSeerrCookie(authToken, res, req.basePath || "");
+  // Le cookie connect.sid est posé en cross-subdomain → l'iframe overseerr.idrinktv.ovh
+  // est authentifiée automatiquement sans que l'utilisateur ait à se re-connecter.
+  await grabSeerrCookie(authToken, res);
 
   res.redirect(req.basePath + "/dashboard");
 });

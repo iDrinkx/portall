@@ -35,11 +35,14 @@ services:
       # TAUTULLI_API_KEY: "your-api-key"
       
       # ⭐ OVERSEERR / SEERR - Requis pour l'intégration SSO dans plex-portal
-      # ⚠️  Utilisez l'URL INTERNE (IP Unraid + port), pas l'URL publique
+      # OVERSEERR_URL      → URL INTERNE pour grab le cookie au login (API auth)
+      # OVERSEERR_PUBLIC_URL → URL PUBLIQUE affichée dans l'iframe (même domaine parent que le portail)
       # Exemples :
-      #   OVERSEERR_URL: "http://192.168.1.100:5055"   ← IP Unraid + port exposé
-      #   OVERSEERR_URL: "http://overseerr:5055"       ← si même réseau Docker custom
+      #   OVERSEERR_URL: "http://192.168.1.100:5055"        ← IP Unraid + port
+      #   OVERSEERR_URL: "http://overseerr:5055"            ← réseau Docker custom
+      #   OVERSEERR_PUBLIC_URL: "https://overseerr.idrinktv.ovh"  ← URL publique HTTPS
       OVERSEERR_URL: "http://192.168.1.100:5055"
+      OVERSEERR_PUBLIC_URL: "https://overseerr.idrinktv.ovh"
       OVERSEERR_API_KEY: "your-key"
       
       # ⚠️ SÉCURITÉ - Whitelist utilisateurs Plex (FORTEMENT RECOMMANDÉ)
