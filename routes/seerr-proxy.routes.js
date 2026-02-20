@@ -75,18 +75,62 @@ async function doSeerrAuth(req) {
 }
 
 /* ===============================
+   VALIDATION : vérifie que le cookie Seerr fonctionne réellement
+=============================== */
+async function validateSeerrCookie(cookie) {
+  const overseerrUrl = (process.env.OVERSEERR_URL || "").replace(/\/$/, "");
+  if (!overseerrUrl || !cookie) return false;
+  try {
+    const r = await fetch(`${overseerrUrl}/api/v1/auth/me`, {
+      headers: { "Cookie": cookie, "Accept": "application/json" }
+    });
+    console.log(`[SeerrProxy] validateCookie → HTTP ${r.status}`);
+    return r.status === 200;
+  } catch (e) {
+    console.warn("[SeerrProxy] validateCookie error:", e.message);
+    return false;
+  }
+}
+
+/* ===============================
    PAGE /overseerr → SSO puis redirect full-page vers Seerr
-   (pas d'iframe — Next.js ne peut pas fonctionner correctement en iframe
-    si BASE_URL n'est pas configuré, car /_next/* ne serait pas proxifié)
 =============================== */
 router.get("/overseerr", requireAuth, async (req, res) => {
+  const basePath = req.basePath || "";
+
+  // 1. Obtenir le cookie si absent
   if (!req.session.overseerrCookie) {
     await doSeerrAuth(req);
   }
-  // Sauvegarde explicite avant redirect pour que le cookie soit dispo dès la prochaine requête
+
+  // 2. Vérifier que le cookie est vraiment valide côté Seerr
+  const valid = await validateSeerrCookie(req.session.overseerrCookie);
+  if (!valid) {
+    console.warn("[SeerrProxy] Cookie invalide ou expiré — nouvelle tentative d'auth");
+    delete req.session.overseerrCookie;
+    await doSeerrAuth(req);
+
+    const valid2 = await validateSeerrCookie(req.session.overseerrCookie);
+    if (!valid2) {
+      console.error("[SeerrProxy] ❌ Cookie toujours invalide après 2 tentatives");
+      return res.status(503).send(`
+        <html><body style="background:#0f1117;color:#e2e8f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+          <div style="text-align:center">
+            <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+            <h2>Impossible de connecter votre compte à Seerr</h2>
+            <p style="color:#94a3b8">Seerr a bien répondu mais n'accepte pas votre session.</p>
+            <p style="color:#64748b;font-size:.75rem">Vérifiez que votre compte Plex est bien autorisé dans Seerr (Settings → Users).</p>
+            <a href="${basePath}/dashboard" style="margin-top:1.5rem;display:inline-block;background:#6366f1;color:#fff;padding:.6rem 1.5rem;border-radius:.5rem;text-decoration:none">← Dashboard</a>
+          </div>
+        </body></html>
+      `);
+    }
+  }
+
+  // 3. Cookie valide → sauvegarder et rediriger
   await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
-  // Navigation directe vers Seerr (full-page, pas iframe)
-  res.redirect((req.basePath || "") + "/overseerr-frame/");
+  console.log(`[SeerrProxy] ✅ Redirection vers ${basePath}/overseerr-frame/`);
+  res.redirect(basePath + "/overseerr-frame/");
 });
 
 /* ===============================
