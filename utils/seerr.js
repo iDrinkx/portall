@@ -14,8 +14,6 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
       return null;
     }
 
-    console.debug(`[Seerr] Searching for user with email: ${email}${username ? ` or username: ${username}` : ""}`);
-
     // Récupérer TOUS les utilisateurs Seerr avec pagination
     let allUsers = [];
     let page = 0;  // Seerr commence à 0
@@ -28,7 +26,7 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
       url.searchParams.set('skip', page * 50);
       url.searchParams.set('take', 50);
 
-      console.debug(`[Seerr] Fetching users: skip=${page * 50}, take=50`);
+
 
       const res = await fetch(url.toString(), {
         headers: {
@@ -37,10 +35,7 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
         }
       });
 
-      if (!res.ok) {
-        console.warn(`[Seerr] Could not fetch users page ${page}: ${res.status} ${res.statusText}`);
-        break;
-      }
+      if (!res.ok) { break; }
 
       const json = await res.json();
       pageInfo = json.pageInfo;
@@ -57,17 +52,12 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
         users = json.users;
       }
 
-      if (users.length === 0) {
-        console.debug(`[Seerr] No users on page ${page}, stopping pagination`);
-        break;
-      }
+      if (users.length === 0) { break; }
 
       allUsers = allUsers.concat(users);
-      console.debug(`[Seerr] Page ${page}: ${users.length} users (total so far: ${allUsers.length})`);
 
       // Vérifier s'il y a d'autres pages
       if (pageInfo) {
-        console.debug(`[Seerr] pageInfo:`, pageInfo);
         if (pageInfo.pages && page + 1 >= pageInfo.pages) {
           hasMore = false;
         }
@@ -76,48 +66,27 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
       page++;
     }
 
-    console.debug(`[Seerr] Total users fetched: ${allUsers.length}`);
-
     // Chercher l'utilisateur avec cet email
     let found = allUsers.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-
-    if (found) {
-      console.info(`[Seerr] ✓ Found user ID ${found.id} by email: ${email}`);
-      return found;
-    }
+    if (found) return found;
 
     // Si pas trouvé par email, essayer par username Plex
     if (username) {
-      console.debug(`[Seerr] Email not found. Trying username/displayName: ${username}`);
-      
-      // Chercher dans displayName, username, et autres champs
       found = allUsers.find(u => {
         const displayName = (u.displayName || "").toLowerCase();
         const usernameField = (u.username || "").toLowerCase();
         const plexUsername = (u.plexUsername || "").toLowerCase();
-        
         const target = username.toLowerCase();
-        return (
-          displayName === target ||
-          usernameField === target ||
-          plexUsername === target ||
-          displayName.includes(target) ||
-          usernameField.includes(target)
-        );
+        return displayName === target || usernameField === target || plexUsername === target ||
+               displayName.includes(target) || usernameField.includes(target);
       });
-
-      if (found) {
-        console.info(`[Seerr] ✓ Found user ID ${found.id} by username/displayName: ${username}`);
-        return found;
-      }
+      if (found) return found;
     }
-
-    console.warn(`[Seerr] User not found (searched for email: ${email}, username: ${username})`);
 
     return null;
 
   } catch (err) {
-    console.error("[Seerr] Error searching for user by email:", err.message, err.stack);
+    require('./logger').create('[Seerr]').error('findSeerrUserByEmail:', err.message);
     return null;
   }
 }
@@ -143,17 +112,12 @@ async function getCurrentSeerrUser(SEERR_URL, SEERR_API_KEY) {
       }
     });
 
-    if (!res.ok) {
-      console.warn(`[Seerr] Could not get current user: ${res.status}`);
-      return null;
-    }
+    if (!res.ok) { return null; }
 
     const user = await res.json();
-    console.debug(`[Seerr] Current user ID: ${user.id}`);
     return user;
 
   } catch (err) {
-    console.error("[Seerr] Error getting current user:", err.message);
     return null;
   }
 }
@@ -168,28 +132,16 @@ async function getCurrentSeerrUser(SEERR_URL, SEERR_API_KEY) {
  */
 async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
   try {
-    if (!SEERR_URL || !SEERR_API_KEY) {
-      console.warn("Seerr config missing:", { hasUrl: !!SEERR_URL, hasKey: !!SEERR_API_KEY });
-      return null;
-    }
+    if (!SEERR_URL || !SEERR_API_KEY) { return null; }
 
-    if (!userEmail) {
-      console.warn("[Seerr] No user email provided");
-      return null;
-    }
+    if (!userEmail) { return null; }
 
     // Chercher l'utilisateur Seerr par son email OU username Plex
     const seerrUser = await findSeerrUserByEmail(userEmail, SEERR_URL, SEERR_API_KEY, username);
     
-    if (!seerrUser || !seerrUser.id) {
-      console.warn(`[Seerr] Could not find Seerr user for email: ${userEmail}`);
-      return null;
-    }
+    if (!seerrUser || !seerrUser.id) { return null; }
 
     const userIdNum = seerrUser.id;
-    console.info(`[Seerr] ✅ Found Seerr user ID ${userIdNum} for Plex email: ${userEmail}`);
-    console.debug(`[Seerr] Seerr user details: DisplayName="${seerrUser.displayName}", Email="${seerrUser.email}"`);
-    console.debug(`[Seerr] Fetching requests for Seerr user ID: ${userIdNum}`);
 
     // Récupérer TOUTES les demandes en paginant avec skip/take
     let allRequests = [];
@@ -202,20 +154,14 @@ async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
       url.searchParams.set('skip', skip);
       url.searchParams.set('take', take);
 
-      console.debug(`[Seerr] Fetching requests: skip=${skip}, take=${take}`);
-
-      const res = await fetch(url.toString(), {
+const res = await fetch(url.toString(), {
         headers: {
           "X-API-Key": SEERR_API_KEY,
           "Accept": "application/json"
         }
       });
 
-      if (!res.ok) {
-        console.error(`[Seerr] API error: ${res.status} for user ID ${userIdNum}`);
-        console.error(`[Seerr] URL was: ${url.toString()}`);
-        break;
-      }
+      if (!res.ok) { break; }
 
       const json = await res.json();
 
@@ -229,13 +175,9 @@ async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
         requests = json.data;
       }
 
-      if (requests.length === 0) {
-        console.debug(`[Seerr] No requests on skip=${skip}`);
-        break;
-      }
+      if (requests.length === 0) { break; }
 
       allRequests = allRequests.concat(requests);
-      console.debug(`[Seerr] Skip ${skip}: ${requests.length} results (total so far: ${allRequests.length})`);
 
       // Vérifier s'il y a d'autres résultats
       if (requests.length < take) {
@@ -245,8 +187,6 @@ async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
       }
     }
 
-    console.debug(`[Seerr] Retrieved ${allRequests.length} total requests for user ID ${userIdNum}`);
-
     // Compter par statut
     let pending = 0;
     let approved = 0;
@@ -255,40 +195,29 @@ async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
     let unavailable = 0;
 
     allRequests.forEach(req => {
-      // Status: 1=PENDING, 2=APPROVED, 3=DECLINED
-      // mediaStatus: 1=UNKNOWN, 2=PENDING, 3=PROCESSING, 4=PARTIALLY_AVAILABLE, 5=AVAILABLE
       if (req.status === 1) {
         pending++;
       } else if (req.status === 2) {
         approved++;
-        // Vérifier si le contenu est disponible
-        if (req.media?.status === 5) {
-          approvedAvailable++;
-        }
+        if (req.media?.status === 5) approvedAvailable++;
       } else if (req.status === 3) {
         unavailable++;
       }
-
-      // Compter les requêtes avec contenu disponible (indépendant du statut)
-      if (req.media?.status === 5) {
-        available++;
-      }
+      if (req.media?.status === 5) available++;
     });
 
     const result = {
       pending,
-      approved: approved - approvedAvailable,  // Approuvées mais pas encore disponibles
-      available: approvedAvailable,  // Approuvées ET disponibles
+      approved: approved - approvedAvailable,
+      available: approvedAvailable,
       unavailable,
       total: allRequests.length
     };
 
-    console.debug(`[Seerr] Stats for user ID ${userIdNum}:`, result);
-
     return result;
 
   } catch (err) {
-    console.error("[Seerr] Error:", err.message);
+    require('./logger').create('[Seerr]').error('getSeerrStats:', err.message);
     return null;
   }
 }
@@ -328,7 +257,7 @@ async function getSeerrGlobalStats(SEERR_URL, SEERR_API_KEY) {
     };
 
   } catch (err) {
-    console.error("Seerr global stats error:", err.message);
+    require('./logger').create('[Seerr]').error('getSeerrGlobalStats:', err.message);
     return null;
   }
 }

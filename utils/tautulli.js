@@ -3,6 +3,8 @@ const { getPlexJoinDate } = require("./plex");
 const SessionStatsCache = require("./session-stats-cache-db");  // 🗄️ Utiliser SQLite
 const TautulliEvents = require("./tautulli-events");  // 📢 EventEmitter pour notifier clients
 const { getDb } = require("./database");  // 📥 Accès direct à la DB SQLite
+const log = require("./logger");
+const logT = log.create('[Tautulli]');
 
 // 🚩 Drapeau pour indiquer qu'un scan global est en cours
 let GLOBAL_SCAN_IN_PROGRESS = false;
@@ -21,18 +23,13 @@ const DURATION_VALIDATION = {
   sanitize: function(durationMs) {
     if (!this.isValid(durationMs)) {
       if (durationMs > this.MAX_SESSION_DURATION_MS) {
-        console.warn("[TAUTULLI-DURATION] ⚠️  Durée aberrante rejetée:", durationMs, "ms (>12h)");
+          logT.debug('Durée aberrante rejetée:', durationMs, 'ms (>12h)');
+        }
+        return 0;
       }
-      return 0;  // Retourner 0 au lieu de rejeter la session
+      return durationMs;
     }
-    return durationMs;
-  }
-};
-
-console.log("[TAUTULLI-BOOT] 💾 Cache DB initialisé (SQLite persistant)");
-
-/**
- * 🚀 Obtenir les stats de visionnage pour un utilisateur
+  };
  * Utilise la DB Tautulli directe en priorité
  */
 async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUserId, PLEX_URL, PLEX_TOKEN, joinedAtTimestamp = null) {
@@ -43,12 +40,10 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
     try {
       const { getUserStatsFromTautulli, isTautulliReady } = require("./tautulli-direct");
       
-      console.log("[TAUTULLI] 🔍 Vérification DB Tautulli - user:", normalizedUsername, "ready:", isTautulliReady());
-      
       if (isTautulliReady()) {
         const directStats = getUserStatsFromTautulli(normalizedUsername);
         if (directStats && directStats.sessionCount > 0) {
-          console.log("[TAUTULLI] ✅ Stats depuis DB Tautulli - sessionCount:", directStats.sessionCount);
+          logT.debug(`${normalizedUsername} — ${directStats.sessionCount} sessions (DB directe)`);
           const { getMonthlyHoursFromTautulli, getTimeBasedSessionCounts } = require("./tautulli-direct");
           const monthlyHours = getMonthlyHoursFromTautulli(normalizedUsername);
           const { nightCount, morningCount } = getTimeBasedSessionCounts(normalizedUsername);
@@ -71,15 +66,14 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
         }
       }
     } catch (err) {
-      console.warn("[TAUTULLI] ⚠️  Impossible lire DB directe:", err.message);
+      logT.warn('DB directe indisponible:', err.message);
     }
     
     // 2️⃣ Fallback: vérifier la BASE DE DONNÉES locale
-    console.log("[TAUTULLI] Recherche stats pour:", username);
     const dbStats = getStatsFromDatabase(normalizedUsername);
     
     if (dbStats && dbStats.sessionCount > 0) {
-      console.log("[TAUTULLI] ✅ Stats trouvées en DB - sessionCount:", dbStats.sessionCount);
+      logT.debug(`${normalizedUsername} — ${dbStats.sessionCount} sessions (cache DB)`);
       return {
         joinedAt: joinedAtTimestamp ? new Date(joinedAtTimestamp * 1000).toISOString() : null,
         lastActivity: dbStats.lastSessionDate,
@@ -98,7 +92,7 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
     // 3️⃣ Fallback: vérifier le cache SQLite
     const cached = SessionStatsCache.get(normalizedUsername);
     if (cached && cached.sessionCount > 0) {
-      console.log("[TAUTULLI] Retour du CACHE - sessionCount:", cached.sessionCount);
+      logT.debug(`${normalizedUsername} — ${cached.sessionCount} sessions (cache SQLite)`);
       return {
         joinedAt: cached.joinedAt,
         lastActivity: cached.lastActivity,
@@ -109,11 +103,11 @@ async function getTautulliStats(username, TAUTULLI_URL, TAUTULLI_API_KEY, plexUs
     }
 
     // ⚠️ Pas de données trouvées
-    console.log("[TAUTULLI] ⚠️  Pas de données pour cet utilisateur");
+    logT.debug(`${normalizedUsername} — aucune donnée trouvée`);
     return null;
 
   } catch (err) {
-    console.error("[TAUTULLI] Erreur:", err.message);
+    logT.error(err.message);
     return null;
   }
 }
@@ -133,7 +127,7 @@ async function getTautulliUserInfo(username, TAUTULLI_URL, TAUTULLI_API_KEY) {
     const json = await res.json();
     return json.response?.data || null;
   } catch (err) {
-    console.error("[TAUTULLI] Erreur getTautulliUserInfo:", err.message);
+    logT.error('getTautulliUserInfo:', err.message);
     return null;
   }
 }
@@ -145,12 +139,11 @@ async function getTautulliUserInfo(username, TAUTULLI_URL, TAUTULLI_API_KEY) {
 async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
   try {
     GLOBAL_SCAN_IN_PROGRESS = true;
-    
-    console.log("\n[TAUTULLI-SCAN] 🚀 DÉBUT SCAN INTELLIGENT - Historique des sessions");
+    const logScan = require('./logger').create('[Tautulli Scan]');
+    logScan.info('Début du scan historique...');
     const scanStartTime = Date.now();
     
     // 1️⃣ Récupérer TOUS les utilisateurs Tautulli via get_users
-    console.log("[TAUTULLI-SCAN] 📥 Récupération des utilisateurs Tautulli...");
     const tautulliUsers = [];
     
     try {
@@ -161,24 +154,20 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
       
       if (usersRes.ok) {
         const usersJson = await usersRes.json();
-        console.log("[TAUTULLI-GET_USERS] Réponse brute:", typeof usersJson, "isArray:", Array.isArray(usersJson), "keys:", Object.keys(usersJson).slice(0, 5));
-        
         // L'API Tautulli retourne directement un array pour get_users
         if (Array.isArray(usersJson)) {
-          console.log("[TAUTULLI-GET_USERS] ✅ Format direct array - items:", usersJson.length);
           tautulliUsers.push(...usersJson);
         } else if (usersJson.response?.data) {
-          console.log("[TAUTULLI-GET_USERS] ℹ️ Format response.data - items:", usersJson.response.data.length);
           tautulliUsers.push(...usersJson.response.data);
         } else {
-          console.log("[TAUTULLI-GET_USERS] ⚠️ Format inconnu - contenu:", JSON.stringify(usersJson).substring(0, 200));
+          logScan.warn('Format réponse get_users inconnu:', JSON.stringify(usersJson).substring(0, 100));
         }
       }
     } catch (err) {
-      console.error("[TAUTULLI-SCAN] ❌ Erreur récupération utilisateurs:", err.message);
+      logScan.error('Récupération utilisateurs:', err.message);
     }
     
-    console.log("[TAUTULLI-SCAN] ✅ Utilisateurs Tautulli trouvés:", tautulliUsers.length);
+    logScan.info(`${tautulliUsers.length} utilisateurs trouvés`);
     
     // Charger les timestamps du cache
     const cachedUsers = SessionStatsCache.getAll();
@@ -188,7 +177,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         userCacheLimits[username] = new Date(userData.lastSessionTimestamp);
       }
     }
-    console.log("[TAUTULLI-SCAN] Utilisateurs en cache:", Object.keys(userCacheLimits).length);
+    logScan.debug(`Cache: ${Object.keys(userCacheLimits).length} utilisateurs`);
     
     // Initialiser stats pour tous les utilisateurs
     const userStats = {};
@@ -206,7 +195,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         };
       }
     }
-    console.log("[TAUTULLI-SCAN] Stats initialisées pour:", Object.keys(userStats).length, 'utilisateurs');
+    logScan.debug(`/${Object.keys(userStats).length} utilisateurs initialisés`);
     
     // 2️⃣ Récupérer l'historique des sessions (get_history)
     let pageIndex = 0;
@@ -222,7 +211,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         );
         
         if (!histRes.ok) {
-          console.log("[TAUTULLI-SCAN] ⚠️  Erreur API - status:", histRes.status);
+          logScan.warn('Erreur API HTTP', histRes.status);
           break;
         }
         
@@ -233,26 +222,22 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         const sessions = Array.isArray(tautulliData) ? tautulliData : [];
         
         const recordsTotal = histJson.response?.data?.recordsTotal || histJson.recordsTotal || 0;
-        console.log("[TAUTULLI-SCAN] Page " + pagesScanned + " - Sessions: " + sessions.length + "/" + recordsTotal);
-        
         if (!sessions || sessions.length === 0) {
-          console.log("[TAUTULLI-SCAN] ✅ Pas plus de sessions - fin du scan");
+          logScan.debug('Fin de pagination (plus de sessions)');
           break;
         }
         
         pagesScanned++;
         totalSessions += sessions.length;
-        console.log("[TAUTULLI-SCAN] Page " + pagesScanned + " - Sessions trouvées: " + sessions.length + " (total: " + totalSessions + " sur " + recordsTotal + ")");
         
         // Arrêter si on a atteint le total
         if (totalSessions >= recordsTotal && recordsTotal > 0) {
-          console.log("[TAUTULLI-SCAN] ✅ All records fetched - total: " + totalSessions);
+          logScan.debug(`Toutes les sessions récupérées: ${totalSessions}`);
           break;
         }
         
-        // Safeguard contre les boucles infinies (max 20 pages = 2000 sessions)
         if (pagesScanned > 20 && totalSessions === 0) {
-          console.log("[TAUTULLI-SCAN] ⚠️ Limite de pages atteinte avec 0 sessions");
+          logScan.warn('Limite de pages atteinte sans sessions');
           break;
         }
         
@@ -301,7 +286,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
         
         pageIndex += pageSize;
       } catch (err) {
-        console.error("[TAUTULLI-SCAN] ❌ Erreur historique:", err.message);
+        logScan.warn('Erreur historique page', pagesScanned, ':', err.message);
         break;
       }
     }
@@ -328,39 +313,29 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
       SessionStatsCache.set(username, finalStats[username]);
     }
     
-    console.log("[TAUTULLI-SCAN] 💾 Utilisateurs sauvegardés en cache:", Object.keys(finalStats).length);
+    logScan.debug(`${Object.keys(finalStats).length} utilisateurs sauvegardés en cache`);
 
     const duration = Math.round((Date.now() - scanStartTime) / 1000);
-    
-    console.log("[TAUTULLI-SCAN] ✅ SCAN INTELLIGENT TERMINÉ");
-    console.log("[TAUTULLI-SCAN]   📊 Sessions traitées:", totalSessions);
-    console.log("[TAUTULLI-SCAN]   👥 Utilisateurs mis à jour:", Object.keys(finalStats).length);
-    console.log("[TAUTULLI-SCAN]   ⏱️  Durée totale:", duration, 'secondes');
+    logScan.info(`Scan terminé — ${totalSessions} sessions, ${Object.keys(finalStats).length} utilisateurs, ${duration}s`);
     
     GLOBAL_SCAN_IN_PROGRESS = false;
     
     try {
       TautulliEvents.emitScanComplete();
-      console.log("[TAUTULLI-SCAN] 📢 Événement scan-complete émis aux clients");
     } catch (eventErr) {
-      console.error("[TAUTULLI-SCAN] ⚠️  Erreur émission événement:", eventErr.message);
+      logScan.warn('Erreur émission événement scan-complete:', eventErr.message);
     }
     
     return finalStats;
     
   } catch (err) {
-    console.error("[TAUTULLI-SCAN] ❌ Erreur globale:", err.message);
-    console.error("[TAUTULLI-SCAN] Stack trace:", err.stack);
-    
+    logScan.error('Erreur globale:', err.message);
     GLOBAL_SCAN_IN_PROGRESS = false;
-    
     try {
       TautulliEvents.emitScanComplete();
-      console.log("[TAUTULLI-SCAN] 📢 Événement scan-complete émis (mode erreur)");
     } catch (eventErr) {
-      console.error("[TAUTULLI-SCAN] ⚠️  Erreur émission événement (erreur):", eventErr.message);
+      logScan.warn('Erreur émission événement (mode erreur):', eventErr.message);
     }
-    
     return {};
   }
 }
@@ -393,7 +368,7 @@ function getLastSyncTimestamp(db) {
     
     return result?.last_timestamp || 0;
   } catch (err) {
-    console.warn("[SYNC-META] Pas d'historique sync - first sync");
+    // Pas de dernier sync enregistré — premier sync complet
     return 0;
   }
 }
@@ -408,7 +383,7 @@ function recordSyncMetadata(db, sessionsProcessed, durationSecs) {
       VALUES ('tautulli_full_sync', strftime('%s', 'now'), ?, ?)
     `).run(sessionsProcessed, durationSecs);
   } catch (err) {
-    console.warn("[SYNC-META] Erreur enregistrement metadata:", err.message);
+    logT.warn('sync metadata:', err.message);
   }
 }
 
@@ -459,10 +434,10 @@ function updateUserWatchStats(db, userId, username) {
       stats?.episodeDurationSecs || 0
     );
     
-    console.log("[STATS-CALC] ✅ Stats recalculées pour", username, "- Sessions:", stats?.sessionCount || 0);
+    logT.debug(`Stats recalculées pour ${username} — ${stats?.sessionCount || 0} sessions`);
     
   } catch (err) {
-    console.error("[STATS-CALC] ❌ Erreur recalcul stats pour " + username + ":", err.message);
+    logT.error(`recalcul stats ${username}:`, err.message);
   }
 }
 
@@ -490,8 +465,9 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
       lastSyncTimestamp = getLastSyncTimestamp(db);
     }
     
+    const logSync = require('./logger').create('[Tautulli Sync]');
     const syncMode = lastSyncTimestamp === 0 ? "FULL" : "DELTA";
-    console.log("[TAUTULLI-SYNC] 🚀 SYNC " + syncMode + " - Fetching depuis timestamp", lastSyncTimestamp || "DÉBUT");
+    logSync.info(`${syncMode} — depuis ${lastSyncTimestamp ? new Date(lastSyncTimestamp * 1000).toISOString().slice(0, 10) : 'début'}`);
     
     // 2️⃣ Récupérer les utilisateurs
     const usersRes = await fetch(
@@ -508,7 +484,7 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
         tautulliUsers = usersJson.response.data;
       }
     }
-    console.log("[TAUTULLI-SYNC] ✅ " + tautulliUsers.length + " utilisateurs trouvés");
+    logSync.info(`${tautulliUsers.length} utilisateurs`);
     
     // 3️⃣ Préparer les statements SQL
     const insertStmt = db.prepare(`
@@ -581,20 +557,13 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
         
         totalSkipped += (sessions.length - newSessions.length);
         
-        console.log("[TAUTULLI-SYNC] Page " + pagesScanned + 
-          " - Inséré: " + newSessions.length + 
-          " / Skippé: " + (sessions.length - newSessions.length) + 
-          " (total new: " + totalInserted + "/" + recordsTotal + ")");
-        
-        // Arrêter si limite atteinte
         if (maxSessions > 0 && totalInserted >= maxSessions) {
-          console.log("[TAUTULLI-SYNC] ⛔ Limite " + maxSessions + " sessions atteinte");
+          logSync.warn('Limite', maxSessions, 'sessions atteinte');
           break;
         }
         
         // Arrêter si fin
         if (totalInserted >= recordsTotal && recordsTotal > 0) {
-          console.log("[TAUTULLI-SYNC] ✅ Tous les records fetched");
           break;
         }
         
@@ -602,13 +571,13 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
         await new Promise(r => setTimeout(r, 50));  // Petit délai
         
       } catch (err) {
-        console.error("[TAUTULLI-SYNC] ❌ Erreur fetch:", err.message);
+        logSync.error('fetch page:', err.message);
         break;
       }
     }
     
     // 5️⃣ Recalculer les stats pour TOUS les utilisateurs (une seule fois)
-    console.log("[TAUTULLI-SYNC] 📊 Recalcul des stats pour " + tautulliUsers.length + " utilisateurs...");
+    logSync.debug(`Recalcul stats pour ${tautulliUsers.length} utilisateurs...`);
     for (const user of tautulliUsers) {
       updateUserWatchStats(db, user.id, user.username?.toLowerCase() || 'unknown');
     }
@@ -617,11 +586,7 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
     const elapsedSecs = Math.round((Date.now() - startTime) / 1000);
     recordSyncMetadata(db, totalInserted, elapsedSecs);
     
-    console.log("[TAUTULLI-SYNC] ✅ SYNC " + syncMode + " COMPLET");
-    console.log("[TAUTULLI-SYNC]   📥 Inséré: " + totalInserted + " sessions");
-    console.log("[TAUTULLI-SYNC]   ⏭️  Skippé: " + totalSkipped + " doublons");
-    console.log("[TAUTULLI-SYNC]   👥 Utilisateurs: " + tautulliUsers.length);
-    console.log("[TAUTULLI-SYNC]   ⏱️  Durée: " + elapsedSecs + "s");
+    logSync.info(`${syncMode} terminé — ${totalInserted} insérées, ${totalSkipped} doublons, ${tautulliUsers.length} users, ${elapsedSecs}s`);
     
     return {
       success: true,
@@ -633,7 +598,7 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
     };
     
   } catch (err) {
-    console.error("[TAUTULLI-SYNC] ❌ Erreur sync:", err);
+    logT.error('syncTautulliHistoryToDatabase:', err.message);
     return { success: false, error: err.message };
   }
 }
@@ -687,7 +652,8 @@ function getStatsFromDatabase(username) {
     };
     
   } catch (err) {
-    console.error("[TAUTULLI-DB] ❌ Erreur lecture DB pour " + usernameLower + ":", err.message);
+  } catch (err) {
+    logT.error('getStatsFromDatabase:', err.message);
     return null;
   }
 }

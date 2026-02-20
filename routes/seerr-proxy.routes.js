@@ -17,6 +17,8 @@
 const express = require("express");
 const fetch   = require("node-fetch");
 const router  = express.Router();
+const log = require("../utils/logger");
+const logSSO = log.create('[Seerr SSO]');
 
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.user) {
@@ -38,18 +40,17 @@ function getSeerrCookieDomain() {
 
 async function grabSeerrCookie(authToken, res, username) {
   const seerrUrl = (process.env.SEERR_URL || "").replace(/\/$/, "");
-  if (!seerrUrl) { console.warn("[Seerr SSO] SEERR_URL non configuré"); return false; }
-  if (!authToken) { console.warn(`[Seerr SSO] ⚠️ plexToken absent de la session pour ${username} — l'utilisateur doit se reconnecter`); return false; }
+  if (!seerrUrl) { logSSO.warn('SEERR_URL non configuré'); return false; }
+  if (!authToken) { logSSO.warn(`Token absent pour ${username} — reconnexion requise`); return false; }
   try {
     const r = await fetch(`${seerrUrl}/api/v1/auth/plex`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ authToken })
     });
-    console.info(`[Seerr SSO] POST /api/v1/auth/plex pour ${username} → HTTP ${r.status}`);
     if (!r.ok) {
       const body = await r.text().catch(() => "");
-      console.warn(`[Seerr SSO] Échec HTTP ${r.status} pour ${username} — réponse: ${body.slice(0, 200)}`);
+      logSSO.warn(`HTTP ${r.status} pour ${username} — ${body.slice(0, 120)}`);
       return false;
     }
     const setCookies = r.headers.raw()["set-cookie"] || [];
@@ -60,13 +61,13 @@ async function grabSeerrCookie(authToken, res, username) {
       const cookieOpts = { path: "/", httpOnly: true, sameSite: "lax", secure: true };
       if (cookieDomain) cookieOpts.domain = cookieDomain;
       res.cookie("connect.sid", decodeURIComponent(value), cookieOpts);
-      console.info(`[Seerr SSO] ✅ Cookie rafraîchi pour ${username} (domain=${cookieDomain || "courant"})`);
+      logSSO.info(`Cookie rafraîchi pour ${username} (domain=${cookieDomain || "courant"})`);
       return true;
     }
-    console.warn(`[Seerr SSO] ⚠️ Seerr n'a pas retourné de connect.sid pour ${username}`);
+    logSSO.warn(`connect.sid absent pour ${username}`);
     return false;
   } catch (e) {
-    console.warn(`[Seerr SSO] Erreur pour ${username}:`, e.message);
+    logSSO.warn(`Erreur pour ${username}:`, e.message);
     return false;
   }
 }

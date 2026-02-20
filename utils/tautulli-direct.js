@@ -6,6 +6,7 @@
 
 const Database = require('better-sqlite3');
 const path = require('path');
+const log = require('./logger').create('[Tautulli DB]');
 
 let tautulliDb = null;
 
@@ -47,7 +48,6 @@ async function getCollectionItems(collectionRatingKey) {
   const PLEX_TOKEN = process.env.PLEX_TOKEN;
 
   if (!PLEX_URL || !PLEX_TOKEN) {
-    console.warn('[TAUTULLI-DIRECT] ⚠️  PLEX_URL/PLEX_TOKEN non configurés, fallback titre activé');
     return null;
   }
 
@@ -62,10 +62,10 @@ async function getCollectionItems(collectionRatingKey) {
       year: item.year ?? null,
     })).filter(m => m.title);
     collectionCache[collectionRatingKey] = { movies, ts: now };
-    console.log(`[TAUTULLI-DIRECT] 📚 Collection ${collectionRatingKey}: ${movies.length} films cachés`);
+    log.debug(`Collection ${collectionRatingKey}: ${movies.length} films en cache`);
     return movies;
   } catch(e) {
-    console.error(`[TAUTULLI-DIRECT] ❌ Erreur collection Plex ${collectionRatingKey}:`, e.message);
+    log.warn(`Collection ${collectionRatingKey}:`, e.message);
     return null;
   }
 }
@@ -77,21 +77,17 @@ async function getCollectionItems(collectionRatingKey) {
 function initTautulliDatabase() {
   const TAUTULLI_DB_PATH = process.env.TAUTULLI_DB_PATH;
   
-  console.log("[TAUTULLI-DB] 🔍 Vérification TAUTULLI_DB_PATH:", TAUTULLI_DB_PATH || "NON CONFIGURÉ");
-  
   if (!TAUTULLI_DB_PATH) {
-    console.warn("[TAUTULLI-DB] ⚠️  TAUTULLI_DB_PATH non configuré - fonctionnalités Tautulli désactivées");
+    log.warn('TAUTULLI_DB_PATH non configuré — fonctionnalités désactivées');
     return false;
   }
   
   try {
-    // Ouvrir en lecture seule
     tautulliDb = new Database(TAUTULLI_DB_PATH, { readonly: true });
-    console.log("[TAUTULLI-DB] ✅ Connecté à la DB Tautulli:", TAUTULLI_DB_PATH);
+    log.info('Connecté:', TAUTULLI_DB_PATH);
     return true;
   } catch (err) {
-    console.error("[TAUTULLI-DB] ❌ Erreur connexion Tautulli DB:", err.message);
-    console.error("[TAUTULLI-DB] ❌ Vérifiez que le chemin existe et est accessible");
+    log.error('Connexion DB:', err.message);
     return false;
   }
 }
@@ -137,17 +133,14 @@ function getUserStatsFromTautulli(username) {
     
     const stats = stmt.get(normalizedUsername);
     
-    if (!stats || !stats.session_count) {
-      console.log("[TAUTULLI-DIRECT] ℹ️  Pas de sessions pour:", normalizedUsername);
-      return null;
-    }
+    if (!stats || !stats.session_count) { return null; }
     
     // Convertir en heures
     const totalHours = stats.total_duration_seconds ? Math.round(stats.total_duration_seconds / 3600 * 10) / 10 : 0;
     const movieHours = stats.movie_duration_seconds ? Math.round(stats.movie_duration_seconds / 3600 * 10) / 10 : 0;
     const episodeHours = stats.episode_duration_seconds ? Math.round(stats.episode_duration_seconds / 3600 * 10) / 10 : 0;
     
-    console.log("[TAUTULLI-DIRECT] ✅ Stats pour" , normalizedUsername, "- sessions:", stats.session_count);
+    log.debug(`${normalizedUsername} — ${stats.session_count} sessions`);
     
     return {
       userId: stats.user_id,
@@ -162,7 +155,7 @@ function getUserStatsFromTautulli(username) {
       lastSessionDate: stats.last_session_timestamp ? new Date(stats.last_session_timestamp * 1000).toISOString() : null
     };
   } catch (err) {
-    console.error("[TAUTULLI-DIRECT] ❌ Erreur requête utilisateur:", err.message);
+    log.error('getUserStats:', err.message);
     return null;
   }
 }
@@ -177,7 +170,6 @@ function getAllUserStatsFromTautulli() {
   }
   
   try {
-    console.log("[TAUTULLI-DIRECT] 🚀 Récupération des stats pour TOUS les utilisateurs...");
     
     const stmt = tautulliDb.prepare(`
       SELECT 
@@ -217,11 +209,11 @@ function getAllUserStatsFromTautulli() {
       };
     });
     
-    console.log("[TAUTULLI-DIRECT] ✅ " + results.length + " utilisateurs traités en 1 requête");
+    log.debug(`${results.length} utilisateurs traités`);
     return results;
     
   } catch (err) {
-    console.error("[TAUTULLI-DIRECT] ❌ Erreur requête tous users:", err.message);
+    log.error('getAllUserStats:', err.message);
     return [];
   }
 }
@@ -248,7 +240,7 @@ function getMonthlyHoursFromTautulli(username) {
     if (!row || !row.monthly_seconds) return 0;
     return Math.round(row.monthly_seconds / 3600 * 10) / 10;
   } catch (err) {
-    console.error("[TAUTULLI-DIRECT] ❌ Erreur heures mensuelles:", err.message);
+    log.warn('heures mensuelles:', err.message);
     return 0;
   }
 }
@@ -287,7 +279,7 @@ function getTimeBasedSessionCounts(username) {
       morningCount: morningRow?.cnt || 0
     };
   } catch (err) {
-    console.error("[TAUTULLI-DIRECT] ❌ Erreur horaires:", err.message);
+    log.warn('horaires:', err.message);
     return { nightCount: 0, morningCount: 0 };
   }
 }
@@ -419,7 +411,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
     dates['series-titan']         = nthSession(5000, 'episode');
 
   } catch (err) {
-    console.error("[TAUTULLI-DIRECT] ❌ Erreur unlock dates:", err.message);
+    log.warn('unlock dates:', err.message);
   }
 
   return dates;
@@ -442,7 +434,6 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const userFilter = plexUserId
     ? { clause: 'sh.user_id = ?', param: plexUserId }
     : { clause: 'LOWER(sh.user) = ?', param: norm };
-  console.log(`[TAUTULLI-DIRECT] 🔑 Filtre user: ${userFilter.clause} = ${userFilter.param}`);
 
   /**
    * Compte les films regardés par l'utilisateur via le titre (LIKE patterns).
@@ -465,7 +456,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       `).get(userFilter.param, ...ratingKeys);
       return row || { cnt: 0, last_stopped: null };
     } catch(e) {
-      console.error('[TAUTULLI-DIRECT] ❌ countMoviesByLike error:', e.message);
+      log.warn('countMoviesByLike:', e.message);
       return { cnt: 0, last_stopped: null };
     }
   };
@@ -491,7 +482,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       `).get(...params);
       return row || { cnt: 0, last_stopped: null };
     } catch(e) {
-      console.error('[TAUTULLI-DIRECT] ❌ countMoviesByTitleYear error:', e.message);
+      log.warn('countMoviesByTitleYear:', e.message);
       return { cnt: 0, last_stopped: null };
     }
   };
@@ -509,23 +500,23 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
         const row = countMoviesByTitleYear(movies);
         const required = minRequired ?? movies.length;
         const current = Math.min(row.cnt, required);
-        console.log(`[TAUTULLI-DIRECT] ${id} (collection): ${current}/${required} films`);
+        log.debug(`${id} (collection): ${current}/${required}`);
         if (current >= required) return { date: fmt(row.last_stopped) || today, current, total: required };
         return { date: null, current, total: required };
       }
     }
-    // Fallback : matching par titre LIKE (si API Plex indisponible)
+    // Fallback : matching par titre LIKE
     if (fallbackPatterns && minRequired) {
       const row = countMoviesByLike(fallbackPatterns);
       const current = Math.min(row.cnt, minRequired);
-      console.log(`[TAUTULLI-DIRECT] ${id} (fallback titre): ${current}/${minRequired} films`);
+      log.debug(`${id} (fallback titre): ${current}/${minRequired}`);
       if (current >= minRequired) return { date: fmt(row.last_stopped) || today, current, total: minRequired };
       return { date: null, current, total: minRequired };
     }
     return { date: null, current: 0, total: 0 };
   };
 
-  console.log(`[TAUTULLI-DIRECT] 🔍 Évaluation secrets pour ${norm}: [${toCheckIds.join(', ')}]`);
+  log.debug(`Évaluation secrets pour ${norm}: [${toCheckIds.join(', ')}]`);
 
   try {
     for (const id of toCheckIds) {
@@ -589,7 +580,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
             if (r) results[id] = fmt(r.started) || today;
-          } catch(e) { console.error('[TAUTULLI-DIRECT] midnight-watcher error:', e.message); }
+          } catch(e) { log.warn('midnight-watcher:', e.message); }
           break;
         }
 
@@ -608,7 +599,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               ORDER BY week ASC LIMIT 1
             `).get(userFilter.param);
             if (r) results[id] = fmt(r.last_stopped) || today;
-          } catch(e) { console.error('[TAUTULLI-DIRECT] weekend-warrior error:', e.message); }
+          } catch(e) { log.warn('weekend-warrior:', e.message); }
           break;
         }
 
@@ -622,7 +613,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
             if (r) results[id] = fmt(r.started) || today;
-          } catch(e) { console.error('[TAUTULLI-DIRECT] countdown-pajama error:', e.message); }
+          } catch(e) { log.warn('countdown-pajama:', e.message); }
           break;
         }
 
@@ -631,13 +622,11 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
       }
     }
   } catch (err) {
-    console.error('[TAUTULLI-DIRECT] ❌ Erreur évaluation secrets:', err.message);
+    log.error('évaluation secrets:', err.message);
   }
 
   if (Object.keys(results).length > 0) {
-    console.log('[TAUTULLI-DIRECT] 🔓 Nouveaux secrets débloqués pour', norm + ':', Object.keys(results).join(', '));
-  } else {
-    console.log('[TAUTULLI-DIRECT] ℹ️  Aucun nouveau secret débloqué pour', norm);
+    log.info(`Secrets débloqués pour ${norm}: ${Object.keys(results).join(', ')}`);
   }
   return { unlocked: results, progress };
 }
@@ -666,11 +655,11 @@ function getLiveUsers() {
     `);
     
     const liveUsers = stmt.all();
-    console.log("[TAUTULLI-DIRECT] 🔴 " + liveUsers.length + " utilisateurs en lecture");
+    log.debug(`${liveUsers.length} utilisateurs en lecture`);
     return liveUsers;
     
   } catch (err) {
-    console.warn("[TAUTULLI-DIRECT] ⚠️  Erreur requête live users:", err.message);
+    log.warn('live users:', err.message);
     return [];
   }
 }
@@ -682,7 +671,7 @@ function closeTautulliDatabase() {
   if (tautulliDb) {
     tautulliDb.close();
     tautulliDb = null;
-    console.log("[TAUTULLI-DB] 🔌 Connexion fermée");
+    log.info('Connexion fermée');
   }
 }
 

@@ -1,4 +1,6 @@
 const fetch = require("node-fetch");
+const log = require("./logger");
+const logPlex = log.create('[Plex]');
 
 /**
  * Récupère l'ID Plex du propriétaire du serveur (le compte lié au PLEX_TOKEN admin).
@@ -33,7 +35,7 @@ async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
     const data = await res.json();
     return data.MediaContainer?.machineIdentifier || null;
   } catch (e) {
-    console.warn("[Plex] Impossible de récupérer machineIdentifier:", e.message);
+    logPlex.warn('machineIdentifier indisponible:', e.message);
     return null;
   }
 }
@@ -91,7 +93,7 @@ async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
     }
   }
 
-  console.info(`[Plex] ✅ Utilisateurs avec accès serveur${machineId ? ` (machine: ${machineId})` : ""}: ${authorizedUsers.length}`);
+  logPlex.info(`${authorizedUsers.length} utilisateurs avec accès serveur${machineId ? ` (${machineId.slice(0, 8)}…)` : ''}`);
   return authorizedUsers;
 }
 
@@ -138,34 +140,30 @@ async function getPlexFriends(PLEX_TOKEN) {
  */
 async function isUserAuthorized(plexUserId, PLEX_URL, PLEX_TOKEN) {
   const userId = parseInt(plexUserId);
-  console.info(`\n[Plex Auth] Vérification accès pour user ID: ${userId}`);
 
   // 1. L'utilisateur est-il le propriétaire du serveur (admin) ?
   const ownerId = await getServerOwnerId(PLEX_TOKEN);
   if (ownerId && ownerId === userId) {
-    console.info(`✅ [Plex Auth] User ${userId} est le propriétaire du serveur`);
+    logPlex.debug(`User ${userId} — propriétaire du serveur`);
     return true;
   }
 
   // 2. Récupérer le machineIdentifier du PMS pour un filtrage précis
   const machineId = PLEX_URL ? await getServerMachineId(PLEX_URL, PLEX_TOKEN) : null;
-  if (machineId) {
-    console.info(`[Plex Auth] MachineIdentifier serveur: ${machineId}`);
-  } else {
-    console.warn(`[Plex Auth] ⚠️ MachineIdentifier non disponible — filtrage sur tout <Server> partagé`);
+  if (!machineId) {
+    logPlex.warn('machineIdentifier non disponible — filtrage sur tout <Server> partagé');
   }
 
   // 3. Vérifier si l'utilisateur a un accès serveur actif dans plex.tv/api/users
   const authorizedUsers = await getAuthorizedServerUsers(PLEX_TOKEN, machineId);
-  console.info(`[Plex Auth] ${authorizedUsers.length} utilisateurs avec accès serveur — recherche de l'ID ${userId}…`);
 
   const found = authorizedUsers.find(u => u.id === userId);
   if (found) {
-    console.info(`✅ [Plex Auth] User ${userId} (${found.email || found.username}) a accès au serveur`);
+    logPlex.debug(`User ${userId} (${found.email || found.username}) — accès confirmé`);
     return true;
   }
 
-  console.warn(`❌ [Plex Auth] User ${userId} absent du serveur (owner=${ownerId}, authorized=[${authorizedUsers.map(u => u.id).join(',')}])`);
+  logPlex.warn(`Accès refusé pour user ID ${userId}`);
   return false;
 }
 
@@ -195,7 +193,7 @@ async function getPlexUserInfo(plexUserId, _PLEX_URL, PLEX_TOKEN) {
     return friends.find(f => parseInt(f.id) === userId) || null;
 
   } catch (err) {
-    console.error("[Plex] Erreur getPlexUserInfo:", err.message);
+    logPlex.error('getPlexUserInfo:', err.message);
     return null;
   }
 }
@@ -215,9 +213,7 @@ async function getPlexUsers(_PLEX_URL, PLEX_TOKEN) {
 async function getPlexJoinDate(plexUserId, PLEX_URL, PLEX_TOKEN, joinedAtTimestamp = null) {
   try {
     if (joinedAtTimestamp) {
-      const joinDate = new Date(joinedAtTimestamp * 1000);
-      console.info(`[Plex JoinDate] ✅ User ${plexUserId} joined ${joinDate.toISOString()} (depuis OAuth)`);
-      return joinDate;
+      return new Date(joinedAtTimestamp * 1000);
     }
 
     const user = await getPlexUserInfo(plexUserId, PLEX_URL, PLEX_TOKEN);
@@ -226,7 +222,7 @@ async function getPlexJoinDate(plexUserId, PLEX_URL, PLEX_TOKEN, joinedAtTimesta
     }
     return null;
   } catch (err) {
-    console.error("[Plex JoinDate] Erreur:", err.message);
+    logPlex.error('getPlexJoinDate:', err.message);
     return null;
   }
 }

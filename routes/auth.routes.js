@@ -1,6 +1,8 @@
 ﻿const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
+const log = require("../utils/logger");
+const logAuth = log.create('[Auth]');
 
 const { isUserAuthorized } = require("../utils/plex");
 
@@ -33,7 +35,7 @@ async function grabSeerrCookie(authToken, res) {
       body: JSON.stringify({ authToken })
     });
     if (!r.ok) {
-      console.warn(`[Auth] Seerr SSO échoué: HTTP ${r.status}`);
+      logAuth.warn(`Seerr SSO échoué: HTTP ${r.status}`);
       return;
     }
     const setCookies = r.headers.raw()["set-cookie"] || [];
@@ -49,12 +51,12 @@ async function grabSeerrCookie(authToken, res) {
       };
       if (cookieDomain) cookieOpts.domain = cookieDomain;
       res.cookie("connect.sid", decodeURIComponent(value), cookieOpts);
-      console.info(`[Auth] ✅ Cookie Seerr posé dans le browser (connect.sid, domain=${cookieDomain || "courant"})`);
+      logAuth.info(`SSO cookie Seerr posé (domain=${cookieDomain || "courant"})`);
     } else {
-      console.warn("[Auth] Seerr n'a pas retourné de connect.sid");
+      logAuth.warn("Seerr n'a pas retourné de connect.sid");
     }
   } catch (e) {
-    console.warn("[Auth] Erreur grab cookie Seerr:", e.message);
+    logAuth.warn("Erreur grab cookie Seerr:", e.message);
   }
 }
 
@@ -119,10 +121,7 @@ router.get("/auth-complete", async (req, res) => {
 
   const user = await account.json();
 
-  console.info(`\n[Auth] Login attempt from Plex user:`);
-  console.info(`  ID: ${user.id}`);
-  console.info(`  Email: ${user.email}`);
-  console.info(`  Username: ${user.username}`);
+  logAuth.info(`Connexion: ${user.username} <${user.email}> (ID ${user.id})`);
 
   // Vérifier que l'utilisateur a accès au serveur Plex Dark TV
   // - Si PLEX_URL/PLEX_TOKEN ne sont pas configurés → on laisse passer (fail-open)
@@ -137,22 +136,22 @@ router.get("/auth-complete", async (req, res) => {
         process.env.PLEX_TOKEN
       );
       if (result === false) {
-        console.warn(`⛔ [Auth] ACCÈS REFUSÉ — Plex user ${user.id} (${user.email}) n'est pas membre du serveur`);
+        logAuth.warn(`Accès refusé — ${user.username} (${user.id}) absent du serveur`);
         authorized = false;
       }
     } catch (authErr) {
       // Plex injoignable → fail-open, on laisse passer
-      console.warn(`⚠️ [Auth] Vérification serveur impossible (${authErr.message}) — accès accordé par défaut`);
+      logAuth.warn(`Vérification serveur impossible (${authErr.message}) — accès accordé par défaut`);
     }
   } else {
-    console.warn("[Auth] PLEX_URL ou PLEX_TOKEN manquant — vérification d'accès ignorée");
+    logAuth.warn("PLEX_URL ou PLEX_TOKEN manquant — vérification d'accès ignorée");
   }
 
   if (!authorized) {
     return res.redirect((req.basePath || "") + "/?error=unauthorized");
   }
 
-  console.info(`✅ [Auth] LOGIN SUCCESS for Plex user ${user.id} (${user.email})\n`);
+  logAuth.info(`✅ Connecté: ${user.username} (${user.id})`);
 
   req.session.user = user;
   req.session.user.joinedAtTimestamp = user.joinedAt;

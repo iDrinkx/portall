@@ -1,6 +1,7 @@
 ﻿const express = require("express");
 const router = express.Router();
 const fetch = require("node-fetch");
+const log = require("../utils/logger");
 
 const { computeSubscription } = require("../utils/wizarr");
 const { getTautulliStats } = require("../utils/tautulli");
@@ -33,72 +34,51 @@ const cache = new CacheManager(60 * 1000);
    🔎 WIZARR
 =============================== */
 
+const logWizarr = log.create('[Wizarr]');
+
 async function getWizarrSubscription(user) {
   try {
     const wizarrUrl = process.env.WIZARR_URL;
     const apiKey = process.env.WIZARR_API_KEY;
 
-    console.log("[WIZARR] Fetch subscription pour:", user?.username || user?.email);
-    console.log("[WIZARR] URL:", wizarrUrl, "API Key present:", !!apiKey);
-
     if (!wizarrUrl || !apiKey) {
-      console.log("[WIZARR] ❌ WIZARR_URL ou WIZARR_API_KEY manquant");
+      logWizarr.warn('WIZARR_URL ou WIZARR_API_KEY manquant');
       return computeSubscription(null);
     }
 
     const resp = await fetch(`${wizarrUrl}/api/users`, {
-      headers: {
-        Accept: "application/json",
-        "X-API-Key": apiKey
-      }
+      headers: { Accept: "application/json", "X-API-Key": apiKey }
     });
-
-    console.log("[WIZARR] Response status:", resp.status);
 
     if (!resp.ok) {
       const errorText = await resp.text();
-      console.error("[WIZARR] ❌ API error:", resp.status, errorText);
+      logWizarr.error(`API HTTP ${resp.status} —`, errorText.slice(0, 120));
       throw new Error(`Wizarr API ${resp.status}`);
     }
 
     const payload = await resp.json();
-    console.log("[WIZARR] Payload reçu:", JSON.stringify(payload).substring(0, 200));
-
     const list =
       Array.isArray(payload) ? payload :
       Array.isArray(payload?.users) ? payload.users :
       Array.isArray(payload?.data) ? payload.data :
       [];
 
-    console.log("[WIZARR] Nombre d'utilisateurs:", list.length);
-
     const norm = s => (s || "").toLowerCase().trim();
     const plexEmail = norm(user.email);
 
-    console.log("[WIZARR] Cherche email:", plexEmail);
-
     if (!plexEmail) {
-      console.log("[WIZARR] ❌ Email utilisateur Plex manquant");
+      logWizarr.warn('Email Plex manquant — abonnement ignoré');
       return computeSubscription(null);
     }
 
-    const wizUser = list.find(u => {
-      const uEmail = norm(u.email);
-      console.log("[WIZARR]   Comparaison:", uEmail, "===", plexEmail, "?", uEmail === plexEmail);
-      return uEmail === plexEmail;
-    }) || null;
-
-    console.log("[WIZARR] Utilisateur trouvé:", !!wizUser);
-    if (wizUser) {
-      console.log("[WIZARR]   Données:", JSON.stringify(wizUser).substring(0, 200));
-    }
+    const wizUser = list.find(u => norm(u.email) === plexEmail) || null;
 
     const result = computeSubscription(wizUser);
-    console.log("[WIZARR] ✅ Résultat computeSubscription:", result);
+    logWizarr.info(`${user.username} — ${result.label}${result.expiresAt ? ` (expire ${result.expiresAt})` : ''}`);
     return result;
 
   } catch (err) {
-    console.error("[WIZARR] ❌ Erreur catch:", err.message);
+    logWizarr.error('Erreur:', err.message);
     return computeSubscription(null);
   }
 }
@@ -155,7 +135,7 @@ router.get("/profil", requireAuth, async (req, res) => {
       totalBadgesCount: allAchievements.length
     });
   } catch (err) {
-    console.error("[PROFIL] Erreur:", err.message);
+    log.create('[Profil]').error(err.message);
     res.render("profil/index", {
       user: req.session.user,
       basePath: req.basePath,
@@ -294,13 +274,13 @@ router.get("/badges", requireAuth, async (req, res) => {
           }
         }
         if (Object.keys(newSecrets).length > 0) {
-          console.log(`[BADGES] 🔓 Secrets débloqués pour ${username}:`, Object.keys(newSecrets).join(', '));
+          log.create('[Badges]').info(`Secrets débloqués pour ${username}:`, Object.keys(newSecrets).join(', '));
         }
       } catch (evalErr) {
         if (evalErr.message === 'EVAL_TIMEOUT') {
-          console.warn(`[BADGES] ⏱ Timeout évaluation collections pour ${username} — rendu avec cache DB`);
+          log.create('[Badges]').warn(`Timeout évaluation collections pour ${username} — cache DB utilisé`);
         } else {
-          console.error('[BADGES] Erreur évaluation secrets:', evalErr.message);
+          log.create('[Badges]').error('Évaluation secrets:', evalErr.message);
         }
       }
     }
@@ -326,7 +306,7 @@ router.get("/badges", requireAuth, async (req, res) => {
       progressMap
     });
   } catch (err) {
-    console.error("[BADGES] Erreur:", err.message);
+    log.create('[Badges]').error(err.message);
     res.render("badges", {
       user: req.session.user,
       basePath: req.basePath,
@@ -364,7 +344,7 @@ router.get("/api/subscription", requireAuth, async (req, res) => {
 
 router.get("/api/stats", requireAuth, async (req, res) => {
   try {
-    console.log("[API/STATS] Requête de stats pour user:", req.session.user.username);
+    log.create('[Stats]').debug('Requête pour:', req.session.user.username);
     
     // Wrapper pour ajouter un timeout
     const statsWithTimeout = await Promise.race([
@@ -383,12 +363,12 @@ router.get("/api/stats", requireAuth, async (req, res) => {
       )
     ]);
 
-    console.log("[API/STATS] Resultat final:", statsWithTimeout);
+    log.create('[Stats]').debug('Résultat:', JSON.stringify(statsWithTimeout));
     res.json(statsWithTimeout);
     
   } catch (err) {
     if (err.message === "TIMEOUT_10S") {
-      console.warn("[API/STATS] Timeout 10s - le cron job mettra a jour en arriere-plan");
+      log.create('[Stats]').warn('Timeout 10s — cron job mettra à jour en arrière-plan');
       // Retourner un objet par défaut pendant que le cron job travaille
       res.json({
         joinedAt: req.session.user.joinedAtTimestamp ? new Date(req.session.user.joinedAtTimestamp * 1000).toISOString() : null,
@@ -398,7 +378,7 @@ router.get("/api/stats", requireAuth, async (req, res) => {
         message: "Les données des sessions sont en cours de calcul... (rechargez dans quelques minutes)"
       });
     } else {
-      console.error("[API/STATS] Erreur:", err.message);
+      log.create('[Stats]').error('Erreur:', err.message);
       res.status(500).json({ error: "Failed to fetch stats" });
     }
   }
@@ -412,13 +392,13 @@ router.get("/api/stats", requireAuth, async (req, res) => {
 router.get("/api/stats-wait", requireAuth, async (req, res) => {
   try {
     const username = req.session.user.username;
-    console.log("[API/STATS-WAIT] 📢 Demande long-poll pour:", username);
+    log.create('[Stats]').info('Long-poll démarré pour:', username);
     
     // Attendre que le scan finisse (avec timeout de 5 min)
     const startWait = Date.now();
     await TautulliEvents.waitForScanComplete(300000);  // 5 min max
     const waitDuration = Math.round((Date.now() - startWait) / 1000);
-    console.log("[API/STATS-WAIT] ✅ Scan terminé après", waitDuration, 'secondes - Récupération des données...');
+    log.create('[Stats]').info(`Scan terminé après ${waitDuration}s — récupération des données`);
     
     // Maintenant récupérer les stats (doivent être en cache)
     const stats = await getTautulliStats(
@@ -432,15 +412,15 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
     );
     
     if (!stats) {
-      console.warn("[API/STATS-WAIT] ⚠️  Aucune donnée trouvée après attente pour:", username);
+      log.create('[Stats]').warn('Aucune donnée trouvée après attente pour:', username);
       return res.status(404).json({ error: "User stats not found" });
     }
     
-    console.log("[API/STATS-WAIT] ✅ Données retournées pour:", username);
+    log.create('[Stats]').debug('Données retournées pour:', username);
     res.json(stats);
     
   } catch (err) {
-    console.error("[API/STATS-WAIT] ❌ Erreur:", err.message);
+    log.create('[Stats]').error('Long-poll erreur:', err.message);
     res.status(500).json({ error: "Failed to wait for stats", details: err.message });
   }
 });
@@ -552,10 +532,10 @@ router.get("/api/all-users", async (req, res) => {
       page++;
     }
 
-    console.log("[API] GET /api/all-users retourne", users.length, "utilisateurs");
+    log.create('[API]').debug('all-users:', users.length, 'utilisateurs');
     res.json(users);
   } catch (err) {
-    console.error("[API] Erreur fetch users:", err.message);
+    log.create('[API]').error('fetch users:', err.message);
     res.json([]);
   }
 });
@@ -570,7 +550,7 @@ router.delete("/api/admin/achievement/:achievementId", requireAuth, (req, res) =
   if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
   const { achievementId } = req.params;
   UserAchievementQueries.revoke(user.id, achievementId);
-  console.log(`[ADMIN] 🗑️  Badge "${achievementId}" révoqué pour ${username}`);
+  log.create('[Admin]').info(`Badge "${achievementId}" révoqué pour ${username}`);
   res.json({ success: true, revoked: achievementId });
 });
 
@@ -623,7 +603,7 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
       player:       mySession.Player?.title || "",           // nom de l'appareil
     });
   } catch (e) {
-    console.warn("[NowPlaying] Erreur:", e.message);
+    log.create('[NowPlaying]').warn(e.message);
     res.json({ playing: false });
   }
 });
@@ -645,7 +625,7 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
   const isAllowed = allowedPrefixes.some(p => thumbPath.startsWith(p));
   const hasTraversal = /(\.\.|%2e%2e|%252e)/i.test(thumbPath);
   if (!isAllowed || hasTraversal) {
-    console.warn(`[Plex-Thumb] ⛔ Chemin refusé: ${thumbPath}`);
+    log.create('[Plex]').warn(`Thumb — chemin refusé: ${thumbPath}`);
     return res.status(400).end();
   }
 

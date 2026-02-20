@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const log = require('./logger').create('[Cache]');
 
 const CACHE_FILE = path.join(__dirname, '../data/session-stats-cache.json');
 
@@ -25,7 +26,7 @@ class SessionStatsCache {
         return cache;
       }
     } catch (err) {
-      console.error("[CACHE] Erreur lecture cache:", err.message);
+      log.error('lecture cache:', err.message);
     }
     return {};
   }
@@ -48,15 +49,15 @@ class SessionStatsCache {
       
       // Vérifier si les heures sont aberrantes
       if (!isFinite(watchStats.totalHours) || watchStats.totalHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- totalHours:", watchStats.totalHours);
+        log.warn(`Valeur aberrante totalHours (${watchStats.totalHours}) pour ${username}`);
         needsClean = true;
       }
       if (!isFinite(watchStats.movieHours) || watchStats.movieHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- movieHours:", watchStats.movieHours);
+        log.warn(`Valeur aberrante movieHours (${watchStats.movieHours}) pour ${username}`);
         needsClean = true;
       }
       if (!isFinite(watchStats.episodeHours) || watchStats.episodeHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE] ⚠️  Données aberrantes pour", username, "- episodeHours:", watchStats.episodeHours);
+        log.warn(`Valeur aberrante episodeHours (${watchStats.episodeHours}) pour ${username}`);
         needsClean = true;
       }
       
@@ -73,7 +74,7 @@ class SessionStatsCache {
           }
           // ✅ GARDER lastSessionTimestamp pour que les prochains scans utilisant le delta
         };
-        console.log("[CACHE] ✅ Données nettoyées pour", username, "- stats réinitialisées, delta preserved");
+        log.debug(`Cache nettoyé pour ${username} (stats réinitialisées)`);
       } else {
         cleaned[username] = stats;
       }
@@ -88,9 +89,8 @@ class SessionStatsCache {
   static save(cache) {
     try {
       fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
-      console.log("[CACHE] Cache sauvegarde");
     } catch (err) {
-      console.error("[CACHE] Erreur ecriture cache:", err.message);
+      log.error('écriture cache:', err.message);
     }
   }
 
@@ -112,7 +112,6 @@ class SessionStatsCache {
       lastUpdated: new Date().toISOString()
     };
     this.save(cache);
-    console.log("[CACHE] Stats mises a jour pour", username);
   }
 
   /**
@@ -189,9 +188,8 @@ class SessionStatsCache {
   static clear() {
     try {
       fs.writeFileSync(CACHE_FILE, JSON.stringify({}));
-      console.log("[CACHE] Cache efface");
     } catch (err) {
-      console.error("[CACHE] Erreur effacement cache:", err.message);
+      log.error('effacement cache:', err.message);
     }
   }
 }

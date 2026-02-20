@@ -21,14 +21,14 @@ function initDatabase() {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');  // Mode WAL pour meilleure concurrence
     
-    console.log("[DB] 🗄️  Base de données initialisée:", DB_PATH);
+    require('./logger').create('[DB]').info('Base de données initialisée:', DB_PATH);
     
     // Exécuter les migrations
     runMigrations();
     
     return db;
   } catch (err) {
-    console.error("[DB] ❌ Erreur initialisation DB:", err.message);
+    require('./logger').create('[DB]').error('Erreur initialisation:', err.message);
     throw err;
   }
 }
@@ -39,11 +39,11 @@ function initDatabase() {
 function attemptAddColumn(tableName, columnName, columnDef) {
   try {
     db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
-    console.log(`[DB] ✅ Colonne ajoutée: ${tableName}.${columnName}`);
+    require('./logger').create('[DB]').debug(`Colonne ajoutée: ${tableName}.${columnName}`);
   } catch (err) {
     // Ignorer l'erreur si la colonne existe déjà (ou autre erreur table inexistante)
     if (!err.message.includes('duplicate column') && !err.message.includes('no such table')) {
-      console.warn(`[DB] ⚠️  Impossible d'ajouter ${tableName}.${columnName}:`, err.message);
+      require('./logger').create('[DB]').warn(`Impossible d'ajouter ${tableName}.${columnName}:`, err.message);
     }
   }
 }
@@ -71,9 +71,8 @@ function runMigrations() {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
-    console.log("[DB] ✅ Table 'users' vérifiée");
-    
+    `);  // users
+
     // Table: watch_history - Historique des stats de visionnage
     db.exec(`
       CREATE TABLE IF NOT EXISTS watch_history (
@@ -91,9 +90,8 @@ function runMigrations() {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
         UNIQUE(user_id, scannedAt)
       )
-    `);
-    console.log("[DB] ✅ Table 'watch_history' vérifiée");
-    
+    `);  // watch_history
+
     // Table: session_cache - Cache des sessions (pour éviter double-counting)
     db.exec(`
       CREATE TABLE IF NOT EXISTS session_cache (
@@ -107,9 +105,8 @@ function runMigrations() {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
-    console.log("[DB] ✅ Table 'session_cache' vérifiée");
-    
+    `);  // session_cache
+
     // Table: tautulli_sessions - Historique complet des sessions Tautulli
     db.exec(`
       CREATE TABLE IF NOT EXISTS tautulli_sessions (
@@ -127,9 +124,8 @@ function runMigrations() {
         synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
-    console.log("[DB] ✅ Table 'tautulli_sessions' vérifiée");
-    
+    `);  // tautulli_sessions
+
     // Table: user_watch_stats - Stats pré-calculées PAR UTILISATEUR
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_watch_stats (
@@ -156,9 +152,8 @@ function runMigrations() {
         
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
-    console.log("[DB] ✅ Table 'user_watch_stats' vérifiée");
-    
+    `);  // user_watch_stats
+
     // Table: sync_metadata - Historique des syncs pour delta-sync intelligent
     db.exec(`
       CREATE TABLE IF NOT EXISTS sync_metadata (
@@ -169,9 +164,8 @@ function runMigrations() {
         sync_duration_seconds INTEGER DEFAULT 0,
         synced_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `);
-    console.log("[DB] ✅ Table 'sync_metadata' vérifiée");
-    
+    `);  // sync_metadata
+
     // Table: user_achievements - Succès débloqués manuellement par utilisateur
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_achievements (
@@ -184,8 +178,7 @@ function runMigrations() {
         UNIQUE(user_id, achievement_id),
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
-    console.log("[DB] ✅ Table 'user_achievements' vérifiée");
+    `);  // user_achievements
 
     // Table: achievement_progress - Progression des badges collection par utilisateur
     db.exec(`
@@ -199,8 +192,7 @@ function runMigrations() {
         UNIQUE(user_id, achievement_id),
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
-    `);
-    console.log("[DB] ✅ Table 'achievement_progress' vérifiée");
+    `);  // achievement_progress
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
@@ -213,8 +205,7 @@ function runMigrations() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_tautulli_sessions_hash ON tautulli_sessions(session_hash) WHERE session_hash IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_user_watch_stats_user ON user_watch_stats(user_id);
       CREATE INDEX IF NOT EXISTS idx_sync_metadata_type ON sync_metadata(sync_type);
-    `);
-    console.log("[DB] ✅ Indexes créés");
+    `);  // indexes
 
     // 🔄 Migration données : renommage d'IDs de badges
     try {
@@ -223,7 +214,7 @@ function runMigrations() {
       const r1 = renamed.run('jurassic-survivor', 'clever-girl');
       const r2 = renamedProgress.run('jurassic-survivor', 'clever-girl');
       if (r1.changes > 0 || r2.changes > 0) {
-        console.log(`[DB] 🔄 Migration: "clever-girl" → "jurassic-survivor" (${r1.changes} unlocks, ${r2.changes} progress)`);
+        require('./logger').create('[DB]').info(`Migration: "clever-girl" → "jurassic-survivor" (${r1.changes + r2.changes} entrées)`);
       }
       // Supprimer le badge og (retiré de l'application)
       db.prepare(`DELETE FROM user_achievements WHERE achievement_id = ?`).run('og');
@@ -235,12 +226,12 @@ function runMigrations() {
       const d1 = db.prepare(`DELETE FROM user_achievements WHERE achievement_id = ?`).run('dark-knight');
       const d2 = db.prepare(`DELETE FROM achievement_progress WHERE achievement_id = ?`).run('dark-knight');
       if (d1.changes > 0 || d2.changes > 0) {
-        console.log(`[DB] 🗑️  Migration: badge "dark-knight" supprimé (${d1.changes} unlocks, ${d2.changes} progress)`);
+        require('./logger').create('[DB]').info(`Migration: badge "dark-knight" supprimé (${d1.changes + d2.changes} entrées)`);
       }
     } catch(e) { /* tables pas encore créées au premier boot */ }
 
   } catch (err) {
-    console.error("[DB] ❌ Erreur migrations:", err.message);
+    require('./logger').create('[DB]').error('Migrations:', err.message);
     throw err;
   }
 }
@@ -262,7 +253,7 @@ function closeDatabase() {
   if (db) {
     db.close();
     db = null;
-    console.log("[DB] 🔌 Base de données fermée");
+    require('./logger').create('[DB]').info('Base de données fermée');
   }
 }
 
@@ -450,7 +441,7 @@ const SessionCacheQueries = {
     const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     const stmt = db.prepare('DELETE FROM session_cache WHERE startedAt < ?');
     const result = stmt.run(beforeDate);
-    console.log("[DB] 🧹 Sessions nettoyées:", result.changes, "supprimées");
+    require('./logger').create('[DB]').info('Nettoyage sessions:', result.changes, 'supprimées');
     return result.changes;
   }
 };

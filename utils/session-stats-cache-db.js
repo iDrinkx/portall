@@ -1,4 +1,5 @@
 const db = require('./database');
+const log = require('./logger').create('[Cache DB]');
 
 /**
  * Module de cache des stats de session utilisant SQLite
@@ -30,7 +31,7 @@ class SessionStatsCacheDB {
         }
       };
     } catch (err) {
-      console.error("[CACHE-DB] Erreur get:", err.message);
+      log.error('get:', err.message);
       return null;
     }
   }
@@ -48,15 +49,15 @@ class SessionStatsCacheDB {
       
       // Nettoyer les valeurs aberrantes
       if (!isFinite(watchStats.totalHours) || watchStats.totalHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: totalHours aberrante pour", username, ":", watchStats.totalHours);
+        log.warn(`totalHours aberrante (${watchStats.totalHours}) pour ${username} — réinitialisée`);
         watchStats.totalHours = 0;
       }
       if (!isFinite(watchStats.movieHours) || watchStats.movieHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: movieHours aberrante pour", username, ":", watchStats.movieHours);
+        log.warn(`movieHours aberrante (${watchStats.movieHours}) pour ${username} — réinitialisée`);
         watchStats.movieHours = 0;
       }
       if (!isFinite(watchStats.episodeHours) || watchStats.episodeHours > MAX_REASONABLE_HOURS) {
-        console.warn("[CACHE-DB] ⚠️  NETTOYAGE: episodeHours aberrante pour", username, ":", watchStats.episodeHours);
+        log.warn(`episodeHours aberrante (${watchStats.episodeHours}) pour ${username} — réinitialisée`);
         watchStats.episodeHours = 0;
       }
       
@@ -79,13 +80,12 @@ class SessionStatsCacheDB {
         lastSessionTimestamp: stats.lastSessionTimestamp || null
       });
       
-      console.log("[CACHE-DB] Stats sauvegardées pour", username);
+      log.debug('Stats sauvegardées pour', username);
     } catch (err) {
       if (err.message.includes('UNIQUE constraint failed')) {
-        // Déjà inséré ce scan
-        console.log("[CACHE-DB] Stats déjà enregistrées pour ce scan:", username);
+        // Déjà inséré ce scan — silencieux
       } else {
-        console.error("[CACHE-DB] Erreur set:", err.message);
+        log.error('set:', err.message);
       }
     }
   }
@@ -117,7 +117,7 @@ class SessionStatsCacheDB {
       
       return result;
     } catch (err) {
-      console.error("[CACHE-DB] Erreur getAll:", err.message);
+      log.error('getAll:', err.message);
       return {};
     }
   }
@@ -129,7 +129,7 @@ class SessionStatsCacheDB {
     try {
       return db.UserQueries.getAll().map(u => u.username);
     } catch (err) {
-      console.error("[CACHE-DB] Erreur getKeys:", err.message);
+      log.error('getKeys:', err.message);
       return [];
     }
   }
@@ -144,7 +144,7 @@ class SessionStatsCacheDB {
       
       return db.WatchHistoryQueries.getHistoryForUser(user.id, days);
     } catch (err) {
-      console.error("[CACHE-DB] Erreur getHistory:", err.message);
+      log.error('getHistory:', err.message);
       return [];
     }
   }
@@ -159,7 +159,7 @@ class SessionStatsCacheDB {
       
       return db.WatchHistoryQueries.getAllForUser(user.id);
     } catch (err) {
-      console.error("[CACHE-DB] Erreur getFullHistory:", err.message);
+      log.error('getFullHistory:', err.message);
       return [];
     }
   }
@@ -198,7 +198,7 @@ class SessionStatsCacheDB {
         timeSince
       };
     } catch (err) {
-      console.error("[CACHE-DB] Erreur getWithTimestamp:", err.message);
+      log.error('getWithTimestamp:', err.message);
       return null;
     }
   }
@@ -210,11 +210,10 @@ class SessionStatsCacheDB {
     try {
       const user = db.UserQueries.getByUsername(username);
       if (user) {
-        // Les suppressions en cascade vont nettoyer watch_history via FOREIGN KEY
-        console.log("[CACHE-DB] Utilisateur supprimé:", username);
+        log.debug('Utilisateur supprimé:', username);
       }
     } catch (err) {
-      console.error("[CACHE-DB] Erreur delete:", err.message);
+      log.error('delete:', err.message);
     }
   }
 
@@ -232,7 +231,7 @@ class SessionStatsCacheDB {
       
       return diffHours > hours;
     } catch (err) {
-      console.error("[CACHE-DB] Erreur isExpired:", err.message);
+      log.error('isExpired:', err.message);
       return true;
     }
   }
@@ -241,8 +240,7 @@ class SessionStatsCacheDB {
    * Nettoyer les données aberrantes du cache (héritée de l'ancienne version JSON)
    */
   static _sanitizeCache() {
-    // Avec SQLite, on n'a pas besoin de cette méthode car les données sont validées avant insertion
-    console.log("[CACHE-DB] ✅ Pas de nettoyage nécessaire (validation à l'insertion)");
+    // Validation à l'insertion — aucun nettoyage nécessaire
   }
 
   /**
