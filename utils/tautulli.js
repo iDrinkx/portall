@@ -651,7 +651,6 @@ function getStatsFromDatabase(username) {
     };
     
   } catch (err) {
-  } catch (err) {
     logT.error('getStatsFromDatabase:', err.message);
     return null;
   }
