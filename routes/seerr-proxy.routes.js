@@ -123,23 +123,18 @@ router.post("/overseerr-reauth", requireAuth, async (req, res) => {
    Tous les appels sous /overseerr-frame/* sont forwarded vers Seerr
    avec injection automatique du cookie de session.
 =============================== */
-// Évaluation lazy pour prendre en compte OVERSEERR_URL défini après le chargement du module
-function getSeerrTarget() {
-  return (process.env.OVERSEERR_URL || "http://localhost:5055").replace(/\/$/, "");
-}
+// Lire la cible une seule fois au démarrage — les env vars Docker sont disponibles dès le boot
+const seerrTarget = (process.env.OVERSEERR_URL || "http://localhost:5055").replace(/\/$/, "");
+console.log(`[SeerrProxy] Cible proxy Seerr: ${seerrTarget}`);
 
 const proxyMiddleware = createProxyMiddleware({
-  // router function = évaluation dynamique à chaque requête
-  router: () => getSeerrTarget(),
+  target: seerrTarget,
   changeOrigin: true,
 
   // Supprime le préfixe : /overseerr-frame/discover → /discover
   pathRewrite: { "^/overseerr-frame": "" },
 
-  // Désactiver la vérification SSL si Seerr est en HTTP interne
   secure: false,
-
-  // Timeouts généreux pour les grosses requêtes
   proxyTimeout: 30000,
   timeout: 30000,
 
@@ -160,7 +155,7 @@ const proxyMiddleware = createProxyMiddleware({
 
       // Corriger le host header
       try {
-        const target = new URL(getSeerrTarget());
+        const target = new URL(seerrTarget);
         proxyReq.setHeader("Host", target.host);
       } catch (_) {}
 
@@ -223,7 +218,7 @@ const proxyMiddleware = createProxyMiddleware({
               <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
               <h2 style="margin:0 0 .5rem">Seerr inaccessible</h2>
               <p style="color:#94a3b8">Vérifiez que Seerr est démarré et que OVERSEERR_URL est correctement configuré.</p>
-              <p style="color:#64748b;font-size:.75rem;font-family:monospace">Cible : ${getSeerrTarget()}<br>Erreur : ${err.message}</p>
+              <p style="color:#64748b;font-size:.75rem;font-family:monospace">Cible : ${seerrTarget}<br>Erreur : ${err.message}</p>
             </div>
           </body></html>
         `);
