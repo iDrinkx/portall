@@ -18,13 +18,37 @@ async function getServerOwnerId(PLEX_TOKEN) {
 }
 
 /**
- * Récupère la liste complète des utilisateurs ayant accès au compte via l'API XML legacy plex.tv.
- * Cette API (/api/users) est plus exhaustive que /api/v2/friends — elle inclut tous les types
- * de relations (amis, partages serveur, home users, etc.) en une seule requête sans pagination.
+ * Récupère le machineIdentifier du serveur Plex local.
+ * Utilisé pour filtrer précisément les accès à CE serveur dans le XML plex.tv.
  */
-async function getPlexFriends(PLEX_TOKEN) {
-  const url = `https://plex.tv/api/users`;
-  const res = await fetch(url, {
+async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
+  try {
+    const res = await fetch(`${PLEX_URL}/identity`, {
+      headers: {
+        "X-Plex-Token": PLEX_TOKEN,
+        "Accept": "application/json"
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.MediaContainer?.machineIdentifier || null;
+  } catch (e) {
+    console.warn("[Plex] Impossible de récupérer machineIdentifier:", e.message);
+    return null;
+  }
+}
+
+/**
+ * Récupère la liste des utilisateurs ayant RÉELLEMENT accès au serveur.
+ * Utilise l'API XML plex.tv/api/users et filtre par les entrées <Server> dans chaque <User>.
+ * Un utilisateur supprimé n'aura plus de <Server> dans son entrée XML — contrairement à
+ * /api/v2/friends qui peut avoir du cache, ou /api/users sans filtre qui inclut d'anciennes relations.
+ *
+ * @param {string} PLEX_TOKEN  Token admin
+ * @param {string|null} machineId  machineIdentifier du PMS (optionnel, pour filter précis)
+ */
+async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
+  const res = await fetch("https://plex.tv/api/users", {
     headers: {
       "X-Plex-Token": PLEX_TOKEN,
       "X-Plex-Client-Identifier": "plex-portal-app",
@@ -34,8 +58,58 @@ async function getPlexFriends(PLEX_TOKEN) {
   if (!res.ok) throw new Error(`plex.tv/api/users → HTTP ${res.status}`);
 
   const xml = await res.text();
+  const authorizedUsers = [];
 
-  // Parser le XML manuellement : extraire les attributs id, title, email de chaque <User>
+  // Découper le XML en blocs <User>...</User>
+  const userBlockRegex = /<User\s[\s\S]*?<\/User>/g;
+  const attrRegex = /(\w+)="([^"]*)"/g;
+
+  let block;
+  while ((block = userBlockRegex.exec(xml)) !== null) {
+    const openTagMatch = block[0].match(/<User\s([^>]+)>/);
+    if (!openTagMatch) continue;
+
+    const attrs = {};
+    let m;
+    while ((m = attrRegex.exec(openTagMatch[1])) !== null) {
+      attrs[m[1]] = m[2];
+    }
+    if (!attrs.id) continue;
+
+    // Un utilisateur a accès si son bloc contient un élément <Server> correspondant à notre serveur.
+    // Si machineId est connu → filtre exact. Sinon → n'importe quel <Server> = accès à un serveur partagé.
+    const hasAccess = machineId
+      ? block[0].includes(`machineIdentifier="${machineId}"`)
+      : /<Server[\s>]/.test(block[0]);
+
+    if (hasAccess) {
+      authorizedUsers.push({
+        id: parseInt(attrs.id),
+        username: attrs.title || attrs.username || "",
+        email: attrs.email || ""
+      });
+    }
+  }
+
+  console.info(`[Plex] ✅ Utilisateurs avec accès serveur${machineId ? ` (machine: ${machineId})` : ""}: ${authorizedUsers.length}`);
+  return authorizedUsers;
+}
+
+/**
+ * @deprecated Alias pour compatibilité avec getPlexUsers / getPlexUserInfo.
+ * Retourne tous les utilisateurs de plex.tv/api/users sans filtrage server.
+ */
+async function getPlexFriends(PLEX_TOKEN) {
+  const res = await fetch("https://plex.tv/api/users", {
+    headers: {
+      "X-Plex-Token": PLEX_TOKEN,
+      "X-Plex-Client-Identifier": "plex-portal-app",
+      "Accept": "application/xml"
+    }
+  });
+  if (!res.ok) throw new Error(`plex.tv/api/users → HTTP ${res.status}`);
+
+  const xml = await res.text();
   const users = [];
   const userRegex = /<User\s([^>]+)>/g;
   const attrRegex = /(\w+)="([^"]*)"/g;
@@ -52,18 +126,17 @@ async function getPlexFriends(PLEX_TOKEN) {
       users.push({ id: parseInt(attrs.id), username: attrs.title || "", email: attrs.email || "" });
     }
   }
-
-  console.info(`[Plex] ✅ Total utilisateurs récupérés (API XML): ${users.length}`);
   return users;
 }
 
 /**
  * Vérifie si un utilisateur Plex a accès au serveur.
  * - Autorisé s'il est le propriétaire du token admin (l'admin lui-même)
- * - Autorisé s'il figure dans la liste des amis partagés
+ * - Autorisé s'il a un <Server machineIdentifier="..."> dans plex.tv/api/users
+ *   → seuls les utilisateurs avec accès actif au serveur ont cette entrée
  * - Propagate les erreurs réseau → l'appelant décide du fail-open
  */
-async function isUserAuthorized(plexUserId, _PLEX_URL, PLEX_TOKEN) {
+async function isUserAuthorized(plexUserId, PLEX_URL, PLEX_TOKEN) {
   const userId = parseInt(plexUserId);
   console.info(`\n[Plex Auth] Vérification accès pour user ID: ${userId}`);
 
@@ -74,17 +147,25 @@ async function isUserAuthorized(plexUserId, _PLEX_URL, PLEX_TOKEN) {
     return true;
   }
 
-  // 2. L'utilisateur est-il dans la liste des amis partagés ?
-  const friends = await getPlexFriends(PLEX_TOKEN);
-  console.info(`[Plex Auth] ${friends.length} amis trouvés — recherche de l'ID ${userId}…`);
+  // 2. Récupérer le machineIdentifier du PMS pour un filtrage précis
+  const machineId = PLEX_URL ? await getServerMachineId(PLEX_URL, PLEX_TOKEN) : null;
+  if (machineId) {
+    console.info(`[Plex Auth] MachineIdentifier serveur: ${machineId}`);
+  } else {
+    console.warn(`[Plex Auth] ⚠️ MachineIdentifier non disponible — filtrage sur tout <Server> partagé`);
+  }
 
-  const found = friends.find(f => parseInt(f.id) === userId);
+  // 3. Vérifier si l'utilisateur a un accès serveur actif dans plex.tv/api/users
+  const authorizedUsers = await getAuthorizedServerUsers(PLEX_TOKEN, machineId);
+  console.info(`[Plex Auth] ${authorizedUsers.length} utilisateurs avec accès serveur — recherche de l'ID ${userId}…`);
+
+  const found = authorizedUsers.find(u => u.id === userId);
   if (found) {
-    console.info(`✅ [Plex Auth] User ${userId} (${found.email || found.username}) est un ami partagé`);
+    console.info(`✅ [Plex Auth] User ${userId} (${found.email || found.username}) a accès au serveur`);
     return true;
   }
 
-  console.warn(`❌ [Plex Auth] User ${userId} absent du serveur (owner=${ownerId}, friends=[${friends.map(f => f.id).join(',')}])`);
+  console.warn(`❌ [Plex Auth] User ${userId} absent du serveur (owner=${ownerId}, authorized=[${authorizedUsers.map(u => u.id).join(',')}])`);
   return false;
 }
 
