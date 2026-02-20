@@ -1647,7 +1647,144 @@
         w.style.display = "";
       } catch(e) { /* silencieux */ }
     }
+    // =====================================================
+    //  RAFRAÎCHISSEMENT AUTOMATIQUE
+    //  • Now Playing  : toutes les 10 s
+    //  • XP / Badges / Seerr / Abonnement : toutes les 5 min
+    //  • Page masquée (onglet arrière-plan) : polling mis en pause
+    // =====================================================
+
+    // --- Fonction de refresh XP / Badges / Seerr / Abonnement ---
+    async function refreshStats() {
+      // Invalider les caches client (30 s) pour forcer un vrai appel API
+      cacheManager.invalidate("statsCache");
+      cacheManager.invalidate("seerrCache");
+
+      const [statsRes, seerrRes, subRes] = await Promise.allSettled([
+        loadTautulliStats(),
+        loadSeerrStats(),
+        loadSubscription()
+      ]);
+
+      const stats = statsRes.status === "fulfilled" ? statsRes.value : null;
+      const seerr = seerrRes.status === "fulfilled" ? seerrRes.value : null;
+      const sub   = subRes.status   === "fulfilled" ? subRes.value   : null;
+      const el = (id) => document.getElementById(id);
+
+      // ---- Seerr ----
+      if (seerr) {
+        if (el("totalRequests"))    el("totalRequests").textContent    = seerr.total;
+        if (el("approvedRequests")) el("approvedRequests").textContent = seerr.approved;
+        if (el("pendingRequests"))  el("pendingRequests").textContent  = seerr.pending;
+        if (el("availableRequests"))el("availableRequests").textContent= seerr.available;
+        if (el("requestCount2"))    el("requestCount2").textContent    = seerr.total + " demandes";
+      }
+
+      // ---- Abonnement ----
+      if (sub && sub.label) {
+        const card = el("profilSubCard");
+        if (card) card.className = "profil-card profil-sub-card " + (sub.status || "");
+        const badge = el("profilSubStatus");
+        if (badge) { badge.className = "status-badge " + (sub.status || ""); badge.textContent = sub.label; }
+        if (el("profilSubDays"))     el("profilSubDays").textContent    = sub.daysLeft  || "—";
+        if (el("profilSubExpire"))   el("profilSubExpire").textContent  = sub.expiresAt || "—";
+        if (el("profilSubProgress")) el("profilSubProgress").style.width = (sub.progressPercent || 0) + "%";
+      }
+
+      // ---- Tautulli / XP / Badges ----
+      if (!stats || stats.status === "computing") return;
+
+      const watchStats        = stats.watchStats || {};
+      const totalHours        = watchStats.totalHours || 0;
+      const daysJoined        = Math.floor((Date.now() - new Date(stats.joinedAt).getTime()) / 86400000);
+
+      // Compteurs visionnage
+      if (el("counterSessions"))   { el("counterSessions").textContent  = stats.sessionCount || 0; el("counterSessions").setAttribute("data-target", stats.sessionCount || 0); }
+      if (el("statTotalHours"))      el("statTotalHours").textContent    = Math.round(totalHours * 10) / 10 + "h visionnées";
+      if (el("counterMovies"))     { el("counterMovies").textContent     = watchStats.movieCount   || 0; el("counterMovies").setAttribute("data-target", watchStats.movieCount || 0); }
+      if (el("statMovieHours"))      el("statMovieHours").textContent    = Math.round((watchStats.movieHours   || 0) * 10) / 10 + "h de films";
+      if (el("counterEpisodes"))   { el("counterEpisodes").textContent   = watchStats.episodeCount || 0; el("counterEpisodes").setAttribute("data-target", watchStats.episodeCount || 0); }
+      if (el("statEpisodeHours"))    el("statEpisodeHours").textContent  = Math.round((watchStats.episodeHours || 0) * 10) / 10 + "h de séries";
+
+      // Calcul XP
+      const hoursXp        = Math.round(totalHours * 8);
+      const ancienneteXp   = daysJoined * 5;
+      const totalXp        = hoursXp + ancienneteXp;
+      const totalBreakdown = Math.max(1, totalXp);
+      const hoursPercent        = Math.round((hoursXp      / totalBreakdown) * 100);
+      const anciennetePercent   = Math.round((ancienneteXp / totalBreakdown) * 100);
+
+      if (el("xpAmount"))             el("xpAmount").textContent              = totalXp;
+      if (el("xpHoursValue"))         el("xpHoursValue").textContent          = hoursXp.toLocaleString()      + " XP";
+      if (el("xpHoursBar"))           el("xpHoursBar").style.width            = hoursPercent      + "%";
+      if (el("xpHoursPercent"))       el("xpHoursPercent").textContent        = hoursPercent      + "%";
+      if (el("xpAncienneteValue"))    el("xpAncienneteValue").textContent     = ancienneteXp.toLocaleString() + " XP";
+      if (el("xpAncienneteBar"))      el("xpAncienneteBar").style.width       = anciennetePercent + "%";
+      if (el("xpAnciennetePercent"))  el("xpAnciennetePercent").textContent   = anciennetePercent + "%";
+      if (el("detailProfilHours"))    el("detailProfilHours").textContent      = Math.round(totalHours * 10) / 10 + "h";
+      if (el("detailProfilAnciennete")) el("detailProfilAnciennete").textContent = daysJoined + " j";
+
+      // Badge courant + barre XP
+      const currentBadge = XP_SYSTEM.getBadgeByXp(totalXp);
+      const progress     = XP_SYSTEM.getProgressToNextBadge(totalXp);
+      const avatar       = el("profileAvatar");
+      const badgeRing    = el("badgeRing");
+      const xpBadgeEl    = el("xpBadge");
+      if (avatar)     avatar.style.borderColor     = currentBadge.borderColor;
+      if (badgeRing)  badgeRing.style.borderColor  = currentBadge.borderColor;
+      if (xpBadgeEl)  {
+        xpBadgeEl.textContent        = `${currentBadge.icon} ${currentBadge.name}`;
+        xpBadgeEl.style.background   = currentBadge.bgColor;
+        xpBadgeEl.style.color        = currentBadge.color;
+        xpBadgeEl.style.borderColor  = currentBadge.borderColor;
+      }
+      if (el("xpBarFill")) el("xpBarFill").style.width   = progress.progressPercent + "%";
+      if (el("xpNeeded"))  el("xpNeeded").textContent    = progress.xpNeeded > 0
+        ? `${progress.xpNeeded} XP avant ${progress.next?.name || "max"}`
+        : "Max atteint!";
+
+      // Badges débloqués
+      const badgeItems = document.querySelectorAll(".badge-item");
+      badgeItems.forEach(item => {
+        const badgeData = XP_SYSTEM.badges[parseInt(item.dataset.level) - 1];
+        if (badgeData) item.classList.toggle("unlocked", totalXp >= badgeData.minXp);
+      });
+      if (el("detailProfilBadges")) {
+        const unlockedCount = [...badgeItems].filter(i => i.classList.contains("unlocked")).length;
+        el("detailProfilBadges").textContent = unlockedCount + (XP_SYSTEM.badges.length ? "/" + XP_SYSTEM.badges.length : "");
+      }
+    }
+
+    // --- Gestion des intervalles (pause si onglet caché) ---
+    let _timerNowPlaying = null;
+    let _timerStats      = null;
+
+    function startPolling() {
+      _timerNowPlaying = setInterval(refreshNowPlaying, 10000);   // 10 s
+      _timerStats      = setInterval(refreshStats,      300000);  // 5 min
+    }
+
+    function stopPolling() {
+      clearInterval(_timerNowPlaying);
+      clearInterval(_timerStats);
+      _timerNowPlaying = null;
+      _timerStats      = null;
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        // Onglet en arrière-plan → on arrête tout
+        stopPolling();
+      } else {
+        // Onglet redevient actif → refresh immédiat + relance
+        refreshNowPlaying();
+        refreshStats();
+        startPolling();
+      }
+    });
+
+    // Démarrage initial
     refreshNowPlaying();
-    setInterval(refreshNowPlaying, 30000);
+    startPolling();
   });
 </script>
