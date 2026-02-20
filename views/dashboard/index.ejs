@@ -45,6 +45,63 @@
 
 </div>
 
-
+<!-- SERVER STATS BAR -->
+<div class="server-stats-bar" id="serverStatsBar">
+  <div class="ssb-item" id="ssb-movies">
+    <span class="ssb-icon">🎬</span>
+    <span class="ssb-num" id="ssb-movies-num">—</span>
+    <span class="ssb-label">Films</span>
+  </div>
+  <div class="ssb-divider"></div>
+  <div class="ssb-item" id="ssb-shows">
+    <span class="ssb-icon">📺</span>
+    <span class="ssb-num" id="ssb-shows-num">—</span>
+    <span class="ssb-label">Séries</span>
+    <span class="ssb-sub" id="ssb-episodes"></span>
+  </div>
+  <div class="ssb-divider"></div>
+  <div class="ssb-item" id="ssb-music">
+    <span class="ssb-icon">🎵</span>
+    <span class="ssb-num" id="ssb-music-num">—</span>
+    <span class="ssb-label">Titres</span>
+  </div>
+  <div class="ssb-divider" id="ssb-div-audio"></div>
+  <div class="ssb-item" id="ssb-audio">
+    <span class="ssb-icon">🎧</span>
+    <span class="ssb-num" id="ssb-audio-num">—</span>
+    <span class="ssb-label">Livres audio</span>
+  </div>
+</div>
 
 <script src="<%= basePath %>/js/dashboard.js"></script>
+<script>
+(function () {
+  const bp = '<%= basePath %>';
+  const fmt = n => n.toLocaleString('fr-FR');
+
+  fetch(bp + '/api/server-stats')
+    .then(r => r.json())
+    .then(d => {
+      if (!d.available) return;
+      const bar = document.getElementById('serverStatsBar');
+      if (bar) bar.classList.add('loaded');
+
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+      set('ssb-movies-num', fmt(d.movies));
+      set('ssb-shows-num',  fmt(d.shows));
+      set('ssb-music-num',  fmt(d.musicTracks));
+      set('ssb-audio-num',  fmt(d.audiobookCount));
+
+      if (d.episodes > 0) set('ssb-episodes', fmt(d.episodes) + ' épisodes');
+
+      if (d.audiobookCount === 0) {
+        const div  = document.getElementById('ssb-div-audio');
+        const item = document.getElementById('ssb-audio');
+        if (div)  div.style.display  = 'none';
+        if (item) item.style.display = 'none';
+      }
+    })
+    .catch(() => {});
+})();
+</script>
