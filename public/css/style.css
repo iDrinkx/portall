@@ -37,7 +37,8 @@ html, body { height: 100%; }
 
 body {
   font-family: "Segoe UI", Roboto, Arial, sans-serif;
-  background: radial-gradient(circle at top, var(--bg2) 0%, var(--bg1) 40%, var(--bg0) 100%);
+  background: linear-gradient(180deg, var(--bg2) 0%, var(--bg1) 30%, var(--bg0) 100%);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   display: flex;
