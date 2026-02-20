@@ -671,35 +671,39 @@ function getLastPlayedItem(username) {
   if (!tautulliDb) return null;
   try {
     const norm = username.toLowerCase();
+    // Passe par la table users pour matcher le bon user_id (même logique que getUserStatsFromTautulli)
     const stmt = tautulliDb.prepare(`
       SELECT
-        sh.id,
         sh.media_type,
         sh.stopped,
-        sh.duration,
         shm.title,
         shm.grandparent_title,
         shm.parent_title,
         shm.year,
         shm.thumb
-      FROM session_history sh
+      FROM users u
+      JOIN session_history sh ON u.user_id = sh.user_id
       JOIN session_history_metadata shm ON sh.id = shm.id
-      WHERE LOWER(sh.user) = ?
+      WHERE LOWER(u.username) = ?
         AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
       ORDER BY sh.stopped DESC
       LIMIT 1
     `);
     const row = stmt.get(norm);
-    if (!row) return null;
+    if (!row) {
+      log.debug('getLastPlayedItem: aucun résultat pour', norm);
+      return null;
+    }
+    log.debug('getLastPlayedItem:', norm, '->', row.title);
     return {
-      mediaType:     row.media_type,
-      title:         row.title         || '',
-      grandTitle:    row.grandparent_title || '',
-      parentTitle:   row.parent_title  || '',
-      year:          row.year          || null,
-      thumb:         row.thumb         || null,
-      stoppedAt:     row.stopped       || null,
+      mediaType:  row.media_type,
+      title:      row.title              || '',
+      grandTitle: row.grandparent_title  || '',
+      parentTitle:row.parent_title       || '',
+      year:       row.year               || null,
+      thumb:      row.thumb              || null,
+      stoppedAt:  row.stopped            || null,
     };
   } catch (err) {
     log.warn('getLastPlayedItem:', err.message);

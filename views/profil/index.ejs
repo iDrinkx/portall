@@ -2026,8 +2026,8 @@
         title.textContent   = d.title  || "";
 
         if (isLastPlayed) {
-          player.textContent = d.stoppedAt ? "🕐 " + _npRelTime(d.stoppedAt) : "";
-          pct.textContent    = "";
+          player.textContent = '';
+          pct.textContent    = '';
           document.getElementById("npBarFill").style.width = "0%";
         } else {
           player.textContent = d.player ? "📺 " + d.player : "";
