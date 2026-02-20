@@ -1051,7 +1051,7 @@ body {
 ========================= */
 .server-stats-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0;
   background: var(--panel);
@@ -1086,6 +1086,7 @@ body {
   height: 40px;
   background: var(--line);
   flex-shrink: 0;
+  align-self: center;
 }
 
 .ssb-icon {
