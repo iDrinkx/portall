@@ -68,7 +68,7 @@
       <div class="xp-left-icon">🏆</div>
       <div class="xp-left-label">Succès</div>
       <div class="xp-left-count"><span id="xpUnlockedCount" class="skel"> </span></div>
-      <button class="action-pill action-pill--gold" onclick="openBadgesModal()">Voir mes succès →</button>
+      <a href="<%= basePath %>/badges" class="action-pill action-pill--gold">Voir mes succès →</a>
     </div>
 
     <!-- DROITE : barre XP -->
@@ -192,24 +192,13 @@
     </div>
   </div>
 
-  <!-- SECTION SUCCÈS (header + bouton XP uniquement) -->
+  <!-- SECTION SUCCÈS -->
   <div class="badges-section">
     <div class="badges-header-with-link">
       <h2>🏆 Progression des Succès</h2>
       <button class="action-pill" onclick="openXpModal()">⚡ Répartition XP →</button>
     </div>
-    <div id="badgesContainerProxy"></div>
-  </div>
-
-  <!-- MODAL SUCCÈS -->
-  <div id="badgesModal" class="xp-modal" onclick="if(event.target===this)closeBadgesModal()">
-    <div class="xp-modal-content xp-modal-content--wide">
-      <div class="xp-modal-header">
-        <h3>🏆 Progression des Succès</h3>
-        <button class="xp-modal-close" onclick="closeBadgesModal()">✕</button>
-      </div>
-      <div class="badges-container" id="badgesContainer"></div>
-    </div>
+    <div class="badges-container" id="badgesContainer"></div>
   </div>
 
   <!-- MODAL RÉPARTITION XP -->
@@ -2188,15 +2177,7 @@
     document.getElementById('xpModal').classList.remove('active');
     document.body.style.overflow = '';
   }
-  function openBadgesModal() {
-    document.getElementById('badgesModal').classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeBadgesModal() {
-    document.getElementById('badgesModal').classList.remove('active');
-    document.body.style.overflow = '';
-  }
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeXpModal(); closeBadgesModal(); }
+    if (e.key === 'Escape') closeXpModal();
   });
 </script>
