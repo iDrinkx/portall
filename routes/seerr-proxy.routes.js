@@ -50,6 +50,12 @@ router.get("/overseerr-frame-reauth", requireAuth, (req, res) => {
 const seerrTarget = (process.env.OVERSEERR_URL || "http://localhost:5055").replace(/\/$/, "");
 console.log(`[SeerrProxy] Cible: ${seerrTarget}`);
 
+/* ---------------------------------------------------------------
+   Proxy principal : /overseerr-frame/*
+   Express Router strip le préfixe "/overseerr-frame" de req.url,
+   donc on le remet via pathRewrite pour que Seerr (BASE_URL=/overseerr-frame)
+   reçoive le bon chemin.
+--------------------------------------------------------------- */
 const proxyMiddleware = createProxyMiddleware({
   target: seerrTarget,
   changeOrigin: true,
@@ -85,5 +91,34 @@ const proxyMiddleware = createProxyMiddleware({
 });
 
 router.use("/overseerr-frame", requireAuth, proxyMiddleware);
+
+/* ---------------------------------------------------------------
+   Proxy assets Next.js : /_next/*, /site.webmanifest, /favicon-*.png, /logo_full.svg
+   Next.js inscrit ces chemins dans le HTML au moment du build, SANS préfixe BASE_URL.
+   Le browser les demande donc à la racine de plex-portal → on les redirige vers Seerr.
+   Pas de pathRewrite : le chemin reste identique (Seerr les sert à /_next/... aussi).
+   Pas de garde auth : ce sont des assets statiques publics.
+--------------------------------------------------------------- */
+const staticProxyMiddleware = createProxyMiddleware({
+  target: seerrTarget,
+  changeOrigin: true,
+  secure: false,
+  proxyTimeout: 30000,
+  timeout: 30000,
+  on: {
+    proxyReq: (proxyReq) => {
+      proxyReq.removeHeader("Accept-Encoding");
+    },
+    error: (err, req, res) => {
+      if (!res.headersSent) res.status(502).send("Seerr asset unavailable");
+    }
+  }
+});
+
+router.use("/_next", staticProxyMiddleware);
+router.use("/site.webmanifest", staticProxyMiddleware);
+router.get("/favicon-16x16.png", staticProxyMiddleware);
+router.get("/favicon-32x32.png", staticProxyMiddleware);
+router.get("/logo_full.svg", staticProxyMiddleware);
 
 module.exports = router;
