@@ -213,6 +213,33 @@
   /* Éléments cachés utilisés uniquement pour les mises à jour JS */
   .achievement-hidden-data { display: none; }
 
+  /* Mini progression dans la carte (locked only) */
+  .ach-card-mini-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+  }
+  .ach-card-mini-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #E5A00D99, #E5A00D);
+    border-radius: 0 0 14px 14px;
+    transition: width 0.6s ease;
+  }
+  .ach-card-pct {
+    position: absolute;
+    bottom: 7px; left: 0; right: 0;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.28);
+    line-height: 1;
+    pointer-events: none;
+    letter-spacing: 0.3px;
+  }
+
   /* PROGRESS BAR (dans modal uniquement) */
   .achievement-progress {
     margin-top: 6px;
@@ -422,21 +449,20 @@
                 <div id="progress-<%= achievement.id %>">
                   <span class="current">0</span> / <span class="total"><%= progressTotal %></span> (<span class="percent">0</span>%)
                 </div>
-                <div class="achievement-progress-bar" style="display:none">
-                  <div class="achievement-progress-fill" id="fill-<%= achievement.id %>" style="width:0%"></div>
-                </div>
               </div>
-            <% } else if (isRevocable) { %>
+              <span class="ach-card-pct" id="card-pct-<%= achievement.id %>">0%</span>
+              <div class="ach-card-mini-bar"><div class="ach-card-mini-fill" id="card-fill-<%= achievement.id %>" style="width:0%"></div></div>
+            <% } else if (isRevocable && !achievement.unlocked) { %>
               <% const prog = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id]; %>
               <% if (prog && prog.total > 0) { %>
+                <% const pct0 = Math.min(100, Math.round((prog.current / prog.total) * 100)); %>
                 <div class="achievement-hidden-data">
                   <div id="progress-<%= achievement.id %>">
-                    <span class="current"><%= prog.current %></span> / <span class="total"><%= prog.total %></span> (<span class="percent"><%= Math.round((prog.current / prog.total) * 100) %></span>%)
-                  </div>
-                  <div class="achievement-progress-bar" style="display:none">
-                    <div class="achievement-progress-fill" id="fill-<%= achievement.id %>" style="width:<%= Math.min(100, Math.round((prog.current / prog.total) * 100)) %>%"></div>
+                    <span class="current"><%= prog.current %></span> / <span class="total"><%= prog.total %></span> (<span class="percent"><%= pct0 %></span>%)
                   </div>
                 </div>
+                <span class="ach-card-pct" id="card-pct-<%= achievement.id %>"><%= pct0 %>%</span>
+                <div class="ach-card-mini-bar"><div class="ach-card-mini-fill" id="card-fill-<%= achievement.id %>" style="width:<%= pct0 %>%"></div></div>
               <% } %>
             <% } %>
           </div>
@@ -502,7 +528,6 @@
       const progSection = document.getElementById('achModalProgress');
       if (hasProg || (!isUnlocked && !isSecret)) {
         const progressEl = card.querySelector('[id^="progress-"]');
-        const fillEl     = card.querySelector('[id^="fill-"]');
         if (progressEl) {
           const cur = progressEl.querySelector('.current')?.textContent || '0';
           const tot = progressEl.querySelector('.total')?.textContent  || '0';
@@ -655,16 +680,18 @@
 
     function updateProgress(achievementId, current, total) {
       const progressEl = document.getElementById('progress-' + achievementId);
-      const fillEl     = document.getElementById('fill-'     + achievementId);
-      if (!progressEl || !fillEl) return;
+      if (!progressEl) return;
 
       const percent = Math.min(Math.round((current / total) * 100), 100);
       progressEl.querySelector('.current').textContent = current;
       progressEl.querySelector('.total').textContent   = total;
       progressEl.querySelector('.percent').textContent = percent;
-      // Transition CSS fluide sur la barre
-      fillEl.style.transition = 'width .6s ease';
-      fillEl.style.width = percent + '%';
+
+      // Mini barre in-card
+      const cardFill = document.getElementById('card-fill-' + achievementId);
+      const cardPct  = document.getElementById('card-pct-'  + achievementId);
+      if (cardFill) { cardFill.style.transition = 'width .6s ease'; cardFill.style.width = percent + '%'; }
+      if (cardPct)  { cardPct.textContent = percent + '%'; }
     }
 
     // Lancer immédiatement
