@@ -487,11 +487,11 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
       }
     } catch (_) {}
 
-    // Calcul XP (même formule que la page Profil) — v1.12: nouveau système
-    const XP_MULTIPLIERS = { HOURS: 8, ANCIENNETE: 1 };
+    // Calcul XP (même formule que la page Profil) — v1.13: système ultra-optimisé
+    const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
     const totalXp      = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
                        + achievementsXp
-                       + daysJoined * XP_MULTIPLIERS.ANCIENNETE;
+                       + Math.round(daysJoined * XP_MULTIPLIERS.ANCIENNETE);
     const level    = XP_SYSTEM.getLevel(totalXp);
     const rank     = XP_SYSTEM.getRankByLevel(level);
     const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
@@ -892,7 +892,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       }
     } catch (_) {}
 
-    const XP_M = { HOURS: 8, ANCIENNETE: 1 }; // v1.12: nouveau système XP
+    const XP_M = { HOURS: 10, ANCIENNETE: 1.5 }; // v1.13: système ultra-optimisé
     const now  = Date.now();
     const allAchievements = ACHIEVEMENTS.getAll();
     const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
@@ -920,7 +920,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       }
 
       const totalHours = stats.totalHours || 0;
-      const totalXp    = Math.round(totalHours * XP_M.HOURS) + achievementsXp + daysJoined * XP_M.ANCIENNETE;
+      const totalXp    = Math.round(totalHours * XP_M.HOURS) + achievementsXp + Math.round(daysJoined * XP_M.ANCIENNETE);
       const level      = XP_SYSTEM.getLevel(totalXp);
       const rank       = XP_SYSTEM.getRankByLevel(level);
       const thumb      = thumbMap[key] || null;

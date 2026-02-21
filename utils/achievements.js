@@ -16,7 +16,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "temporels",
-      xp: 150
+      xp: 250
     },
     {
       id: "veteran",
@@ -32,7 +32,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "temporels",
-      xp: 300
+      xp: 750
     },
     {
       id: "old-timer",
@@ -48,7 +48,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "temporels",
-      xp: 750
+      xp: 2000
     }
   ],
 
@@ -68,7 +68,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 25
+      xp: 200
     },
     {
       id: "regular",
@@ -84,7 +84,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 75
+      xp: 300
     },
     {
       id: "night-owl",
@@ -100,7 +100,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 150
+      xp: 450
     },
     {
       id: "early-bird",
@@ -116,7 +116,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 150
+      xp: 450
     },
     {
       id: "centurion",
@@ -132,7 +132,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 300
+      xp: 750
     },
     {
       id: "marathoner",
@@ -148,7 +148,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "activites",
-      xp: 750
+      xp: 2500
     }
   ],
 
@@ -168,7 +168,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 25
+      xp: 200
     },
     {
       id: "cinephile",
@@ -184,7 +184,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 100
+      xp: 350
     },
     {
       id: "film-critic",
@@ -200,7 +200,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 200
+      xp: 550
     },
     {
       id: "hollywood-legend",
@@ -216,7 +216,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 400
+      xp: 900
     },
     {
       id: "cinema-god",
@@ -232,7 +232,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 600
+      xp: 1500
     },
     {
       id: "cinema-universe",
@@ -248,7 +248,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "films",
-      xp: 1000
+      xp: 2500
     }
   ],
 
@@ -268,7 +268,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 25
+      xp: 200
     },
     {
       id: "series-addict",
@@ -284,7 +284,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 100
+      xp: 350
     },
     {
       id: "series-master",
@@ -300,7 +300,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 200
+      xp: 550
     },
     {
       id: "serial-killer-legend",
@@ -316,7 +316,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 400
+      xp: 900
     },
     {
       id: "series-overlord",
@@ -332,7 +332,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 600
+      xp: 1500
     },
     {
       id: "series-titan",
@@ -348,7 +348,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "series",
-      xp: 1000
+      xp: 2500
     }
   ],
 
@@ -368,7 +368,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "mensuels",
-      xp: 200
+      xp: 300
     },
     {
       id: "intense-month",
@@ -384,7 +384,7 @@ const ACHIEVEMENTS = {
       }),
       unlockedDate: null,
       category: "mensuels",
-      xp: 400
+      xp: 800
     }
   ],
 
@@ -402,7 +402,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     },
     {
       id: "black-knight",
@@ -416,7 +416,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     },
     {
       id: "jurassic-survivor",
@@ -430,7 +430,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     },
     {
       id: "potter-head",
@@ -444,7 +444,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     },
     {
       id: "tolkiendil",
@@ -458,7 +458,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     },
     {
       id: "evolutionist",
@@ -472,7 +472,7 @@ const ACHIEVEMENTS = {
       category: "collections",
       isSecret: false,
       revocable: true,
-      xp: 200
+      xp: 400
     }
   ],
 
@@ -489,7 +489,7 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "secrets",
       isSecret: false,
-      xp: 300
+      xp: 500
     },
     {
       id: "countdown-pajama",
@@ -502,7 +502,7 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "secrets",
       isSecret: false,
-      xp: 250
+      xp: 400
     },
     {
       id: "midnight-watcher",
@@ -515,7 +515,7 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "secrets",
       isSecret: false,
-      xp: 250
+      xp: 400
     }
   ],
 

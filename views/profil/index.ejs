@@ -1328,8 +1328,8 @@
   const userId = document.body.getAttribute("data-user-id") || "guest";
 
   // Constantes XP — rendues une seule fois côté serveur, accessibles partout
-  // v1.12: Nouveau système XP — succès plus importants, ancienneté réduite
-  const XP_MULTIPLIERS = { HOURS: 8, ANCIENNETE: 1 };
+  // v1.13: Nouveau système XP ultra-optimisé — succès ultra-prioritaires
+  const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
   const PAGE_UNLOCKED_BADGES = <%= unlockedBadgesCount || 0 %>;
   const PAGE_TOTAL_BADGES    = <%= totalBadgesCount    || 0 %>;
   const PAGE_ACHIEVEMENTS_XP = <%= totalAchievementsXp || 0 %>;

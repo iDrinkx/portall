@@ -37,12 +37,12 @@ const XP_SYSTEM = {
   getBadgeByXp(totalXp) { return this.getRankByXp(totalXp); },
 
   calculateTotalXp(hoursWatched, achievementsXp, daysJoined) {
-    // Formula: HOURS*8 + ACHIEVEMENTS_XP + DAYS*1
-    // Nouveau système (v1.12): succès sont prioritaires, ancienneté est bonus
-    // Heures: 8 XP/h (stabilité), Succès: 200-1200 XP (engagement), Ancienneté: 1 XP/j (symbole)
-    return Math.round((hoursWatched || 0) * 8)
+    // Formula: HOURS*10 + ACHIEVEMENTS_XP + DAYS*1.5
+    // Nouveau système (v1.13): succès ultra-prioritaires, ancienneté petit bonus
+    // Heures: 10 XP/h (plus récompensant), Succès: 200-5000 XP (ultra-engageant), Ancienneté: 1.5 XP/j (bonus)
+    return Math.round((hoursWatched || 0) * 10)
          + (achievementsXp || 0)
-         + (daysJoined || 0) * 1;
+         + Math.round((daysJoined || 0) * 1.5);
   },
 
   getProgressToNextLevel(totalXp) {
