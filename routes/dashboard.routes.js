@@ -487,8 +487,8 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
       }
     } catch (_) {}
 
-    // Calcul XP (même formule que la page Profil)
-    const XP_MULTIPLIERS = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
+    // Calcul XP (même formule que la page Profil) — v1.12: nouveau système
+    const XP_MULTIPLIERS = { HOURS: 8, ANCIENNETE: 1 };
     const totalXp      = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
                        + achievementsXp
                        + daysJoined * XP_MULTIPLIERS.ANCIENNETE;
@@ -892,7 +892,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       }
     } catch (_) {}
 
-    const XP_M = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
+    const XP_M = { HOURS: 8, ANCIENNETE: 1 }; // v1.12: nouveau système XP
     const now  = Date.now();
     const allAchievements = ACHIEVEMENTS.getAll();
     const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
