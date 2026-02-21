@@ -737,7 +737,7 @@ function getUserDetailedStats(username) {
         AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
         AND (shm.title IS NOT NULL OR shm.grandparent_title IS NOT NULL)
-      GROUP BY title
+      GROUP BY 1
       ORDER BY hours DESC
       LIMIT 10
     `).all(norm);
@@ -751,10 +751,7 @@ function getUserDetailedStats(username) {
       // Fallback : utiliser les colonnes directes de session_history (sans metadata)
       const fallback = tautulliDb.prepare(`
         SELECT
-          CASE
-            WHEN sh.media_type = 'episode' THEN sh.grandparent_title
-            ELSE sh.full_title
-          END as title,
+          sh.title as title,
           sh.media_type,
           SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
         FROM users u
@@ -762,7 +759,7 @@ function getUserDetailedStats(username) {
         WHERE LOWER(u.username) = ?
           AND sh.stopped > sh.started
           AND sh.media_type IN ('movie', 'episode')
-        GROUP BY title
+        GROUP BY sh.title
         ORDER BY hours DESC
         LIMIT 10
       `).all(norm);
@@ -780,10 +777,7 @@ function getUserDetailedStats(username) {
     try {
       const fallback = tautulliDb.prepare(`
         SELECT
-          CASE
-            WHEN sh.media_type = 'episode' THEN sh.grandparent_title
-            ELSE sh.full_title
-          END as title,
+          sh.title as title,
           sh.media_type,
           SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
         FROM users u
@@ -791,7 +785,7 @@ function getUserDetailedStats(username) {
         WHERE LOWER(u.username) = ?
           AND sh.stopped > sh.started
           AND sh.media_type IN ('movie', 'episode')
-        GROUP BY title
+        GROUP BY sh.title
         ORDER BY hours DESC
         LIMIT 10
       `).all(norm);
