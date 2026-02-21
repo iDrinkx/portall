@@ -25,35 +25,12 @@
   <!-- ── MAIN CONTENT (hidden until data loads) ─────────────── -->
   <div id="msContent" style="display:none">
 
-    <!-- OVERVIEW ──────────────────────────────────────────────── -->
-    <div class="ms-overview-grid">
-      <div class="ms-stat-pill ms-stat-series">
-        <div class="ms-stat-icon">📺</div>
-        <div class="ms-stat-info">
-          <div class="ms-stat-value" id="ovSeries">—</div>
-          <div class="ms-stat-label">Séries</div>
-        </div>
-      </div>
-      <div class="ms-stat-pill ms-stat-movies">
-        <div class="ms-stat-icon">🎬</div>
-        <div class="ms-stat-info">
-          <div class="ms-stat-value" id="ovMovies">—</div>
-          <div class="ms-stat-label">Films</div>
-        </div>
-      </div>
-      <div class="ms-stat-pill ms-stat-music">
-        <div class="ms-stat-icon">🎵</div>
-        <div class="ms-stat-info">
-          <div class="ms-stat-value" id="ovMusic">—</div>
-          <div class="ms-stat-label">Musique</div>
-        </div>
-      </div>
-      <div class="ms-donut-card">
-        <div class="ms-card-title">Répartition du temps</div>
-        <div class="ms-donut-wrap">
-          <canvas id="donutChart" width="160" height="160"></canvas>
-          <div class="ms-donut-legend" id="donutLegend"></div>
-        </div>
+    <!-- OVERVIEW (donut) ─────────────────────────────────────── -->
+    <div class="ms-donut-card">
+      <div class="ms-card-title">Répartition du temps</div>
+      <div class="ms-donut-wrap">
+        <canvas id="donutChart" width="160" height="160"></canvas>
+        <div class="ms-donut-legend" id="donutLegend"></div>
       </div>
     </div>
 

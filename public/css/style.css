@@ -1055,13 +1055,13 @@ body {
 ═══════════════════════════════════════════════════════════════ */
 
 .watch-stats-section {
-  margin: 50px 0;
+  margin: 30px 0;
   animation: fadeInUp 0.6s ease-out;
 }
 
 .stats-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 
 .stats-header h2 {
@@ -1081,8 +1081,8 @@ body {
 /* Grille d'affichage */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
   animation: fadeInUp 0.8s ease-out 0.2s both;
 }
 
@@ -1091,7 +1091,7 @@ body {
   background: linear-gradient(135deg, var(--panel2) 0%, var(--panel) 100%);
   border: 1px solid #2a2a2a;
   border-radius: 12px;
-  padding: 32px 24px;
+  padding: 20px 16px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -1128,8 +1128,8 @@ body {
 
 /* Icône */
 .stat-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 36px;
+  margin-bottom: 10px;
   display: block;
   transition: transform 0.3s ease;
 }
@@ -1147,20 +1147,20 @@ body {
 
 .stat-label {
   display: block;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-weight: 600;
 }
 
 /* Valeur principale (avec animation count-up) */
 .stat-value {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--plex);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
   letter-spacing: -1px;
 }
@@ -1301,8 +1301,8 @@ body {
 /* Responsif */
 @media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 18px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
   
   .stats-header h2 {
@@ -1310,16 +1310,16 @@ body {
   }
   
   .stat-card {
-    padding: 24px 20px;
+    padding: 16px 12px;
   }
   
   .stat-icon {
-    font-size: 40px;
-    margin-bottom: 12px;
+    font-size: 30px;
+    margin-bottom: 8px;
   }
   
   .stat-value {
-    font-size: 28px;
+    font-size: 22px;
   }
 }
 
