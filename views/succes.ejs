@@ -212,26 +212,39 @@
     pointer-events: none;
   }
 
-  /* XP Badge */
+  /* XP Badge - desktop : petit badge en haut à droite */
   .achievement-xp-badge {
     position: absolute;
-    bottom: 4px;
-    right: 5px;
-    font-size: 9px;
+    top: 3px;
+    right: 3px;
+    font-size: 8px;
     font-weight: 700;
     color: #E5A00D;
-    background: rgba(229, 160, 13, 0.15);
-    border: 1px solid rgba(229, 160, 13, 0.3);
-    border-radius: 4px;
-    padding: 1px 4px;
-    line-height: 1.4;
+    background: rgba(229, 160, 13, 0.2);
+    border: 1px solid rgba(229, 160, 13, 0.4);
+    border-radius: 3px;
+    padding: 2px 3px;
+    line-height: 1;
     pointer-events: none;
+    z-index: 10;
   }
 
   .achievement-card.locked .achievement-xp-badge {
-    color: #555;
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    color: #666;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  /* XP Label - affiché sous la carte sur mobile */
+  .ach-card-xp-label {
+    display: none;
+    width: 100%;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: #E5A00D;
+    margin-top: 4px;
+    pointer-events: none;
   }
 
   /* Éléments cachés utilisés uniquement pour les mises à jour JS */
@@ -411,24 +424,14 @@
       font-size: 34px;
     }
 
-    /* XP Badge sur mobile - positionné au-dessus à droite, plus petit */
+    /* Cacher le badge XP qui chevauche sur mobile */
     .achievement-xp-badge {
-      position: absolute;
-      top: 3px;
-      right: 3px;
-      font-size: 8px;
-      padding: 1px 3px;
-      border-radius: 3px;
-      font-weight: 600;
-      z-index: 10;
-      background: rgba(229, 160, 13, 0.2);
-      border: 1px solid rgba(229, 160, 13, 0.4);
+      display: none;
     }
 
-    .achievement-card.locked .achievement-xp-badge {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
-      color: #777;
+    /* Afficher le label XP sous la carte sur mobile */
+    .ach-card-xp-label {
+      display: block;
     }
 
     .ach-card-pct {
@@ -451,13 +454,10 @@
       font-size: 40px;
     }
 
-    /* XP Badge - encore plus visible sur très petit écran */
-    .achievement-xp-badge {
-      font-size: 9px;
-      padding: 2px 4px;
-      top: 4px;
-      right: 4px;
-      border-radius: 3px;
+    .ach-card-xp-label {
+      font-size: 10px;
+      color: #E5A00D;
+      font-weight: 600;
     }
   }
 </style>
@@ -570,6 +570,8 @@
           </div>
           <% if (_pctDisplay !== null) { %>
             <span class="ach-card-pct" id="card-pct-<%= achievement.id %>"><%= _pctDisplay %></span>
+          <% } else if (achievement.xp) { %>
+            <span class="ach-card-xp-label">+<%= achievement.xp %> XP</span>
           <% } %>
           </div>
         <% }); %>
