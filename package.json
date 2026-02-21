@@ -1,6 +1,6 @@
 {
   "name": "plex-portal",
-  "version": "1.11.4",
+  "version": "1.11.5",
   "main": "server.js",
   "dependencies": {
     "axios": "^1.6.0",

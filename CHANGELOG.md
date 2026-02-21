@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.5](https://github.com/iDrinkx/plex-portal/compare/v1.11.4...v1.11.5) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* update XP calculation system to prioritize achievements and adjust multipliers ([8a71cf2](https://github.com/iDrinkx/plex-portal/commit/8a71cf223b387aec72b577db8dbcb1f899091c59))
+
 ## [1.11.4](https://github.com/iDrinkx/plex-portal/compare/v1.11.3...v1.11.4) (2026-02-21)
 
 ### 🐛 Corrections de bugs
