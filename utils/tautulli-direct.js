@@ -881,7 +881,8 @@ function getUserDetailedStats(username) {
   // ── Mode de lecture (direct play / copy / transcode) ───────────────
   try {
     let rows = null;
-    // Tentative 1 : transcode_decision (si colonne existe)
+
+    // Tentative 1 : transcode_decision (API Tautulli standard)
     try {
       rows = tautulliDb.prepare(`
         SELECT
@@ -894,41 +895,69 @@ function getUserDetailedStats(username) {
           AND sh.media_type IN ('movie', 'episode')
         GROUP BY decision
       `).all(norm);
+      if (rows && rows.length > 0) {
+        log.debug('[playMethod] ✓ Query 1 (transcode_decision) success');
+      }
     } catch (e1) {
-      // Fallback : transcode_video/transcode_audio + video_decision/audio_decision
-      rows = tautulliDb.prepare(`
-        SELECT
-          CASE
-            WHEN (sh.transcode_video = 1 OR sh.transcode_audio = 1) THEN 'transcode'
-            WHEN (sh.video_decision = 'copy' OR sh.audio_decision = 'copy') THEN 'copy'
-            ELSE 'direct play'
-          END as decision,
-          COUNT(*) as cnt
-        FROM users u
-        JOIN session_history sh ON u.user_id = sh.user_id
-        WHERE LOWER(u.username) = ?
-          AND sh.stopped > sh.started
-          AND sh.media_type IN ('movie', 'episode')
-        GROUP BY decision
-      `).all(norm);
+      log.debug(`[playMethod] Query 1 failed: ${e1.message}`);
+
+      // Fallback 2 : stream_video_decision + stream_audio_decision
+      try {
+        rows = tautulliDb.prepare(`
+          SELECT
+            CASE
+              WHEN sh.transcode_hw_encoding = 1 OR sh.transcode_hw_decoding = 1 THEN 'transcode'
+              WHEN sh.stream_video_decision = 'transcode' OR sh.stream_audio_decision = 'transcode' THEN 'transcode'
+              WHEN sh.stream_video_decision = 'copy' OR sh.stream_audio_decision = 'copy' THEN 'copy'
+              ELSE 'direct play'
+            END as decision,
+            COUNT(*) as cnt
+          FROM users u
+          JOIN session_history sh ON u.user_id = sh.user_id
+          WHERE LOWER(u.username) = ?
+            AND sh.stopped > sh.started
+            AND sh.media_type IN ('movie', 'episode')
+          GROUP BY decision
+        `).all(norm);
+        if (rows && rows.length > 0) {
+          log.debug('[playMethod] ✓ Query 2 (stream_*_decision) success');
+        }
+      } catch (e2) {
+        log.debug(`[playMethod] Query 2 failed: ${e2.message}`);
+
+        // Fallback 3 : Fallback simple - tout compter comme direct play
+        rows = tautulliDb.prepare(`
+          SELECT 'direct play' as decision, COUNT(*) as cnt
+          FROM users u
+          JOIN session_history sh ON u.user_id = sh.user_id
+          WHERE LOWER(u.username) = ?
+            AND sh.stopped > sh.started
+            AND sh.media_type IN ('movie', 'episode')
+        `).all(norm);
+        log.warn('[playMethod] ⚠ Using fallback: all sessions as "direct play"');
+      }
     }
 
-    const total = rows.reduce((s, r) => s + r.cnt, 0);
-    const safeTotal = total || 1;
-    const map = { 'direct play': 0, 'copy': 0, 'transcode': 0 };
-    for (const r of rows) {
-      const key = (r.decision || '').toLowerCase();
-      if (key === 'direct play' || key === 'directplay')  map['direct play'] += r.cnt;
-      else if (key === 'copy')                            map['copy']       += r.cnt;
-      else                                                map['transcode']  += r.cnt;
+    if (rows && rows.length > 0) {
+      const total = rows.reduce((s, r) => s + r.cnt, 0);
+      const safeTotal = total || 1;
+      const map = { 'direct play': 0, 'copy': 0, 'transcode': 0 };
+      for (const r of rows) {
+        const key = (r.decision || '').toLowerCase().replace(/\s+/g, ' ');
+        if (key === 'direct play' || key === 'directplay')  map['direct play'] += r.cnt;
+        else if (key === 'copy')                            map['copy']       += r.cnt;
+        else                                                map['transcode']  += r.cnt;
+      }
+      result.playMethod = {
+        directPlay:   { count: map['direct play'], pct: Math.round(map['direct play']  / safeTotal * 100) },
+        directStream: { count: map['copy'],        pct: Math.round(map['copy']         / safeTotal * 100) },
+        transcode:    { count: map['transcode'],   pct: Math.round(map['transcode']    / safeTotal * 100) },
+        total
+      };
+    } else {
+      result.playMethod = null;
     }
-    result.playMethod = {
-      directPlay:   { count: map['direct play'], pct: Math.round(map['direct play']  / safeTotal * 100) },
-      directStream: { count: map['copy'],        pct: Math.round(map['copy']         / safeTotal * 100) },
-      transcode:    { count: map['transcode'],   pct: Math.round(map['transcode']    / safeTotal * 100) },
-      total
-    };
-  } catch (e) { log.warn('getUserDetailedStats playMethod:', e.message); result.playMethod = null; }
+  } catch (e) { log.error('[playMethod] Erreur finale:', e.message); result.playMethod = null; }
 
   // ── Nombre de jours actifs (pour normaliser l'heure du jour) ──────
   let activeDaysCount = 1;
