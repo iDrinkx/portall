@@ -141,52 +141,6 @@
       .catch(() => {});
   })();
 
-  // --- XP Rank Glow (stale-while-revalidate sur toutes les pages) ---
-  (function () {
-    const userId = document.body.getAttribute('data-user-id') || 'guest';
-    if (!userId || userId === 'guest') return;
-    const XP_KEY = 'xp_snapshot_' + userId;
-    const XP_TTL = 24 * 60 * 60 * 1000;
-
-    function applyGlow(color) {
-      const ring    = document.getElementById('heroRankRing');
-      const wrapper = document.getElementById('heroAvatarRing');
-      if (!ring) return;
-      // Couleur du ring directement injectée en string (les CSS vars dans @keyframes ne marchent pas)
-      ring.style.background = `conic-gradient(from -90deg, ${color}2e 0deg, ${color} 90deg, ${color}cc 180deg, ${color} 270deg, ${color}2e 360deg)`;
-      // Halo sur le wrapper NON masqué → drop-shadow suit la forme du ring et respire avec l'animation
-      if (wrapper) wrapper.style.filter = `drop-shadow(0 0 7px ${color}cc) drop-shadow(0 0 16px ${color}66)`;
-    }
-
-    // ⚡ Appliquer instantanément depuis le cache (alimenté par /profil ou ce même script)
-    try {
-      const raw = localStorage.getItem(XP_KEY);
-      if (raw) {
-        const snap = JSON.parse(raw);
-        if (snap.savedAt && Date.now() - snap.savedAt < XP_TTL && snap.rank && snap.rank.color) {
-          applyGlow(snap.rank.color);
-          // Cache encore jeune (< 1h) → pas besoin de refetch
-          if (Date.now() - snap.savedAt < 60 * 60 * 1000) return;
-        }
-      }
-    } catch (_) {}
-
-    // Sinon rafraîchir en arrière-plan (non-bloquant)
-    fetch((window.APP_BASE_PATH || '') + '/api/xp-snapshot')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data || !data.rank || !data.rank.color) return;
-        applyGlow(data.rank.color);
-        try {
-          localStorage.setItem(XP_KEY, JSON.stringify({
-            rank: data.rank, level: data.level, totalXp: data.totalXp,
-            progressPercent: data.progressPercent, xpNeeded: data.xpNeeded,
-            savedAt: Date.now()
-          }));
-        } catch (_) {}
-      })
-      .catch(() => {});
-  })();
 </script>
 
 

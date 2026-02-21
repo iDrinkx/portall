@@ -131,3 +131,51 @@
     })
     .catch(() => {});
 })();
+
+// ─── XP Rank Ring (même logique que la page profil) ───────────────────
+(function () {
+  const userId = document.body.getAttribute('data-user-id') || 'guest';
+  if (!userId || userId === 'guest') return;
+
+  const XP_KEY = 'xp_snapshot_' + userId;
+  const XP_TTL = 24 * 60 * 60 * 1000; // 24h
+
+  function _rankGrad(c) {
+    return `conic-gradient(from -90deg, ${c}2e 0deg, ${c} 90deg, ${c}cc 180deg, ${c} 270deg, ${c}2e 360deg)`;
+  }
+
+  function applyRing(color) {
+    const ring    = document.getElementById('heroRankRing');
+    const wrapper = document.getElementById('heroAvatarRing');
+    if (!ring) return;
+    ring.style.background = _rankGrad(color);
+    if (wrapper) wrapper.style.filter = `drop-shadow(0 0 7px ${color}cc) drop-shadow(0 0 16px ${color}66)`;
+  }
+
+  // ⚡ Appliquer instantanément depuis le cache (même clé que le profil)
+  try {
+    const raw = localStorage.getItem(XP_KEY);
+    if (raw) {
+      const snap = JSON.parse(raw);
+      if (snap.savedAt && Date.now() - snap.savedAt < XP_TTL && snap.rank && snap.rank.color) {
+        applyRing(snap.rank.color);
+      }
+    }
+  } catch (_) {}
+
+  // Toujours rafraîchir en arrière-plan pour être à jour
+  fetch((window.APP_BASE_PATH || '') + '/api/xp-snapshot')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || !data.rank || !data.rank.color) return;
+      applyRing(data.rank.color);
+      try {
+        localStorage.setItem(XP_KEY, JSON.stringify({
+          rank: data.rank, level: data.level, totalXp: data.totalXp,
+          progressPercent: data.progressPercent, xpNeeded: data.xpNeeded,
+          savedAt: Date.now()
+        }));
+      } catch (_) {}
+    })
+    .catch(() => {});
+})();
