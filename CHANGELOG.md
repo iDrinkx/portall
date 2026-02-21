@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.10.1](https://github.com/iDrinkx/plex-portal/compare/v1.10.0...v1.10.1) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* ensure safe total calculation for play method statistics ([ba64d1e](https://github.com/iDrinkx/plex-portal/commit/ba64d1e0da089b399d7776ff7ac9a73a7be7d51e))
+
 ## [1.10.0](https://github.com/iDrinkx/plex-portal/compare/v1.9.3...v1.10.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
