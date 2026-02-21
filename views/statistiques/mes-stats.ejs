@@ -25,13 +25,24 @@
   <!-- ── MAIN CONTENT (hidden until data loads) ─────────────── -->
   <div id="msContent" style="display:none">
 
-    <!-- OVERVIEW (donut) ─────────────────────────────────────── -->
-    <div class="ms-donut-card">
-      <div class="ms-card-title">Répartition du temps</div>
-      <div class="ms-donut-wrap">
-        <canvas id="donutChart" width="160" height="160"></canvas>
-        <div class="ms-donut-legend" id="donutLegend"></div>
+    <!-- OVERVIEW ROW : donut + mode lecture ────────────────────── -->
+    <div class="ms-row-2col ms-row-top">
+
+      <!-- Donut -->
+      <div class="ms-card">
+        <div class="ms-card-title">Répartition du temps</div>
+        <div class="ms-donut-wrap">
+          <canvas id="donutChart" width="160" height="160"></canvas>
+          <div class="ms-donut-legend" id="donutLegend"></div>
+        </div>
       </div>
+
+      <!-- Mode de lecture -->
+      <div class="ms-card">
+        <div class="ms-card-title">🖥️ Mode de lecture</div>
+        <div class="ms-play-methods" id="playMethodList"></div>
+      </div>
+
     </div>
 
     <!-- TOP 10 ────────────────────────────────────────────────── -->
@@ -112,6 +123,8 @@
   padding: 22px 24px;
   margin-bottom: 16px;
 }
+/* no bottom margin when inside a row — the row itself provides spacing */
+.ms-row-2col .ms-card { margin-bottom: 0; }
 .ms-card-title {
   font-size: 12px;
   font-weight: 700;
@@ -164,6 +177,7 @@
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 16px;
   padding: 20px 18px;
+  margin-bottom: 0;
 }
 .ms-donut-wrap {
   display: flex;
@@ -172,6 +186,37 @@
 }
 .ms-donut-wrap canvas { width: 100px !important; height: 100px !important; flex-shrink: 0; }
 .ms-donut-legend { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Play method card ── */
+.ms-play-methods { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.ms-play-method-item { display: flex; flex-direction: column; gap: 5px; }
+.ms-play-method-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+}
+.ms-play-method-left { display: flex; align-items: center; gap: 8px; }
+.ms-play-method-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ms-play-method-count { font-size: 11px; color: #555; }
+.ms-play-method-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ms-play-method-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  width: 0;
+}
 .ms-legend-item {
   display: flex;
   align-items: center;
@@ -380,6 +425,46 @@
       else if (ct.type === 'track') musicH = ct.hours;
     }
     return { seriesH, moviesH, musicH };
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     RENDER PLAY METHOD
+  ───────────────────────────────────────────────────────────────── */
+  function renderPlayMethod(pm) {
+    const el = document.getElementById('playMethodList');
+    if (!el) return;
+    if (!pm || pm.total === 0) {
+      el.innerHTML = '<div class="ms-genres-empty">Aucune donnée disponible</div>';
+      return;
+    }
+    const methods = [
+      { label: 'Direct Play',   key: 'directPlay',   color: '#22c55e', icon: '⚡', desc: 'Lecture native' },
+      { label: 'Direct Stream', key: 'directStream', color: '#3B82F6', icon: '💧', desc: 'Recontenant' },
+      { label: 'Transcodage',   key: 'transcode',    color: '#f97316', icon: '⚙️', desc: 'Conversion vidéo' },
+    ];
+    el.innerHTML = methods.map(m => {
+      const d = pm[m.key] || { count: 0, pct: 0 };
+      return `
+        <div class="ms-play-method-item">
+          <div class="ms-play-method-header">
+            <div class="ms-play-method-left">
+              <div class="ms-play-method-dot" style="background:${m.color}"></div>
+              <span>${m.icon} ${m.label}</span>
+              <span class="ms-play-method-count">${d.count.toLocaleString('fr-FR')} lectures</span>
+            </div>
+            <span style="font-size:13px;font-weight:700;color:${m.color}">${d.pct}%</span>
+          </div>
+          <div class="ms-play-method-bar">
+            <div class="ms-play-method-fill" style="background:${m.color};width:0" data-w="${d.pct}%"></div>
+          </div>
+        </div>`;
+    }).join('');
+    // Animate bars
+    setTimeout(() => {
+      el.querySelectorAll('.ms-play-method-fill').forEach(b => {
+        b.style.width = b.dataset.w;
+      });
+    }, 80);
   }
 
   /* ─────────────────────────────────────────────────────────────────
@@ -674,6 +759,7 @@
 
       const { seriesH, moviesH, musicH } = renderOverview(data.contentTypes || []);
       renderDonut(seriesH, moviesH, musicH);
+      renderPlayMethod(data.playMethod || null);
       renderTop10(data.topContent || []);
       renderGenres(data.movieGenres  || [], 'movieGenresList');
       renderGenres(data.seriesGenres || [], 'seriesGenresList');

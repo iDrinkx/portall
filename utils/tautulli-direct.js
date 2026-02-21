@@ -878,6 +878,35 @@ function getUserDetailedStats(username) {
       .map(([name, hours]) => ({ name, hours: Math.round(hours * 10) / 10 }));
   } catch (e) { log.warn('getUserDetailedStats seriesGenres:', e.message); result.seriesGenres = []; }
 
+  // ── Mode de lecture (direct play / copy / transcode) ───────────────
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT
+        COALESCE(sh.transcode_decision, 'direct play') as decision,
+        COUNT(*) as cnt
+      FROM users u
+      JOIN session_history sh ON u.user_id = sh.user_id
+      WHERE LOWER(u.username) = ?
+        AND sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+      GROUP BY decision
+    `).all(norm);
+    const total = rows.reduce((s, r) => s + r.cnt, 0) || 1;
+    const map = { 'direct play': 0, 'copy': 0, 'transcode': 0 };
+    for (const r of rows) {
+      const key = (r.decision || '').toLowerCase();
+      if (key === 'direct play')  map['direct play'] += r.cnt;
+      else if (key === 'copy')    map['copy']       += r.cnt;
+      else                        map['transcode']  += r.cnt;
+    }
+    result.playMethod = {
+      directPlay:   { count: map['direct play'], pct: Math.round(map['direct play']  / total * 100) },
+      directStream: { count: map['copy'],        pct: Math.round(map['copy']         / total * 100) },
+      transcode:    { count: map['transcode'],   pct: Math.round(map['transcode']    / total * 100) },
+      total
+    };
+  } catch (e) { log.warn('getUserDetailedStats playMethod:', e.message); result.playMethod = null; }
+
   // ── Nombre de jours actifs (pour normaliser l'heure du jour) ──────
   let activeDaysCount = 1;
   try {
