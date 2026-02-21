@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.2](https://github.com/iDrinkx/plex-portal/compare/v1.11.1...v1.11.2) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* update XP badge styles for better visibility and add mobile label ([16b5f44](https://github.com/iDrinkx/plex-portal/commit/16b5f4411cb254415cf264d1a909d557ab17c25f))
+
 ## [1.11.1](https://github.com/iDrinkx/plex-portal/compare/v1.11.0...v1.11.1) (2026-02-21)
 
 ### 🐛 Corrections de bugs
