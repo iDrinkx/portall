@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.10.3](https://github.com/iDrinkx/plex-portal/compare/v1.10.2...v1.10.3) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* improve user detailed stats retrieval with enhanced fallback mechanisms for play method ([4a1e0ff](https://github.com/iDrinkx/plex-portal/commit/4a1e0ffade8d5b61efb29076cd1fad16a8cea3dd))
+
 ## [1.10.2](https://github.com/iDrinkx/plex-portal/compare/v1.10.1...v1.10.2) (2026-02-21)
 
 ### 🐛 Corrections de bugs
