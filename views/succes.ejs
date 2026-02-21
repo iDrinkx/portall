@@ -367,16 +367,25 @@
       gap: 10px;
     }
 
+    /* Layout colonne : emoji en haut, % en bas, bien séparés */
+    .achievement-card {
+      flex-direction: column;
+      justify-content: center;
+      gap: 0;
+      padding-bottom: 16px;
+      padding-top: 8px;
+    }
+
     .achievement-icon {
       font-size: 34px;
-      /* Remonter légèrement l'emoji pour laisser place au % en bas */
-      margin-bottom: 14px;
+      margin-bottom: 0;
     }
 
     .ach-card-pct {
+      position: absolute;
+      bottom: 6px;
       font-size: 10px;
-      bottom: 8px;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.38);
     }
 
     .ach-card-mini-bar {
