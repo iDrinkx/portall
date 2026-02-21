@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.4](https://github.com/iDrinkx/plex-portal/compare/v1.11.3...v1.11.4) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* enhance styling and animations for achievements and categories ([00d6522](https://github.com/iDrinkx/plex-portal/commit/00d652222728a5f2252bedd8cbf1c975dbb10ebe))
+
 ## [1.11.3](https://github.com/iDrinkx/plex-portal/compare/v1.11.2...v1.11.3) (2026-02-21)
 
 ### 🐛 Corrections de bugs
