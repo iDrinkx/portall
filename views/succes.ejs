@@ -210,6 +210,28 @@
     pointer-events: none;
   }
 
+  /* XP Badge */
+  .achievement-xp-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 5px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #E5A00D;
+    background: rgba(229, 160, 13, 0.15);
+    border: 1px solid rgba(229, 160, 13, 0.3);
+    border-radius: 4px;
+    padding: 1px 4px;
+    line-height: 1.4;
+    pointer-events: none;
+  }
+
+  .achievement-card.locked .achievement-xp-badge {
+    color: #555;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
   /* Éléments cachés utilisés uniquement pour les mises à jour JS */
   .achievement-hidden-data { display: none; }
 
@@ -481,6 +503,9 @@
                data-category="<%= achievement.category %>"
                data-has-progress="<%= progressTotal > 0 ? 'true' : 'false' %>">
             <span class="achievement-icon"><%= achievement.icon %></span>
+            <% if (achievement.xp) { %>
+              <span class="achievement-xp-badge">+<%= achievement.xp %> XP</span>
+            <% } %>
             <% if (progressTotal > 0) { %>
               <div class="achievement-hidden-data">
                 <div id="progress-<%= achievement.id %>">

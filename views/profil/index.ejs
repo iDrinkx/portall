@@ -1331,6 +1331,7 @@
   const XP_MULTIPLIERS = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
   const PAGE_UNLOCKED_BADGES = <%= unlockedBadgesCount || 0 %>;
   const PAGE_TOTAL_BADGES    = <%= totalBadgesCount    || 0 %>;
+  const PAGE_ACHIEVEMENTS_XP = <%= totalAchievementsXp || 0 %>;
 
   /* ===============================
      DATE UTILITIES
@@ -1770,7 +1771,7 @@
 
       // Calculer les 3 sources
       const hoursXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
-      const badgesXp = unlockedBadgesCount * XP_MULTIPLIERS.BADGE;
+      const badgesXp = PAGE_ACHIEVEMENTS_XP;
       const ancienneteXp = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
 
       // TOTAL XP = somme des 3 sources
@@ -2145,7 +2146,7 @@
 
       // Calcul XP — formule identique au chargement initial
       const hoursXp       = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
-      const badgesXp      = PAGE_UNLOCKED_BADGES * XP_MULTIPLIERS.BADGE;
+      const badgesXp      = PAGE_ACHIEVEMENTS_XP;
       const ancienneteXp  = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
       const totalXp       = hoursXp + badgesXp + ancienneteXp;
       const totalBreakdown = Math.max(1, totalXp);

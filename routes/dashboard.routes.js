@@ -127,12 +127,16 @@ router.get("/profil", requireAuth, async (req, res) => {
     const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
     const allAchievements = ACHIEVEMENTS.getAll();
 
+    // Calculer le total XP des succès débloqués
+    const totalAchievementsXp = unlockedAchievements.reduce((sum, ach) => sum + (ach.xp || 0), 0);
+
     res.render("profil/index", {
       user: req.session.user,
       basePath: req.basePath,
       XP_SYSTEM,
       unlockedBadgesCount: unlockedAchievements.length,
-      totalBadgesCount: allAchievements.length
+      totalBadgesCount: allAchievements.length,
+      totalAchievementsXp
     });
   } catch (err) {
     log.create('[Profil]').error(err.message);
@@ -141,7 +145,8 @@ router.get("/profil", requireAuth, async (req, res) => {
       basePath: req.basePath,
       XP_SYSTEM,
       unlockedBadgesCount: 0,
-      totalBadgesCount: 0
+      totalBadgesCount: 0,
+      totalAchievementsXp: 0
     });
   }
 });
@@ -470,20 +475,22 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
       totalHours = stats?.watchStats?.totalHours || 0;
     } catch (_) {}
 
-    // Badges débloqués (lecture DB ultra-rapide)
-    let unlockedCount = 0;
+    // Badges débloqués et XP (lecture DB ultra-rapide)
+    let achievementsXp = 0;
     try {
       const dbUser = UserQueries.getByUsername(user.username);
       if (dbUser) {
-        const map = UserAchievementQueries.getForUser(dbUser.id);
-        unlockedCount = Object.keys(map).length;
+        const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
+        const allAchievements = ACHIEVEMENTS.getAll();
+        const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
+        achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
       }
     } catch (_) {}
 
     // Calcul XP (même formule que la page Profil)
     const XP_MULTIPLIERS = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
     const totalXp      = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
-                       + unlockedCount * XP_MULTIPLIERS.BADGE
+                       + achievementsXp
                        + daysJoined * XP_MULTIPLIERS.ANCIENNETE;
     const level    = XP_SYSTEM.getLevel(totalXp);
     const rank     = XP_SYSTEM.getRankByLevel(level);
@@ -887,14 +894,21 @@ router.get('/api/classement', requireAuth, async (req, res) => {
 
     const XP_M = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
     const now  = Date.now();
+    const allAchievements = ACHIEVEMENTS.getAll();
+    const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
 
     const users = tautulliStats.map(stats => {
       const key    = (stats.username || '').toLowerCase();
       const dbUser = dbMap[key] || null;
 
       let badgeCount = 0;
+      let achievementsXp = 0;
       if (dbUser) {
-        try { badgeCount = Object.keys(UserAchievementQueries.getForUser(dbUser.id)).length; } catch (_) {}
+        try {
+          const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
+          badgeCount = Object.keys(unlockedMap).length;
+          achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
+        } catch (_) {}
       }
 
       let daysJoined = 0;
@@ -906,7 +920,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       }
 
       const totalHours = stats.totalHours || 0;
-      const totalXp    = Math.round(totalHours * XP_M.HOURS) + badgeCount * XP_M.BADGE + daysJoined * XP_M.ANCIENNETE;
+      const totalXp    = Math.round(totalHours * XP_M.HOURS) + achievementsXp + daysJoined * XP_M.ANCIENNETE;
       const level      = XP_SYSTEM.getLevel(totalXp);
       const rank       = XP_SYSTEM.getRankByLevel(level);
       const thumb      = thumbMap[key] || null;

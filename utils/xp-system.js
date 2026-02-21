@@ -36,8 +36,11 @@ const XP_SYSTEM = {
 
   getBadgeByXp(totalXp) { return this.getRankByXp(totalXp); },
 
-  calculateTotalXp(sessionCount, totalRequests) {
-    return ((sessionCount || 0) * 2) + ((totalRequests || 0) * 15);
+  calculateTotalXp(hoursWatched, achievementsXp, daysJoined) {
+    // Formula: HOURS*8 + ACHIEVEMENTS_XP + DAYS*5
+    return Math.round((hoursWatched || 0) * 8)
+         + (achievementsXp || 0)
+         + (daysJoined || 0) * 5;
   },
 
   getProgressToNextLevel(totalXp) {

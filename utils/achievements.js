@@ -15,7 +15,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.daysSince / 365) * 100), 100)
       }),
       unlockedDate: null,
-      category: "temporels"
+      category: "temporels",
+      xp: 150
     },
     {
       id: "veteran",
@@ -30,7 +31,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.daysSince / 730) * 100), 100)
       }),
       unlockedDate: null,
-      category: "temporels"
+      category: "temporels",
+      xp: 300
     },
     {
       id: "old-timer",
@@ -45,7 +47,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.daysSince / 1825) * 100), 100)
       }),
       unlockedDate: null,
-      category: "temporels"
+      category: "temporels",
+      xp: 750
     }
   ],
 
@@ -64,7 +67,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.sessionCount / 1) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 25
     },
     {
       id: "regular",
@@ -79,7 +83,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.sessionCount / 7) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 75
     },
     {
       id: "night-owl",
@@ -94,7 +99,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round(((data.nightCount || 0) / 30) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 150
     },
     {
       id: "early-bird",
@@ -109,7 +115,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round(((data.morningCount || 0) / 50) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 150
     },
     {
       id: "centurion",
@@ -124,7 +131,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.totalHours / 100) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 300
     },
     {
       id: "marathoner",
@@ -139,7 +147,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.totalHours / 500) * 100), 100)
       }),
       unlockedDate: null,
-      category: "activites"
+      category: "activites",
+      xp: 750
     }
   ],
 
@@ -158,7 +167,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 5) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 25
     },
     {
       id: "cinephile",
@@ -173,7 +183,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 50) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 100
     },
     {
       id: "film-critic",
@@ -188,7 +199,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 100) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 200
     },
     {
       id: "hollywood-legend",
@@ -203,7 +215,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 500) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 400
     },
     {
       id: "cinema-god",
@@ -218,7 +231,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 1000) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 600
     },
     {
       id: "cinema-universe",
@@ -233,7 +247,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.movieCount / 2000) * 100), 100)
       }),
       unlockedDate: null,
-      category: "films"
+      category: "films",
+      xp: 1000
     }
   ],
 
@@ -252,7 +267,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 10) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"
+      category: "series",
+      xp: 25
     },
     {
       id: "series-addict",
@@ -267,7 +283,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 100) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"
+      category: "series",
+      xp: 100
     },
     {
       id: "series-master",
@@ -282,7 +299,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 500) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"
+      category: "series",
+      xp: 200
     },
     {
       id: "serial-killer-legend",
@@ -297,7 +315,9 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 1000) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"    },
+      category: "series",
+      xp: 400
+    },
     {
       id: "series-overlord",
       name: "Overlord des Séries",
@@ -311,7 +331,9 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 2000) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"    },
+      category: "series",
+      xp: 600
+    },
     {
       id: "series-titan",
       name: "Titan des Séries",
@@ -325,7 +347,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round((data.episodeCount / 5000) * 100), 100)
       }),
       unlockedDate: null,
-      category: "series"
+      category: "series",
+      xp: 1000
     }
   ],
 
@@ -344,7 +367,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round(((data.monthlyHours || 0) / 50) * 100), 100)
       }),
       unlockedDate: null,
-      category: "mensuels"
+      category: "mensuels",
+      xp: 200
     },
     {
       id: "intense-month",
@@ -359,7 +383,8 @@ const ACHIEVEMENTS = {
         percent: Math.min(Math.round(((data.monthlyHours || 0) / 100) * 100), 100)
       }),
       unlockedDate: null,
-      category: "mensuels"
+      category: "mensuels",
+      xp: 400
     }
   ],
 
@@ -376,7 +401,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     },
     {
       id: "black-knight",
@@ -389,7 +415,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     },
     {
       id: "jurassic-survivor",
@@ -402,7 +429,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     },
     {
       id: "potter-head",
@@ -415,7 +443,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     },
     {
       id: "tolkiendil",
@@ -428,7 +457,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     },
     {
       id: "evolutionist",
@@ -441,7 +471,8 @@ const ACHIEVEMENTS = {
       unlockedDate: null,
       category: "collections",
       isSecret: false,
-      revocable: true
+      revocable: true,
+      xp: 200
     }
   ],
 
@@ -457,7 +488,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 20, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      xp: 300
     },
     {
       id: "countdown-pajama",
@@ -469,7 +501,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      xp: 250
     },
     {
       id: "midnight-watcher",
@@ -481,7 +514,8 @@ const ACHIEVEMENTS = {
       getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
       unlockedDate: null,
       category: "secrets",
-      isSecret: false
+      isSecret: false,
+      xp: 250
     }
   ],
 
