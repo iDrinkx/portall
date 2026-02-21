@@ -60,20 +60,13 @@
 
   #badges-embed .achievements-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
   }
   #badges-embed .achievement-card {
-    padding: 9px 7px;
-    min-height: 0;
-    border-radius: 8px;
+    border-radius: 10px;
   }
-  #badges-embed .achievement-icon        { font-size: 18px; margin-bottom: 4px; }
-  #badges-embed .achievement-name        { font-size: 10px; margin-bottom: 2px; line-height: 1.2; }
-  #badges-embed .achievement-description { font-size: 9px;  line-height: 1.3; margin-bottom: 3px; }
-  #badges-embed .achievement-date        { font-size: 9px;  }
-  #badges-embed .achievement-progress    { font-size: 9px;  }
-  #badges-embed .achievement-secret-text { font-size: 9px;  }
+  #badges-embed .achievement-icon        { font-size: 20px; }
   #badges-embed .achievement-card:hover  { transform: none; }
   <% } %>
 
@@ -155,127 +148,165 @@
 
   .achievements-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 10px;
   }
 
-  /* ACHIEVEMENT CARD */
+  /* ACHIEVEMENT CARD — icon-only */
   .achievement-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 14px 12px;
-    text-align: center;
-    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     position: relative;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-height: 160px;
   }
 
   .achievement-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-3px) scale(1.06);
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
   }
 
   .achievement-card.locked {
-    opacity: 0.8;
-    border-color: rgba(255, 255, 255, 0.08);
+    opacity: 0.45;
+    border-color: rgba(255, 255, 255, 0.06);
   }
 
   .achievement-card.locked .achievement-icon {
     filter: grayscale(100%);
-    opacity: 0.6;
   }
 
   /* Couleurs de bordure par catégorie */
-  .achievement-card.temporels {
-    border-left: 4px solid #E67E22;
-  }
+  .achievement-card.unlocked.temporels  { border-color: #E67E22; box-shadow: 0 0 10px #E67E2233; }
+  .achievement-card.unlocked.activites  { border-color: #E74C3C; box-shadow: 0 0 10px #E74C3C33; }
+  .achievement-card.unlocked.films      { border-color: #E67E22; box-shadow: 0 0 10px #E67E2233; }
+  .achievement-card.unlocked.series     { border-color: #3498DB; box-shadow: 0 0 10px #3498DB33; }
+  .achievement-card.unlocked.mensuels   { border-color: #F39C12; box-shadow: 0 0 10px #F39C1233; }
+  .achievement-card.unlocked.secrets    { border-color: #9B59B6; box-shadow: 0 0 10px #9B59B633; }
+  .achievement-card.unlocked.collections { border-color: #E5A00D; box-shadow: 0 0 10px #E5A00D33; }
 
-  .achievement-card.activites {
-    border-left: 4px solid #E74C3C;
-  }
-
-  .achievement-card.films {
-    border-left: 4px solid #E67E22;
-  }
-
-  .achievement-card.series {
-    border-left: 4px solid #3498DB;
-  }
-
-  .achievement-card.mensuels {
-    border-left: 4px solid #F39C12;
-  }
-
-  .achievement-card.secrets {
-    border-left: 4px solid #9B59B6;
+  /* Petit checkmark débloqué */
+  .achievement-card.unlocked::after {
+    content: '✓';
+    position: absolute;
+    bottom: 4px; right: 6px;
+    font-size: 9px;
+    color: #8BC34A;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .achievement-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 32px;
     display: block;
+    line-height: 1;
+    pointer-events: none;
   }
 
-  .achievement-name {
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 5px;
-    line-height: 1.2;
-  }
+  /* Éléments cachés utilisés uniquement pour les mises à jour JS */
+  .achievement-hidden-data { display: none; }
 
-  .achievement-description {
-    font-size: 11px;
-    color: #a0a0a0;
-    margin-bottom: 8px;
-    flex-grow: 1;
-    line-height: 1.3;
-  }
-
-  .achievement-date {
-    font-size: 11px;
-    color: #8BC34A;
-    margin-top: auto;
-  }
-
-  .achievement-date.secret {
-    color: #9B59B6;
-  }
-
-  .achievement-secret-text {
-    font-size: 11px;
-    color: #9B59B6;
-    margin-top: auto;
-  }
-
-  /* PROGRESS BAR */
+  /* PROGRESS BAR (dans modal uniquement) */
   .achievement-progress {
     margin-top: 6px;
-    font-size: 10px;
+    font-size: 11px;
     color: #a0a0a0;
   }
 
   .achievement-progress-bar {
     width: 100%;
-    height: 4px;
+    height: 5px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
     overflow: hidden;
-    margin-top: 4px;
+    margin-top: 5px;
   }
 
   .achievement-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #E5A00D, #DAA520);
     border-radius: 3px;
-    transition: width 0.3s ease;
+    transition: width 0.5s ease;
   }
+
+  /* ── MODAL ── */
+  .ach-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .ach-modal-overlay.open { display: flex; }
+
+  .ach-modal {
+    background: #13151c;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 28px 28px 24px;
+    max-width: 380px;
+    width: 100%;
+    position: relative;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: ach-modal-in 0.2s ease;
+  }
+
+  @keyframes ach-modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .ach-modal-close {
+    position: absolute;
+    top: 12px; right: 14px;
+    background: none; border: none;
+    color: #666; font-size: 20px;
+    cursor: pointer; line-height: 1;
+    padding: 4px 6px; border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .ach-modal-close:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+  .ach-modal-icon { font-size: 52px; line-height: 1; margin-bottom: 14px; display: block; }
+  .ach-modal-name { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .ach-modal-desc { font-size: 13px; color: #a0a0a0; line-height: 1.5; margin-bottom: 12px; }
+  .ach-modal-date { font-size: 12px; color: #8BC34A; font-weight: 600; }
+  .ach-modal-date.secret { color: #9B59B6; }
+  .ach-modal-date.locked-txt { color: #666; }
+
+  .ach-modal-progress { margin-top: 10px; font-size: 11px; color: #a0a0a0; }
+  .ach-modal-progress-bar {
+    width: 100%; height: 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px; overflow: hidden; margin-top: 6px;
+  }
+  .ach-modal-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #E5A00D, #DAA520);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .ach-modal-border--temporels  { border-color: #E67E22; }
+  .ach-modal-border--activites  { border-color: #E74C3C; }
+  .ach-modal-border--films      { border-color: #E67E22; }
+  .ach-modal-border--series     { border-color: #3498DB; }
+  .ach-modal-border--mensuels   { border-color: #F39C12; }
+  .ach-modal-border--secrets    { border-color: #9B59B6; }
+  .ach-modal-border--collections { border-color: #E5A00D; }
 
   /* Loading state */
   .loading {
@@ -305,20 +336,12 @@
     }
 
     .achievements-grid {
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 15px;
-    }
-
-    .achievement-card {
-      padding: 15px;
+      grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+      gap: 8px;
     }
 
     .achievement-icon {
-      font-size: 32px;
-    }
-
-    .achievement-tooltip {
-      display: none !important;
+      font-size: 28px;
     }
   }
 </style>
@@ -363,48 +386,56 @@
       </div>
 
       <div class="achievements-grid">
-        <% category.achievements.forEach(achievement => { %>
-          <div class="achievement-card <%= achievement.category %> <%= achievement.unlocked ? 'unlocked' : 'locked' %>" data-badge-id="<%= achievement.id %>">
+        <% category.achievements.forEach(achievement => {
+          const isSecret   = !!(achievement.isSecret || achievement.category === 'secrets');
+          const isRevocable = !!achievement.revocable;
+          let descText = '';
+          let dateText = '';
+          let progressTotal = 0;
+          if (achievement.unlocked) {
+            descText = achievement.description || '';
+            dateText = achievement.unlockedDate ? '✓ Débloqué le ' + achievement.unlockedDate : '✓ Débloqué';
+          } else if (isSecret && !isRevocable) {
+            descText = '';
+            dateText = '🔒 Badge secret';
+          } else if (isRevocable) {
+            descText = achievement.description || '';
+          } else {
+            descText = achievement.conditionText || achievement.description || '';
+            const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };
+            const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { total: 100 };
+            progressTotal = progInfo.total || 0;
+          }
+        %>
+          <div class="achievement-card <%= achievement.category %> <%= achievement.unlocked ? 'unlocked' : 'locked' %>"
+               data-badge-id="<%= achievement.id %>"
+               data-name="<%- achievement.name.replace(/"/g,'&quot;') %>"
+               data-icon="<%= achievement.icon %>"
+               data-desc="<%- descText.replace(/"/g,'&quot;') %>"
+               data-date="<%- dateText.replace(/"/g,'&quot;') %>"
+               data-secret="<%= isSecret && !isRevocable ? 'true' : 'false' %>"
+               data-category="<%= achievement.category %>"
+               data-has-progress="<%= progressTotal > 0 ? 'true' : 'false' %>">
             <span class="achievement-icon"><%= achievement.icon %></span>
-            <div class="achievement-name"><%= achievement.name %></div>
-            
-            <% if (achievement.unlocked) { %>
-              <!-- DÉBLOQUÉ -->
-              <div class="achievement-description"><%= achievement.description %></div>
-              <div class="achievement-date">
-                <% if (achievement.unlockedDate) { %>
-                  ✓ Débloqué le <%= achievement.unlockedDate %>
-                <% } else { %>
-                  ✓ Débloqué
-                <% } %>
+            <% if (progressTotal > 0) { %>
+              <div class="achievement-hidden-data">
+                <div id="progress-<%= achievement.id %>">
+                  <span class="current">0</span> / <span class="total"><%= progressTotal %></span> (<span class="percent">0</span>%)
+                </div>
+                <div class="achievement-progress-bar" style="display:none">
+                  <div class="achievement-progress-fill" id="fill-<%= achievement.id %>" style="width:0%"></div>
+                </div>
               </div>
-            <% } else { %>
-              <!-- VERROUILLÉ -->
-              <% if (!achievement.revocable && (achievement.isSecret || achievement.category === 'secrets')) { %>
-                <!-- SECRET VERROUILLÉ : on ne révèle rien -->
-                <div class="achievement-secret-text">🔒 Badge secret</div>
-              <% } else if (achievement.revocable) { %>
-                <!-- BADGE COLLECTION : toujours visible, barre de progression si dispo -->
-                <div class="achievement-description"><%= achievement.description %></div>
-                <% const prog = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id]; %>
-                <% if (prog && prog.total > 0) { %>
-                  <div class="achievement-progress">
+            <% } else if (isRevocable) { %>
+              <% const prog = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id]; %>
+              <% if (prog && prog.total > 0) { %>
+                <div class="achievement-hidden-data">
+                  <div id="progress-<%= achievement.id %>">
                     <span class="current"><%= prog.current %></span> / <span class="total"><%= prog.total %></span> (<span class="percent"><%= Math.round((prog.current / prog.total) * 100) %></span>%)
                   </div>
-                  <div class="achievement-progress-bar">
-                    <div class="achievement-progress-fill" style="width: <%= Math.min(100, Math.round((prog.current / prog.total) * 100)) %>%"></div>
+                  <div class="achievement-progress-bar" style="display:none">
+                    <div class="achievement-progress-fill" id="fill-<%= achievement.id %>" style="width:<%= Math.min(100, Math.round((prog.current / prog.total) * 100)) %>%"></div>
                   </div>
-                <% } %>
-              <% } else { %>
-                <!-- NON-SECRET VERROUILLÉ -->
-                <% const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 }; %>
-                <% const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { current: 0, total: 100, percent: 0 }; %>
-                <div class="achievement-description"><%= achievement.conditionText %></div>
-                <div class="achievement-progress" id="progress-<%= achievement.id %>">
-                  <span class="current">0</span> / <span class="total"><%= progInfo.total %></span> (<span class="percent">0</span>%)
-                </div>
-                <div class="achievement-progress-bar">
-                  <div class="achievement-progress-fill" id="fill-<%= achievement.id %>" style="width: 0%"></div>
                 </div>
               <% } %>
             <% } %>
@@ -413,6 +444,23 @@
       </div>
     </div>
   <% }); %>
+</div>
+
+<!-- MODAL SUCCÈS -->
+<div class="ach-modal-overlay" id="achModalOverlay" role="dialog" aria-modal="true">
+  <div class="ach-modal" id="achModal">
+    <button class="ach-modal-close" id="achModalClose" aria-label="Fermer">&times;</button>
+    <span class="ach-modal-icon" id="achModalIcon"></span>
+    <div class="ach-modal-name" id="achModalName"></div>
+    <div class="ach-modal-desc" id="achModalDesc"></div>
+    <div class="ach-modal-date" id="achModalDate"></div>
+    <div class="ach-modal-progress" id="achModalProgress" style="display:none">
+      <span id="achModalProgText"></span>
+      <div class="ach-modal-progress-bar">
+        <div class="ach-modal-progress-fill" id="achModalProgFill"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -426,6 +474,70 @@
 
     function run() {
     console.log("🏆 Page Badges chargée!");
+
+    // ── Modal ──────────────────────────────────────────────────────────────
+    const overlay  = document.getElementById('achModalOverlay');
+    const modal    = document.getElementById('achModal');
+    const btnClose = document.getElementById('achModalClose');
+
+    function openModal(card) {
+      const icon     = card.dataset.icon     || '';
+      const name     = card.dataset.name     || '';
+      const desc     = card.dataset.desc     || '';
+      const date     = card.dataset.date     || '';
+      const isSecret = card.dataset.secret   === 'true';
+      const cat      = card.dataset.category || '';
+      const hasProg  = card.dataset.hasProgress === 'true';
+      const isUnlocked = card.classList.contains('unlocked');
+
+      document.getElementById('achModalIcon').textContent = icon;
+      document.getElementById('achModalName').textContent = name;
+      document.getElementById('achModalDesc').textContent = desc || (isSecret && !isUnlocked ? '' : '');
+
+      const dateEl = document.getElementById('achModalDate');
+      dateEl.textContent = date;
+      dateEl.className = 'ach-modal-date' + (isSecret && !isUnlocked ? ' secret' : '') + (!isUnlocked && !date ? ' locked-txt' : '');
+
+      // Barre de progression
+      const progSection = document.getElementById('achModalProgress');
+      if (hasProg || (!isUnlocked && !isSecret)) {
+        const progressEl = card.querySelector('[id^="progress-"]');
+        const fillEl     = card.querySelector('[id^="fill-"]');
+        if (progressEl) {
+          const cur = progressEl.querySelector('.current')?.textContent || '0';
+          const tot = progressEl.querySelector('.total')?.textContent  || '0';
+          const pct = progressEl.querySelector('.percent')?.textContent || '0';
+          document.getElementById('achModalProgText').textContent = cur + ' / ' + tot + ' (' + pct + '%)';
+          const fill = document.getElementById('achModalProgFill');
+          if (fill) fill.style.width = pct + '%';
+          progSection.style.display = 'block';
+        } else {
+          progSection.style.display = 'none';
+        }
+      } else {
+        progSection.style.display = 'none';
+      }
+
+      // Couleur bordure du modal selon catégorie
+      modal.className = 'ach-modal' + (cat ? ' ach-modal-border--' + cat : '');
+
+      overlay.classList.add('open');
+      btnClose.focus();
+    }
+
+    function closeModal() {
+      overlay.classList.remove('open');
+    }
+
+    btnClose.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+    // Attacher le click sur toutes les cartes
+    document.querySelectorAll('.achievement-card').forEach(function(card) {
+      card.addEventListener('click', function() { openModal(card); });
+    });
+    // ──────────────────────────────────────────────────────────────────────
 
     const BASE = '<%= basePath %>';
     const JOINED_AT_MS = (() => {
@@ -572,22 +684,10 @@
           if (!card || card.classList.contains('unlocked')) continue;
           card.classList.remove('locked');
           card.classList.add('unlocked');
-          // Remplace le dernier bloc de contenu (barre de progression ou texte) par la date
-          const existingDate = card.querySelector('.achievement-date, .achievement-progress, .achievement-progress-bar, .achievement-secret-text, .achievement-description');
-          if (existingDate) {
-            // Supprimer tout ce qui suit achievement-name
-            const name = card.querySelector('.achievement-name');
-            let node = name ? name.nextSibling : null;
-            while (node) { const next = node.nextSibling; card.removeChild(node); node = next; }
-          }
-          const desc = card.querySelector('.achievement-description');
-          if (!desc) {
-            // Ajouter la date débloquée
-            const dateDiv = document.createElement('div');
-            dateDiv.className = 'achievement-date';
-            dateDiv.textContent = '✓ Débloqué le ' + date;
-            card.appendChild(dateDiv);
-          }
+          // Mettre à jour les data attributes pour le modal
+          const dateLabel = '✓ Débloqué le ' + date;
+          card.dataset.date = dateLabel;
+          card.dataset.hasProgress = 'false';
           unlockedDelta++;
         }
 
@@ -597,9 +697,7 @@
           if (!card || card.classList.contains('locked')) continue;
           card.classList.remove('unlocked');
           card.classList.add('locked');
-          const name = card.querySelector('.achievement-name');
-          let node = name ? name.nextSibling : null;
-          while (node) { const next = node.nextSibling; card.removeChild(node); node = next; }
+          card.dataset.date = '';
           unlockedDelta--;
         }
 
