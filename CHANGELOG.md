@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.0](https://github.com/iDrinkx/plex-portal/compare/v1.10.5...v1.11.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* enhance achievement system with XP rewards and update profile calculations ([305aa37](https://github.com/iDrinkx/plex-portal/commit/305aa376117a6ff5803b484024b25dc946b2e585))
+
 ## [1.10.5](https://github.com/iDrinkx/plex-portal/compare/v1.10.4...v1.10.5) (2026-02-21)
 
 ### 🐛 Corrections de bugs
