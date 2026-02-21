@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.7.0](https://github.com/iDrinkx/plex-portal/compare/v1.6.0...v1.7.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* enhance server stats bar layout for better responsiveness and alignment ([ae44261](https://github.com/iDrinkx/plex-portal/commit/ae442616d2e920bf05b5c2c275bfb8c325857096))
+
 ## [1.6.0](https://github.com/iDrinkx/plex-portal/compare/v1.5.0...v1.6.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
