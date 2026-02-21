@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.9.2](https://github.com/iDrinkx/plex-portal/compare/v1.9.1...v1.9.2) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* swap content of user statistics and content requests hero cards for clarity ([2aa8f62](https://github.com/iDrinkx/plex-portal/commit/2aa8f62553de4e4aaca67f9469be72cbca0016f6))
+
 ## [1.9.1](https://github.com/iDrinkx/plex-portal/compare/v1.9.0...v1.9.1) (2026-02-21)
 
 ### 🐛 Corrections de bugs
