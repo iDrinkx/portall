@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.6](https://github.com/iDrinkx/plex-portal/compare/v1.11.5...v1.11.6) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* optimize XP calculation and adjust achievement values for improved engagement ([3784b2e](https://github.com/iDrinkx/plex-portal/commit/3784b2eadb3b8f3942e8229cf8cf8a3fa1b5ea8b))
+
 ## [1.11.5](https://github.com/iDrinkx/plex-portal/compare/v1.11.4...v1.11.5) (2026-02-21)
 
 ### 🐛 Corrections de bugs
