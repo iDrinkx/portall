@@ -150,10 +150,16 @@
 
     function applyGlow(color) {
       const av = document.getElementById('heroAvatar');
-      if (av) {
-        av.style.setProperty('--rank-color', color);
-        av.style.borderColor = color;
-      }
+      if (!av) return;
+      // Pré-calculer les 6 niveaux d'opacité en hex (pas de color-mix → cross-browser)
+      av.style.setProperty('--rank-color', color);
+      av.style.setProperty('--rg-1', color + 'cc'); // 80%
+      av.style.setProperty('--rg-2', color + '73'); // 45%
+      av.style.setProperty('--rg-3', color + '2e'); // 18%
+      av.style.setProperty('--rg-4', color);         // 100%
+      av.style.setProperty('--rg-5', color + 'ad'); // 68%
+      av.style.setProperty('--rg-6', color + '4d'); // 30%
+      av.style.borderColor = color;
     }
 
     // ⚡ Appliquer instantanément depuis le cache (alimenté par /profil ou ce même script)

@@ -495,6 +495,12 @@
     border-radius: 50%;
     object-fit: cover;
     --rank-color: #5B9BD5;
+    --rg-1: #5B9BD5cc;
+    --rg-2: #5B9BD573;
+    --rg-3: #5B9BD52e;
+    --rg-4: #5B9BD5;
+    --rg-5: #5B9BD5ad;
+    --rg-6: #5B9BD54d;
     border: 3px solid var(--rank-color);
     animation: profile-avatar-breathe 3.5s ease-in-out infinite;
     position: relative;
@@ -505,15 +511,15 @@
   @keyframes profile-avatar-breathe {
     0%, 100% {
       box-shadow:
-        0 0 16px color-mix(in srgb, var(--rank-color) 80%, transparent),
-        0 0 38px color-mix(in srgb, var(--rank-color) 45%, transparent),
-        0 0 70px color-mix(in srgb, var(--rank-color) 18%, transparent);
+        0 0 16px var(--rg-1),
+        0 0 38px var(--rg-2),
+        0 0 70px var(--rg-3);
     }
     50% {
       box-shadow:
-        0 0 30px color-mix(in srgb, var(--rank-color) 100%, transparent),
-        0 0 65px color-mix(in srgb, var(--rank-color) 68%, transparent),
-        0 0 115px color-mix(in srgb, var(--rank-color) 30%, transparent);
+        0 0 30px var(--rg-4),
+        0 0 65px var(--rg-5),
+        0 0 115px var(--rg-6);
     }
   }
 
@@ -1149,9 +1155,15 @@
   function applyRankGlow(color) {
     const avatarEl  = document.getElementById("profileAvatar");
     const xpBarFill = document.getElementById("xpBarFill");
-    // Utilise une CSS variable → l'animation CSS breathing suit automatiquement
     if (avatarEl) {
+      // Pré-calculer les 6 niveaux d'opacité en hex (pas de color-mix → cross-browser)
       avatarEl.style.setProperty('--rank-color', color);
+      avatarEl.style.setProperty('--rg-1', color + 'cc'); // 80%
+      avatarEl.style.setProperty('--rg-2', color + '73'); // 45%
+      avatarEl.style.setProperty('--rg-3', color + '2e'); // 18%
+      avatarEl.style.setProperty('--rg-4', color);         // 100%
+      avatarEl.style.setProperty('--rg-5', color + 'ad'); // 68%
+      avatarEl.style.setProperty('--rg-6', color + '4d'); // 30%
       avatarEl.style.borderColor = color;
     }
     if (xpBarFill) {
@@ -1938,8 +1950,15 @@
             const xpBadgeEl = document.getElementById("xpBadge");
             
             if (avatarEl) {
-              avatarEl.style.setProperty('--rank-color', newBadge.borderColor);
-              avatarEl.style.borderColor = newBadge.borderColor;
+              const _c = newBadge.borderColor;
+              avatarEl.style.setProperty('--rank-color', _c);
+              avatarEl.style.setProperty('--rg-1', _c + 'cc');
+              avatarEl.style.setProperty('--rg-2', _c + '73');
+              avatarEl.style.setProperty('--rg-3', _c + '2e');
+              avatarEl.style.setProperty('--rg-4', _c);
+              avatarEl.style.setProperty('--rg-5', _c + 'ad');
+              avatarEl.style.setProperty('--rg-6', _c + '4d');
+              avatarEl.style.borderColor = _c;
             }
             if (xpBadgeEl) {
               xpBadgeEl.textContent = `${newBadge.icon} ${newBadge.name}`;

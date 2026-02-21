@@ -326,6 +326,12 @@ body {
   border-radius: 50%;
   object-fit: cover;
   --rank-color: #5B9BD5;
+  --rg-1: #5B9BD5cc;
+  --rg-2: #5B9BD573;
+  --rg-3: #5B9BD52e;
+  --rg-4: #5B9BD5;
+  --rg-5: #5B9BD5ad;
+  --rg-6: #5B9BD54d;
   border: 2.5px solid var(--rank-color);
   animation: hero-avatar-breathe 3.5s ease-in-out infinite;
   transition: border-color 0.5s ease;
@@ -335,15 +341,15 @@ body {
 @keyframes hero-avatar-breathe {
   0%, 100% {
     box-shadow:
-      0 0 14px color-mix(in srgb, var(--rank-color) 80%, transparent),
-      0 0 32px color-mix(in srgb, var(--rank-color) 45%, transparent),
-      0 0 58px color-mix(in srgb, var(--rank-color) 18%, transparent);
+      0 0 14px var(--rg-1),
+      0 0 32px var(--rg-2),
+      0 0 58px var(--rg-3);
   }
   50% {
     box-shadow:
-      0 0 26px color-mix(in srgb, var(--rank-color) 100%, transparent),
-      0 0 56px color-mix(in srgb, var(--rank-color) 65%, transparent),
-      0 0 95px color-mix(in srgb, var(--rank-color) 30%, transparent);
+      0 0 26px var(--rg-4),
+      0 0 56px var(--rg-5),
+      0 0 95px var(--rg-6);
   }
 }
 
