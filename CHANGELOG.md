@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.10.2](https://github.com/iDrinkx/plex-portal/compare/v1.10.1...v1.10.2) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* enhance play method statistics retrieval with fallback for missing columns ([aac7320](https://github.com/iDrinkx/plex-portal/commit/aac7320538fa4a87bf08170002d11326040413eb))
+
 ## [1.10.1](https://github.com/iDrinkx/plex-portal/compare/v1.10.0...v1.10.1) (2026-02-21)
 
 ### 🐛 Corrections de bugs
