@@ -440,6 +440,36 @@ body {
   transform: translate(4px, -4px);
 }
 
+.hero-card-classement {
+  background: linear-gradient(135deg, #101620 0%, #0e1829 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.hero-card-classement::before {
+  background: linear-gradient(180deg, #3B82F6, #60a5fa);
+}
+
+.hero-card-classement:hover {
+  transform: translateY(-5px);
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 20px 60px rgba(59, 130, 246, 0.14);
+}
+
+.hero-card-classement .hero-card-label {
+  color: rgba(59, 130, 246, 0.85);
+}
+
+.hero-card-classement:hover .hero-card-arrow {
+  color: #60a5fa;
+  transform: translateX(5px);
+}
+
+.hero-icon--classement {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  font-size: 28px;
+}
+
 /* Logo Seerr dans la navbar */
 .nav-seerr-logo {
   width: 16px;

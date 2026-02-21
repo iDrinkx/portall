@@ -368,6 +368,43 @@
   border-radius: 8px;
 }
 
+/* ── Ligne "c'est moi" ── */
+.lb-row--me {
+  background: rgba(59,130,246,0.08);
+  border-left: 3px solid var(--lb-blue);
+  padding-left: 15px; /* compense le border-left */
+}
+.lb-row--me .lb-row-name {
+  filter: none;
+  color: var(--lb-blue);
+}
+.lb-row--me .lb-pos-n { color: var(--lb-blue); font-weight: 800; }
+
+/* Séparateur avant la position hors top10 */
+.lb-row-sep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+.lb-row-sep-dots {
+  font-size: 11px;
+  color: #333;
+  letter-spacing: 3px;
+  flex: 1;
+  text-align: center;
+}
+.lb-row-sep-label {
+  font-size: 10px;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+}
+
 /* ── État chargement ── */
 .lb-loading {
   display: flex;
@@ -458,6 +495,9 @@
 
 <script>
 (function () {
+  // Nom de l'utilisateur connecté (injecté par EJS)
+  const ME = '<%= user.username %>';
+
   // ── Onglets ──
   document.querySelectorAll('.lb-tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -469,43 +509,89 @@
   });
 
   // ── Helpers ──
-  let _uid = 0; // compteur ID unique pour les rings
-
   function _rankGrad(c) {
     return `conic-gradient(from -90deg, ${c}2e 0deg, ${c} 90deg, ${c}cc 180deg, ${c} 270deg, ${c}2e 360deg)`;
   }
 
-  function posLabel(i) {
-    if (i === 0) return '<span class="lb-pos lb-pos-1" title="#1">🥇</span>';
-    if (i === 1) return '<span class="lb-pos lb-pos-2" title="#2">🥈</span>';
-    if (i === 2) return '<span class="lb-pos lb-pos-3" title="#3">🥉</span>';
+  function posLabel(i, isMe) {
+    if (i === 0) return '<span class="lb-pos lb-pos-1">🥇</span>';
+    if (i === 1) return '<span class="lb-pos lb-pos-2">🥈</span>';
+    if (i === 2) return '<span class="lb-pos lb-pos-3">🥉</span>';
     return `<span class="lb-pos lb-pos-n">#${i + 1}</span>`;
   }
 
-  function avatarHtml(user, size) {
-    const isRow = size === 'row';
-    const wrapCls = isRow ? 'lb-row-avatar-wrap' : 'lb-avatar-wrap';
-    const ringCls = isRow ? 'lb-row-ring'        : 'lb-rank-ring';
-    const imgCls  = isRow ? 'lb-row-avatar'       : 'lb-avatar';
-    const phCls   = isRow ? 'lb-row-placeholder'  : 'lb-avatar-placeholder';
-    const imgSize = isRow ? 40 : 80;
-    const initials = (user.username || '?').charAt(0).toUpperCase();
-
+  function avatarHtml(user) {
+    const initials  = (user.username || '?').charAt(0).toUpperCase();
     const ringStyle = `background:${_rankGrad(user.rank.color)}`;
     const filterVal = `drop-shadow(0 0 6px ${user.rank.color}99)`;
-
-    const imgPart = user.thumb
-      ? `<img src="${user.thumb}" class="${imgCls}" width="${imgSize}" height="${imgSize}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-        + `<div class="${phCls}" style="display:none">${initials}</div>`
-      : `<div class="${phCls}">${initials}</div>`;
-
-    const levelBadge = isRow ? '' : `<div class="lb-level-badge">${user.level}</div>`;
-
-    return `<div class="${wrapCls}" style="filter:${filterVal}">
-      <div class="${ringCls}" style="${ringStyle}"></div>
+    const imgPart   = user.thumb
+      ? `<img src="${user.thumb}" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        + `<div class="lb-row-placeholder" style="display:none">${initials}</div>`
+      : `<div class="lb-row-placeholder">${initials}</div>`;
+    return `<div class="lb-row-avatar-wrap" style="filter:${filterVal}">
+      <div class="lb-row-ring" style="${ringStyle}"></div>
       ${imgPart}
-      ${levelBadge}
     </div>`;
+  }
+
+  /* ── Ligne de classement
+     mode : 'hours' → affiche les heures à droite
+            'level' → affiche niveau + rang à droite
+  ── */
+  function renderRow(user, pos, mode) {
+    const isMe  = user.username === ME;
+    const hrs   = Math.round(user.totalHours) + 'h';
+
+    const namePart = `<div class="lb-row-name">${user.username}</div>`;
+
+    // Rang sous le nom (toujours présent)
+    const metaPart = `<div class="lb-row-meta">
+      <span style="color:${user.rank.color};font-weight:700">${user.rank.icon} ${user.rank.name}</span>
+    </div>`;
+
+    // Stat à droite : dépend du mode
+    let statPart;
+    if (mode === 'hours') {
+      statPart = `<div class="lb-row-stat">
+        <div class="lb-row-stat-main">${hrs}</div>
+        <div class="lb-row-stat-sub">heures</div>
+      </div>`;
+    } else {
+      statPart = `<div class="lb-row-stat">
+        <div class="lb-row-level" style="background:${user.rank.bgColor};color:${user.rank.color}">Nv.&nbsp;${user.level}</div>
+        <div class="lb-row-stat-sub" style="margin-top:3px">${user.rank.icon}</div>
+      </div>`;
+    }
+
+    return `<div class="lb-row${isMe ? ' lb-row--me' : ''}">
+      ${posLabel(pos, isMe)}
+      ${avatarHtml(user)}
+      <div class="lb-row-info">${namePart}${metaPart}</div>
+      ${statPart}
+    </div>`;
+  }
+
+  /* ── Rendu d'un bloc de classement (top 10 + position perso si hors top) ── */
+  function renderRankingBlock(list, containerId, mode) {
+    const container = document.getElementById(containerId);
+    const top10     = list.slice(0, 10);
+    const myPos     = list.findIndex(u => u.username === ME);
+    const meInTop   = myPos >= 0 && myPos < 10;
+
+    let html = top10.map((u, idx) => renderRow(u, idx, mode)).join('');
+
+    // Si l'user est hors top 10 (ou absent), ajouter un séparateur + sa ligne
+    if (myPos >= 10) {
+      const meUser = list[myPos];
+      html += `<div class="lb-row-sep">
+        <span class="lb-row-sep-label">Votre position</span>
+        <span class="lb-row-sep-dots">· · ·</span>
+      </div>`;
+      html += renderRow(meUser, myPos, mode);
+    }
+
+    container.innerHTML = html;
   }
 
   // ── Rendu grille membres ──
@@ -514,17 +600,32 @@
     grid.innerHTML = '';
 
     byHours.forEach(user => {
+      const isMe = user.username === ME;
       const card = document.createElement('div');
       card.className = 'lb-card';
       card.style.setProperty('--card-rank-color', user.rank.color);
+      if (isMe) {
+        card.style.borderColor = 'rgba(59,130,246,0.5)';
+        card.style.boxShadow   = '0 0 0 1px rgba(59,130,246,0.3)';
+      }
 
-      const hrs = Number.isInteger(user.totalHours)
-        ? user.totalHours + 'h'
-        : user.totalHours.toFixed(0) + 'h';
+      const hrs = Math.round(user.totalHours) + 'h';
+      const usernameHtml = isMe
+        ? `<p class="lb-username" style="filter:none;color:var(--lb-blue)">${user.username}</p>`
+        : `<p class="lb-username">${user.username}</p>`;
 
       card.innerHTML = `
-        ${avatarHtml(user, 'card')}
-        <p class="lb-username">${user.username}</p>
+        <div class="lb-avatar-wrap" style="filter:drop-shadow(0 0 6px ${user.rank.color}99)">
+          <div class="lb-rank-ring" style="background:${_rankGrad(user.rank.color)}"></div>
+          ${user.thumb
+            ? `<img src="${user.thumb}" class="lb-avatar" width="80" height="80" alt="" loading="lazy"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+               <div class="lb-avatar-placeholder" style="display:none">${(user.username||'?').charAt(0).toUpperCase()}</div>`
+            : `<div class="lb-avatar-placeholder">${(user.username||'?').charAt(0).toUpperCase()}</div>`
+          }
+          <div class="lb-level-badge">${user.level}</div>
+        </div>
+        ${usernameHtml}
         <span class="lb-rank-badge" style="background:${user.rank.bgColor};color:${user.rank.color};border:1px solid ${user.rank.borderColor}40">
           ${user.rank.icon} ${user.rank.name}
         </span>
@@ -542,45 +643,16 @@
     document.getElementById('membresLoading').style.display = 'none';
   }
 
-  // ── Rendu ligne classement ──
-  function renderRankingRow(user, pos) {
-    const hrs = Number.isInteger(user.totalHours)
-      ? user.totalHours + 'h'
-      : user.totalHours.toFixed(0) + 'h';
-
-    return `<div class="lb-row">
-      ${posLabel(pos)}
-      ${avatarHtml(user, 'row')}
-      <div class="lb-row-info">
-        <div class="lb-row-name">${user.username}</div>
-        <div class="lb-row-meta" style="color:${user.rank.color}55">
-          <span style="color:${user.rank.color};font-weight:700">${user.rank.icon} ${user.rank.name}</span>
-        </div>
-      </div>
-      <div class="lb-row-stat">
-        <div class="lb-row-level" style="background:${user.rank.bgColor};color:${user.rank.color}">Nv.&nbsp;${user.level}</div>
-      </div>
-      <div class="lb-row-stat" style="margin-left:8px;min-width:44px">
-        <div class="lb-row-stat-main">${hrs}</div>
-        <div class="lb-row-stat-sub">heures</div>
-      </div>
-    </div>`;
-  }
-
   // ── Rendu classements ──
   function renderClassements(data) {
-    document.getElementById('rankHoursList').innerHTML =
-      data.byHours.map((u, idx) => renderRankingRow(u, idx)).join('');
-    document.getElementById('rankLevelList').innerHTML =
-      data.byLevel.map((u, idx) => renderRankingRow(u, idx)).join('');
-
+    renderRankingBlock(data.byHours, 'rankHoursList', 'hours');
+    renderRankingBlock(data.byLevel, 'rankLevelList', 'level');
     document.getElementById('classementsLoading').style.display = 'none';
     document.getElementById('classementsContent').style.display = 'grid';
   }
 
   // ── Fetch ──
   const bp = window.APP_BASE_PATH || '';
-
   fetch(bp + '/api/classement')
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(data => {
@@ -590,12 +662,12 @@
     .catch(err => {
       ['membresLoading', 'classementsLoading'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = `
-          <div class="lb-error">
-            <div class="lb-error-icon">😞</div>
-            <p>Impossible de charger le classement.<br><small>Erreur ${err}</small></p>
-          </div>`;
+        if (el) el.innerHTML = `<div class="lb-error">
+          <div class="lb-error-icon">😞</div>
+          <p>Impossible de charger le classement.<br><small>Erreur ${err}</small></p>
+        </div>`;
       });
     });
 })();
 </script>
+
