@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.6.0](https://github.com/iDrinkx/plex-portal/compare/v1.5.0...v1.6.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* update hero card layout and styles for improved design and responsiveness ([cc28e0e](https://github.com/iDrinkx/plex-portal/commit/cc28e0eb4809022821c873b1de84ba11ebabd6c3))
+
 ## [1.5.0](https://github.com/iDrinkx/plex-portal/compare/v1.4.0...v1.5.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
