@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.1.0](https://github.com/iDrinkx/plex-portal/compare/v1.0.0...v1.1.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* adjust achievement card styles for improved emoji positioning and layout ([5796c4e](https://github.com/iDrinkx/plex-portal/commit/5796c4e0bbc8ac5280ed52e605911e40bbe440cc))
+
 ## 1.0.0 (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
