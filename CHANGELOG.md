@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.4.0](https://github.com/iDrinkx/plex-portal/compare/v1.3.0...v1.4.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* update achievements grid layout to fixed column count for better alignment ([67a2e0f](https://github.com/iDrinkx/plex-portal/commit/67a2e0f9a0e71049ebeed500f25f4f57a8cbb943))
+
 ## [1.3.0](https://github.com/iDrinkx/plex-portal/compare/v1.2.0...v1.3.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
