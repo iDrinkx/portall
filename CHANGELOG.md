@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.9.0](https://github.com/iDrinkx/plex-portal/compare/v1.8.0...v1.9.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* add hero card for user statistics and enhance activity charts with average calculations ([28ba0ad](https://github.com/iDrinkx/plex-portal/commit/28ba0ad83cd5af177aaba536a7daac0ffa3ab755))
+
 ## [1.8.0](https://github.com/iDrinkx/plex-portal/compare/v1.7.0...v1.8.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
