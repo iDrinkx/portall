@@ -867,7 +867,9 @@ router.get('/api/classement', requireAuth, async (req, res) => {
 
       let daysJoined = 0;
       if (dbUser && dbUser.joinedAt) {
-        const ms = new Date(dbUser.joinedAt).getTime();
+        // joinedAt est un timestamp Unix en secondes (stocké via user.joinedAtTimestamp depuis Plex)
+        const ts = Number(dbUser.joinedAt);
+        const ms = !isNaN(ts) && ts > 1e8 ? ts * 1000 : new Date(dbUser.joinedAt).getTime();
         if (!isNaN(ms)) daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
       }
 

@@ -225,10 +225,10 @@
   position: relative; width: 40px; height: 40px; flex-shrink: 0;
 }
 .lb-row-ring {
-  position: absolute; inset: -3px; border-radius: 50%;
+  position: absolute; inset: -4px; border-radius: 50%;
   background: transparent;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
   animation: rank-ring-breathe 3.5s ease-in-out infinite;
   pointer-events: none;
 }
@@ -333,7 +333,7 @@
     var medals   = ['<%= "" %>', '<%= "" %>', '<%= "" %>'];
     var medal    = rank === 1 ? '\uD83E\uDD47' : rank === 2 ? '\uD83E\uDD48' : '\uD83E\uDD49';
     var initials = (user.username || '?').charAt(0).toUpperCase();
-    var glow     = 'drop-shadow(0 0 7px ' + user.rank.color + '99)';
+    var glow     = 'drop-shadow(0 0 9px ' + user.rank.color + 'cc) drop-shadow(0 0 22px ' + user.rank.color + '55)';
     var imgPart  = user.thumb
       ? '<img src="' + user.thumb + '" class="lb-pod-img" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
         + '<div class="lb-pod-placeholder" style="display:none">' + initials + '</div>'
@@ -358,7 +358,7 @@
   function rankRow(user, pos, mode) {
     var isMe     = user.username === ME;
     var initials = (user.username || '?').charAt(0).toUpperCase();
-    var glow     = 'drop-shadow(0 0 5px ' + user.rank.color + '88)';
+    var glow     = 'drop-shadow(0 0 8px ' + user.rank.color + 'cc) drop-shadow(0 0 18px ' + user.rank.color + '55)';
     var posHtml;
     if      (pos === 0) posHtml = '<span class="lb-pos lb-pos-1">\uD83E\uDD47</span>';
     else if (pos === 1) posHtml = '<span class="lb-pos lb-pos-2">\uD83E\uDD48</span>';
