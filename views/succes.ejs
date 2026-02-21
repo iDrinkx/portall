@@ -367,25 +367,28 @@
       gap: 10px;
     }
 
-    /* Layout colonne : emoji en haut, % en bas, bien séparés */
+    /* Flex colonne : emoji centré + % en dessous en flow normal */
     .achievement-card {
       flex-direction: column;
       justify-content: center;
-      gap: 0;
-      padding-bottom: 16px;
-      padding-top: 8px;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px 18px;
     }
 
     .achievement-icon {
       font-size: 34px;
-      margin-bottom: 0;
     }
 
+    /* % en flow normal sous l'emoji, plus en absolu */
     .ach-card-pct {
-      position: absolute;
-      bottom: 6px;
+      position: relative;
+      bottom: auto;
+      left: auto;
+      right: auto;
       font-size: 10px;
       color: rgba(255,255,255,0.38);
+      line-height: 1;
     }
 
     .ach-card-mini-bar {
