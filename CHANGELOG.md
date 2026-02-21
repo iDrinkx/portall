@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.10.4](https://github.com/iDrinkx/plex-portal/compare/v1.10.3...v1.10.4) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* update user detailed stats retrieval to use session_history_media_info for accurate transcode decisions ([abd8ece](https://github.com/iDrinkx/plex-portal/commit/abd8ecec70c67c795d2aa53f0ad88a6e6dae2fc0))
+
 ## [1.10.3](https://github.com/iDrinkx/plex-portal/compare/v1.10.2...v1.10.3) (2026-02-21)
 
 ### 🐛 Corrections de bugs
