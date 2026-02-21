@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.9.1](https://github.com/iDrinkx/plex-portal/compare/v1.9.0...v1.9.1) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* update GROUP BY clauses in getUserDetailedStats for consistency ([06ccf3f](https://github.com/iDrinkx/plex-portal/commit/06ccf3fc78967c9043b05de138d08585fffba644))
+
 ## [1.9.0](https://github.com/iDrinkx/plex-portal/compare/v1.8.0...v1.9.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
