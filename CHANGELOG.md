@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.8.0](https://github.com/iDrinkx/plex-portal/compare/v1.7.0...v1.8.0) (2026-02-21)
+
+### ✨ Nouvelles fonctionnalités
+
+* add user statistics page and enhance navigation links ([5c7529a](https://github.com/iDrinkx/plex-portal/commit/5c7529a03aaf91fa710b38c90c93291b5b0e3330))
+
 ## [1.7.0](https://github.com/iDrinkx/plex-portal/compare/v1.6.0...v1.7.0) (2026-02-21)
 
 ### ✨ Nouvelles fonctionnalités
