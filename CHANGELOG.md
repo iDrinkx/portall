@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.11.3](https://github.com/iDrinkx/plex-portal/compare/v1.11.2...v1.11.3) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* update Docker workflow for improved image building and tagging ([4f2c8ba](https://github.com/iDrinkx/plex-portal/commit/4f2c8ba9459f2a8772274be6fa48c525d580d71e))
+
 ## [1.11.2](https://github.com/iDrinkx/plex-portal/compare/v1.11.1...v1.11.2) (2026-02-21)
 
 ### 🐛 Corrections de bugs
