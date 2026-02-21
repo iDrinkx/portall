@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.10.5](https://github.com/iDrinkx/plex-portal/compare/v1.10.4...v1.10.5) (2026-02-21)
+
+### 🐛 Corrections de bugs
+
+* align cards in the top row for consistent height and improved layout ([22ee80c](https://github.com/iDrinkx/plex-portal/commit/22ee80c581d7f4e029cfaa4e633c86e976667f63))
+
 ## [1.10.4](https://github.com/iDrinkx/plex-portal/compare/v1.10.3...v1.10.4) (2026-02-21)
 
 ### 🐛 Corrections de bugs
