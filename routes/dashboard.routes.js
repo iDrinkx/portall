@@ -148,6 +148,10 @@ router.get("/profil", requireAuth, async (req, res) => {
 
 // Route /abonnement supprimée — infos intégrées dans /profil
 
+router.get("/classement", requireAuth, (req, res) => {
+  res.render("classement/index", { user: req.session.user, basePath: req.basePath });
+});
+
 router.get("/statistiques", requireAuth, (req, res) => {
   res.render("statistiques/index", { user: req.session.user, basePath: req.basePath });
 });
@@ -788,6 +792,106 @@ router.get('/api/server-stats', requireAuth, async (req, res) => {
   } catch (err) {
     logSrv.warn('Erreur librairies:', err.message);
     res.json({ available: false, reason: err.message });
+  }
+});
+
+/* ===============================
+   🏆 CLASSEMENT (Leaderboard)
+=============================== */
+const logLB = log.create('[Classement]');
+
+router.get('/api/classement', requireAuth, async (req, res) => {
+  try {
+    const cacheKey = 'classement_data';
+    const cached   = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { getAllUserStatsFromTautulli, isTautulliReady } = require('../utils/tautulli-direct');
+    const tautulliStats = isTautulliReady() ? getAllUserStatsFromTautulli() : [];
+
+    // Tous les users de notre DB (joinedAt inclus)
+    const dbUsers = UserQueries.getAll();
+    const dbMap   = {};
+    dbUsers.forEach(u => { dbMap[(u.username || '').toLowerCase()] = u; });
+
+    // Thumbs Plex via XML plex.tv/api/users (admin token)
+    const plexToken = process.env.PLEX_TOKEN || '';
+    const thumbMap  = {}; // username.lower → thumb URL
+
+    try {
+      // owner thumb
+      const ownerResp = await fetch('https://plex.tv/api/v2/user', {
+        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/json' },
+        timeout: 6000
+      });
+      if (ownerResp.ok) {
+        const od = await ownerResp.json();
+        if (od.username && od.thumb) thumbMap[od.username.toLowerCase()] = od.thumb;
+      }
+    } catch (_) {}
+
+    try {
+      const xmlResp = await fetch('https://plex.tv/api/users', {
+        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/xml' },
+        timeout: 6000
+      });
+      if (xmlResp.ok) {
+        const xml = await xmlResp.text();
+        const blockRe = /<User\s[\s\S]*?(?:\/>|<\/User>)/g;
+        const attrRe  = /(\w+)="([^"]*)"/g;
+        let bm;
+        while ((bm = blockRe.exec(xml)) !== null) {
+          const openTag = bm[0].match(/<User\s([^>]+)/);
+          if (!openTag) continue;
+          const attrs = {};
+          let am;
+          attrRe.lastIndex = 0;
+          while ((am = attrRe.exec(openTag[1])) !== null) attrs[am[1]] = am[2];
+          const name = (attrs.title || attrs.username || '').toLowerCase();
+          if (name && attrs.thumb) thumbMap[name] = attrs.thumb;
+        }
+      }
+    } catch (_) {}
+
+    const XP_M = { HOURS: 8, BADGE: 140, ANCIENNETE: 5 };
+    const now  = Date.now();
+
+    const users = tautulliStats.map(stats => {
+      const key    = (stats.username || '').toLowerCase();
+      const dbUser = dbMap[key] || null;
+
+      let badgeCount = 0;
+      if (dbUser) {
+        try { badgeCount = Object.keys(UserAchievementQueries.getForUser(dbUser.id)).length; } catch (_) {}
+      }
+
+      let daysJoined = 0;
+      if (dbUser && dbUser.joinedAt) {
+        const ms = new Date(dbUser.joinedAt).getTime();
+        if (!isNaN(ms)) daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
+      }
+
+      const totalHours = stats.totalHours || 0;
+      const totalXp    = Math.round(totalHours * XP_M.HOURS) + badgeCount * XP_M.BADGE + daysJoined * XP_M.ANCIENNETE;
+      const level      = XP_SYSTEM.getLevel(totalXp);
+      const rank       = XP_SYSTEM.getRankByLevel(level);
+      const thumb      = thumbMap[key] || null;
+
+      return { username: stats.username, thumb, totalHours, totalXp, level,
+               rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
+               badgeCount };
+    });
+
+    const byHours = [...users].sort((a, b) => b.totalHours - a.totalHours);
+    const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
+
+    const result = { byHours, byLevel };
+    cache.set(cacheKey, result, 5 * 60 * 1000); // 5 min
+    logLB.debug(`Classement généré: ${users.length} users`);
+    res.json(result);
+  } catch (err) {
+    logLB.error('API classement:', err.message);
+    res.status(500).json({ error: 'classement failed' });
   }
 });
 

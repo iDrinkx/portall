@@ -498,6 +498,17 @@ body {
   background: #e5a00d;
 }
 
+/* nav link accent for classement */
+.nav-link-classement {
+  color: rgba(59, 130, 246, 0.9);
+}
+.nav-link-classement:hover {
+  color: #7db8ff;
+}
+.nav-link-classement::after {
+  background: #3B82F6;
+}
+
 /* =========================
    NAVBAR SUBSCRIPTION PILL
 ========================= */
