@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.15.1](https://github.com/iDrinkx/plex-portal/compare/v1.15.0...v1.15.1) (2026-02-22)
+
+### 🐛 Corrections de bugs
+
+* update GitHub Actions workflow to set fetch depth and reference for checkout ([3b6aa1d](https://github.com/iDrinkx/plex-portal/commit/3b6aa1dd4c0fb338ecc788e1c486d02bb9939a71))
+
 ## [1.15.0](https://github.com/iDrinkx/plex-portal/compare/v1.14.0...v1.15.0) (2026-02-22)
 
 ### ✨ Nouvelles fonctionnalités
