@@ -64,3 +64,30 @@ jobs:
           tags: |
             ghcr.io/idrinkx/plex-portal:latest
             ghcr.io/idrinkx/plex-portal:v${{ needs.release.outputs.new_release_version }}
+
+  # Quand une release est publiée → mettre à jour le README du repo public
+  update-docs-repo:
+    needs: release
+    if: ${{ needs.release.outputs.new_release_published == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout public docs repo
+        uses: actions/checkout@v4
+        with:
+          repository: idrinkx/plex-portal-docker
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+
+      - name: Update README with version badge
+        run: |
+          VERSION="${{ needs.release.outputs.new_release_version }}"
+          # Ajouter ou remplacer le badge de version en haut du README
+          sed -i "1s/^/[![Version Badge](https:\/\/img.shields.io\/badge\/Latest%20Version-v${VERSION}-34d399)]()\n\n/" README.md
+
+      - name: Commit and push to public repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add README.md
+          git commit -m "chore: update version to v${{ needs.release.outputs.new_release_version }}"
+          git push
