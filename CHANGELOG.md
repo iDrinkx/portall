@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.17.0 (2026-02-22)
+
+* feat: add npm install step to release workflow ([68d8645](https://github.com/iDrinkx/plex-portal/commit/68d8645))
+* Merge branch 'main' of https://github.com/iDrinkx/plex-portal ([e153222](https://github.com/iDrinkx/plex-portal/commit/e153222))
+* refactor: simplify version badge logic and remove outdated version check ([78e1714](https://github.com/iDrinkx/plex-portal/commit/78e1714))
+
 ## [1.16.0](https://github.com/iDrinkx/plex-portal/compare/v1.15.5...v1.16.0) (2026-02-22)
 
 ### ✨ Nouvelles fonctionnalités
