@@ -1405,11 +1405,6 @@ body {
   color: #ef4444;
 }
 
-.version-badge--outdated {
-  background: rgba(251, 146, 60, 0.2);
-  color: #fb923c;
-}
-
 /* Changelog Modal */
 .changelog-modal {
   display: none;
