@@ -212,3 +212,99 @@
     .catch(() => {});
 })();
 </script>
+
+<!-- Version Footer & Changelog Modal (Dashboard only) -->
+<footer class="version-footer" id="versionFooter">
+  <span class="version-text">
+    <span class="version-number" id="versionNumber">v--</span>
+    <span class="version-badge" id="versionBadge">Vérification...</span>
+  </span>
+</footer>
+
+<!-- Changelog Modal -->
+<div class="changelog-modal" id="changelogModal">
+  <div class="changelog-modal-content">
+    <div class="changelog-header">
+      <h2>Changelog - v<span id="changelogVersion">--</span></h2>
+      <button class="changelog-close" id="changelogClose">✕</button>
+    </div>
+    <div class="changelog-body" id="changelogBody">
+      <p style="text-align: center; color: #888;">Chargement du changelog...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Version Footer & Changelog Management (Dashboard only)
+  (function() {
+    const versionNumber = document.getElementById('versionNumber');
+    const versionBadge = document.getElementById('versionBadge');
+    const versionFooter = document.getElementById('versionFooter');
+    const changelogModal = document.getElementById('changelogModal');
+    const changelogClose = document.getElementById('changelogClose');
+    const changelogBody = document.getElementById('changelogBody');
+    const changelogVersion = document.getElementById('changelogVersion');
+
+    // Fetch version from API
+    async function loadVersion() {
+      try {
+        const response = await fetch((window.APP_BASE_PATH || '') + '/api/version');
+        if (!response.ok) throw new Error('Failed to fetch version');
+        const { version } = await response.json();
+        versionNumber.textContent = 'v' + version;
+        changelogVersion.textContent = version;
+        versionBadge.textContent = '✓ À jour';
+        versionBadge.className = 'version-badge version-badge--latest';
+      } catch (err) {
+        versionNumber.textContent = 'v?.?.?';
+        versionBadge.textContent = 'Erreur';
+        versionBadge.className = 'version-badge version-badge--error';
+      }
+    }
+
+    // Load changelog from API
+    async function loadChangelog() {
+      try {
+        const response = await fetch((window.APP_BASE_PATH || '') + '/api/changelog');
+        if (!response.ok) throw new Error('Failed to fetch changelog');
+        const markdown = await response.text();
+        changelogBody.innerHTML = '<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; line-height: 1.6;">' +
+                                  markdown.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                                  '</pre>';
+      } catch (err) {
+        changelogBody.innerHTML = '<p style="color: #e74c3c;">Impossible de charger le changelog.</p>';
+      }
+    }
+
+    // Open modal on footer click
+    versionFooter.addEventListener('click', () => {
+      if (!changelogBody.textContent.includes('Chargement')) {
+        // Already loaded, just show
+        changelogModal.classList.add('active');
+      } else {
+        // First load
+        loadChangelog().then(() => {
+          changelogModal.classList.add('active');
+        });
+      }
+    });
+
+    // Close modal
+    changelogClose.addEventListener('click', () => {
+      changelogModal.classList.remove('active');
+    });
+
+    changelogModal.addEventListener('click', (e) => {
+      if (e.target === changelogModal) {
+        changelogModal.classList.remove('active');
+      }
+    });
+
+    // Load version on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadVersion);
+    } else {
+      loadVersion();
+    }
+  })();
+</script>
