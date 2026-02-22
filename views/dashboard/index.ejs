@@ -215,10 +215,7 @@
 
 <!-- Version Footer & Changelog Modal (Dashboard only) -->
 <footer class="version-footer" id="versionFooter">
-  <span class="version-text">
-    <span class="version-number" id="versionNumber">v--</span>
-    <span class="version-badge" id="versionBadge">Vérification...</span>
-  </span>
+  <span class="version-number" id="versionNumber">v--</span>
 </footer>
 
 <!-- Changelog Modal -->
@@ -238,7 +235,6 @@
   // Version Footer & Changelog Management (Dashboard only)
   (function() {
     const versionNumber = document.getElementById('versionNumber');
-    const versionBadge = document.getElementById('versionBadge');
     const versionFooter = document.getElementById('versionFooter');
     const changelogModal = document.getElementById('changelogModal');
     const changelogClose = document.getElementById('changelogClose');
@@ -253,12 +249,8 @@
         const { version } = await response.json();
         versionNumber.textContent = 'v' + version;
         changelogVersion.textContent = version;
-        versionBadge.textContent = '✓ À jour';
-        versionBadge.className = 'version-badge version-badge--latest';
       } catch (err) {
         versionNumber.textContent = 'v?.?.?';
-        versionBadge.textContent = 'Erreur';
-        versionBadge.className = 'version-badge version-badge--error';
       }
     }
 
