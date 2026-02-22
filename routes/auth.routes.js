@@ -184,15 +184,17 @@ router.get("/auth-complete", async (req, res) => {
     return res.redirect((req.basePath || "") + "/?error=wizarr_access_denied");
   }
 
-  // 2) Cookie SSO Seerr — seulement si autorisé
-  await grabSeerrCookie(authToken, res);
-
   logAuth.info(`✅ Connecté: ${user.username} (${user.id})`);
 
   req.session.user = user;
   req.session.user.joinedAtTimestamp = user.joinedAt;
   req.session.plexToken = authToken;
   delete req.session.pinId;
+
+  // Cookie SSO Seerr en arrière-plan (ne pas bloquer le login)
+  grabSeerrCookie(authToken, res).catch(err => {
+    logAuth.warn(`Seerr SSO en arrière-plan — ${err.message}`);
+  });
 
   res.redirect(req.basePath + "/dashboard");
 });
