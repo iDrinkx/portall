@@ -1,7 +1,7 @@
 ﻿
 # Plex Portal
 
-**Version : 1.11.6**
+[![Version](https://img.shields.io/github/v/release/iDrinkx/plex-portal?label=Version&style=flat-square&color=34d399)](https://github.com/iDrinkx/plex-portal/releases)
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
