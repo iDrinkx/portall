@@ -1,5 +1,21 @@
 # Changelog
 
+Toutes les modifications notables de ce projet sont documentées dans ce fichier.
+
+## [1.12.0](https://github.com/iDrinkx/plex-portal/compare/v1.11.6...v1.12.0) (2026-02-22)
+
+### ✨ Nouvelles fonctionnalités
+
+* add version footer and changelog modal with API integration ([d3d7244](https://github.com/iDrinkx/plex-portal/commit/d3d724493467862c88a7027b279a0946d8aa39e0))
+
+### 📚 Documentation
+
+* add source code and contribution guidelines to documentation ([5119e3f](https://github.com/iDrinkx/plex-portal/commit/5119e3f48d2f1af588b22b773af5d18274bae014))
+* update README and add LICENSE file with usage terms ([4537dbc](https://github.com/iDrinkx/plex-portal/commit/4537dbc9f54479fa030b8365cc4f57b5b4fd4a64))
+* update README.md version and fix links in UNRAID.md ([042f4fa](https://github.com/iDrinkx/plex-portal/commit/042f4fa1255eefd93f016ae3ba20b6f6b0b8b0bc))
+
+# Changelog
+
 ## [1.11.6] - 2025-02-21
 
 ### 📚 Documentation
