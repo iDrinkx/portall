@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.13.5](https://github.com/iDrinkx/plex-portal/compare/v1.13.4...v1.13.5) (2026-02-22)
+
+### 🐛 Corrections de bugs
+
+* add dynamic version badge endpoint and update README badge display ([bdf5063](https://github.com/iDrinkx/plex-portal/commit/bdf506382a1805bf72709dae11904ac5a59b5649))
+
 ## [1.13.4](https://github.com/iDrinkx/plex-portal/compare/v1.13.3...v1.13.4) (2026-02-22)
 
 ### 🐛 Corrections de bugs
