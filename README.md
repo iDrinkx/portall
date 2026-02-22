@@ -3,6 +3,16 @@
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
+---
+
+## 📦 Dernière Version & Changelog
+
+**📖 [Voir le CHANGELOG complet](./CHANGELOG.md)** pour l'historique des versions et fonctionnalités
+
+Les changements sont **automatiquement synchronisés** vers le repo public après chaque release.
+
+---
+
 ##  Fonctionnalités
 
 🔐 **Authentification Plex** : Connexion via compte Plex (OAuth)
