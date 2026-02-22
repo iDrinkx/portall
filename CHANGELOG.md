@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.15.4](https://github.com/iDrinkx/plex-portal/compare/v1.15.3...v1.15.4) (2026-02-22)
+
+### 🐛 Corrections de bugs
+
+* increase wait time for GitHub sync in release workflow ([c8b62b2](https://github.com/iDrinkx/plex-portal/commit/c8b62b240f698a3880302b0711af484a4d318db9))
+
 ## [1.15.3](https://github.com/iDrinkx/plex-portal/compare/v1.15.2...v1.15.3) (2026-02-22)
 
 ### 🐛 Corrections de bugs
