@@ -81,10 +81,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Wait for GitHub sync
+        run: sleep 5
+
       - name: Checkout private repo (for CHANGELOG.md)
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          ref: 'main'
           path: private-repo
+
+      - name: Fetch latest commits
+        run: git fetch origin main
 
       - name: Checkout public docs repo
         uses: actions/checkout@v4
