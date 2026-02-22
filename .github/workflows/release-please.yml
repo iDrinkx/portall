@@ -47,12 +47,6 @@ jobs:
           fetch-depth: 0
           ref: 'main'
 
-      - name: Wait for GitHub sync
-        run: sleep 60
-
-      - name: Fetch latest commits
-        run: git fetch origin main
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -76,9 +70,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Wait for GitHub sync
-        run: sleep 60
-
       - name: Checkout private repo (for CHANGELOG.md)
         uses: actions/checkout@v4
         with:
