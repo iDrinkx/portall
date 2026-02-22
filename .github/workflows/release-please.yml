@@ -53,7 +53,7 @@ jobs:
           ref: 'main'
 
       - name: Wait for GitHub sync
-        run: sleep 30
+        run: sleep 60
 
       - name: Fetch latest commits
         run: git fetch origin main
@@ -82,7 +82,7 @@ jobs:
 
     steps:
       - name: Wait for GitHub sync
-        run: sleep 30
+        run: sleep 60
 
       - name: Checkout private repo (for CHANGELOG.md)
         uses: actions/checkout@v4

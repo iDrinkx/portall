@@ -253,8 +253,30 @@
         const { version } = await response.json();
         versionNumber.textContent = 'v' + version;
         changelogVersion.textContent = version;
-        versionBadge.textContent = '✓ À jour';
-        versionBadge.className = 'version-badge version-badge--latest';
+
+        // Check for latest version on GitHub
+        try {
+          const latestResponse = await fetch((window.APP_BASE_PATH || '') + '/api/latest-version');
+          const versionData = await latestResponse.json();
+
+          if (versionData.checked) {
+            if (versionData.isUpToDate) {
+              versionBadge.textContent = '✓ À jour';
+              versionBadge.className = 'version-badge version-badge--latest';
+            } else {
+              versionBadge.textContent = '⚠ v' + versionData.latestVersion + ' disponible';
+              versionBadge.className = 'version-badge version-badge--outdated';
+            }
+          } else {
+            // API token not configured or error occurred
+            versionBadge.textContent = '✓ À jour';
+            versionBadge.className = 'version-badge version-badge--latest';
+          }
+        } catch (checkErr) {
+          // Fallback to "À jour" if check fails
+          versionBadge.textContent = '✓ À jour';
+          versionBadge.className = 'version-badge version-badge--latest';
+        }
       } catch (err) {
         versionNumber.textContent = 'v?.?.?';
         versionBadge.textContent = 'Erreur';

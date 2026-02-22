@@ -1004,4 +1004,53 @@ router.get('/api/version-badge.svg', (_, res) => {
   }
 });
 
+// Get latest version from GitHub API
+router.get('/api/latest-version', async (req, res) => {
+  try {
+    const { version: currentVersion } = require('../package.json');
+    const ghToken = process.env.GH_API_TOKEN;
+
+    if (!ghToken) {
+      return res.status(500).json({
+        error: 'GitHub API token not configured',
+        currentVersion,
+        latestVersion: currentVersion,
+        isUpToDate: true,
+        checked: false
+      });
+    }
+
+    const axios = require('axios');
+    const response = await axios.get(
+      'https://api.github.com/repos/iDrinkx/plex-portal/releases/latest',
+      {
+        headers: {
+          'Authorization': `token ${ghToken}`,
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        timeout: 5000
+      }
+    );
+
+    const latestVersion = response.data.tag_name.replace(/^v/, '');
+    const isUpToDate = currentVersion === latestVersion;
+
+    res.json({
+      currentVersion,
+      latestVersion,
+      isUpToDate,
+      checked: true
+    });
+  } catch (err) {
+    const { version: currentVersion } = require('../package.json');
+    res.status(200).json({
+      error: err.message,
+      currentVersion,
+      latestVersion: currentVersion,
+      isUpToDate: true,
+      checked: false
+    });
+  }
+});
+
 module.exports = router;
