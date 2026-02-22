@@ -25,6 +25,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Run semantic-release
         id: semantic
         uses: cycjimmy/semantic-release-action@v3
