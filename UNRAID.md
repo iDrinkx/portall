@@ -10,7 +10,7 @@ Guide spécifique pour configurer Plex Portal sur **Unraid** avec **ngx proxy ma
 
 - ✅ Unraid installé et en cours d'exécution
 - ✅ Docker installé sur Unraid
-- ✅ ngx proxy manager ([Community Apps](https://forums.unraid.net/))
+- ✅ ngx proxy manager ([Community Apps](https://hub.docker.com/r/jc21/nginx-proxy-manager))
 - ✅ Compte Plex
 - ✅ Domaine public (ex: `example.com`) ou DuckDNS
 

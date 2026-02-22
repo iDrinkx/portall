@@ -17,6 +17,12 @@ jobs:
         run: |
           git clone https://x-access-token:${{ secrets.DOCS_REPO_TOKEN }}@github.com/iDrinkx/plex-portal-docker.git public-repo
 
+
+      - name: Update version in README.md
+        run: |
+          VERSION=$(jq -r .version package.json)
+          sed -i '0,/^\*\*Version : .\*\*/s//**Version : '"$VERSION"'**/' README.md
+
       - name: Copy files
         run: |
           cp README.md public-repo/ || true

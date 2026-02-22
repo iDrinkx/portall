@@ -1,4 +1,7 @@
-﻿#  Plex Portal
+﻿
+# Plex Portal
+
+**Version : 1.11.6**
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
@@ -351,9 +354,9 @@ merci d’ouvrir une issue ou de me contacter directement.
 ##  Remerciements
 
 - [Plex](https://plex.tv/)  Pour leur API OAuth
-- [Wizarr](https://github.com/wizarr-io/wizarr)  Gestion des invitations
+- [Wizarr](https://github.com/wizarrrr/wizarr)  Gestion des invitations
 - [Tautulli](https://github.com/Tautulli/Tautulli)  Statistiques de visionnage
-- [Seerr](https://github.com/sct/overseerr)  Gestion des demandes de médias
+- [Seerr](https://github.com/seerr-team/seerr)  Gestion des demandes de médias
 - [Organizr](https://github.com/causefx/Organizr)  Inspiration pour le SSO iframe
 
 ---
