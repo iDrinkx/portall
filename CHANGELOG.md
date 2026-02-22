@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.13.2](https://github.com/iDrinkx/plex-portal/compare/v1.13.1...v1.13.2) (2026-02-22)
+
+### 🐛 Corrections de bugs
+
+* update README version badge to 1.13.1 and improve badge update logic in release workflow ([59b4c41](https://github.com/iDrinkx/plex-portal/commit/59b4c414156e40ead7e01f9ba3083921c0142d32))
+
 ## [1.13.1](https://github.com/iDrinkx/plex-portal/compare/v1.13.0...v1.13.1) (2026-02-22)
 
 ### 🐛 Corrections de bugs
