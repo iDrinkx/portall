@@ -65,29 +65,47 @@ jobs:
             ghcr.io/idrinkx/plex-portal:latest
             ghcr.io/idrinkx/plex-portal:v${{ needs.release.outputs.new_release_version }}
 
-  # Quand une release est publiée → mettre à jour le README du repo public
+  # Quand une release est publiée → mettre à jour le repo public (docs + changelog)
   update-docs-repo:
     needs: release
     if: ${{ needs.release.outputs.new_release_published == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout private repo (for CHANGELOG.md)
+        uses: actions/checkout@v4
+        with:
+          path: private-repo
+
       - name: Checkout public docs repo
         uses: actions/checkout@v4
         with:
           repository: idrinkx/plex-portal-docker
           token: ${{ secrets.DOCS_REPO_TOKEN }}
+          path: public-repo
 
-      - name: Update README with version badge
+      - name: Update public repo with version and changelog
         run: |
           VERSION="${{ needs.release.outputs.new_release_version }}"
-          # Ajouter ou remplacer le badge de version en haut du README
-          sed -i "1s/^/[![Version Badge](https:\/\/img.shields.io\/badge\/Latest%20Version-v${VERSION}-34d399)]()\n\n/" README.md
+
+          # Copier CHANGELOG.md depuis le repo privé vers le repo public
+          cp private-repo/CHANGELOG.md public-repo/CHANGELOG.md
+
+          # Mettre à jour la version dans le README du repo public
+          cd public-repo
+
+          # Remplacer la ligne de version existante ou l'ajouter en haut
+          if grep -q "^**Version:" README.md; then
+            sed -i "s/^\*\*Version:.*/**Version: v${VERSION}/" README.md
+          else
+            sed -i "1s/^/**Version: v${VERSION}**\n\n/" README.md
+          fi
 
       - name: Commit and push to public repo
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add README.md
-          git commit -m "chore: update version to v${{ needs.release.outputs.new_release_version }}"
+          cd public-repo
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md CHANGELOG.md
+          git commit -m "chore: sync version v${{ needs.release.outputs.new_release_version }} and changelog from private repo"
           git push
