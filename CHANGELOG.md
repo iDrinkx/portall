@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.14.0](https://github.com/iDrinkx/plex-portal/compare/v1.13.6...v1.14.0) (2026-02-22)
+
+### ✨ Nouvelles fonctionnalités
+
+* add public /changelog page for version display and changelog access ([4f5f769](https://github.com/iDrinkx/plex-portal/commit/4f5f769406a6a39c07f8c1fded109f65c521ae33))
+* add simple public /version page displaying latest version ([dcc0fac](https://github.com/iDrinkx/plex-portal/commit/dcc0facf580608b70d6955f8f84eb39ea7421de6))
+
 ## [1.13.6](https://github.com/iDrinkx/plex-portal/compare/v1.13.5...v1.13.6) (2026-02-22)
 
 ### 🐛 Corrections de bugs
