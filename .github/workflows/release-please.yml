@@ -43,14 +43,23 @@ jobs:
         if: ${{ steps.semantic.outputs.new_release_published == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          if [ -z "$VERSION" ]; then
+            echo "⚠️  No version from semantic-release, using package.json"
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "📦 Updating README badge to v$VERSION"
           sed -i "s/Version-[0-9]*\.[0-9]*\.[0-9]*/Version-$VERSION/" README.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md
-          git commit -m "chore: update version badge to v$VERSION [skip ci]" || true
-          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+          if git diff --cached --quiet; then
+            echo "✓ No changes to commit"
+          else
+            git commit -m "chore: update version badge to v$VERSION [skip ci]"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+          fi
 
   # Quand une release est publiée → rebuild Docker avec le tag de version
   docker-release:

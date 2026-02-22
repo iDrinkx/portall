@@ -1,7 +1,7 @@
 ﻿
 # Plex Portal
 
-[![Version](https://img.shields.io/badge/Version-1.12.0-34d399?style=flat-square)](./package.json)
+[![Version](https://img.shields.io/badge/Version-1.13.0-34d399?style=flat-square)](./package.json)
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
