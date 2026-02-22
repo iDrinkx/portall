@@ -39,49 +39,40 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: Checkout with credentials for README update
-        if: ${{ steps.semantic.outputs.new_release_published == 'true' }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update README version badge
+      - name: Update README version badge via GitHub API
         if: ${{ steps.semantic.outputs.new_release_published == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.semantic.outputs.new_release_version }}
         run: |
-          # Get version from semantic-release output or package.json
+          # Get version
           VERSION=${VERSION:-$(node -p "require('./package.json').version")}
           echo "📦 Updating README badge to v$VERSION"
 
-          # Ensure we're on the latest main
-          git fetch origin main
-          git checkout origin/main -- README.md || git checkout main -- README.md
+          # Get current README content
+          CURRENT=$(gh api repos/${{ github.repository }}/contents/README.md --jq '.content' | base64 -d)
 
-          # Update README
-          sed -i "s/Version-[0-9]\+\.[0-9]\+\.[0-9]\+/Version-$VERSION/" README.md
+          # Update version
+          UPDATED=$(echo "$CURRENT" | sed "s/Version-[0-9]\+\.[0-9]\+\.[0-9]\+/Version-$VERSION/")
 
-          # Check if file actually changed
-          if ! git diff --quiet README.md; then
+          # Check if changed
+          if [ "$CURRENT" != "$UPDATED" ]; then
             echo "✓ README needs update"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add README.md
 
-            # Try to commit and push
-            if git commit -m "chore(release): update README version badge to v$VERSION [skip ci]"; then
-              if git push origin main; then
-                echo "✓ README pushed successfully"
-              else
-                echo "⚠️  Push failed, retrying..."
-                git push -u origin main || echo "❌ Failed to push"
-              fi
-            else
-              echo "⚠️  No changes to commit"
-            fi
+            # Get SHA for update
+            SHA=$(gh api repos/${{ github.repository }}/contents/README.md --jq '.sha')
+
+            # Update file via API
+            gh api repos/${{ github.repository }}/contents/README.md \
+              --input - \
+              -F message="chore(release): update README version badge to v$VERSION [skip ci]" \
+              -F content="$(echo "$UPDATED" | base64 -w0)" \
+              -F sha="$SHA" \
+              << EOF
+            {}
+            EOF
+
+            echo "✓ README updated via GitHub API"
           else
             echo "✓ README already up to date"
           fi
