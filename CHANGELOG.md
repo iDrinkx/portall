@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.15.0](https://github.com/iDrinkx/plex-portal/compare/v1.14.0...v1.15.0) (2026-02-22)
+
+### ✨ Nouvelles fonctionnalités
+
+* add version footer and changelog modal to dashboard ([e43c00d](https://github.com/iDrinkx/plex-portal/commit/e43c00de1b8026b1632f85f97be6f4e142b370b8))
+
 ## [1.14.0](https://github.com/iDrinkx/plex-portal/compare/v1.13.6...v1.14.0) (2026-02-22)
 
 ### ✨ Nouvelles fonctionnalités
