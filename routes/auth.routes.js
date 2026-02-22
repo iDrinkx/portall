@@ -5,6 +5,7 @@ const log = require("../utils/logger");
 const logAuth = log.create('[Auth]');
 
 const { isUserAuthorized, getAuthorizedServerUsers, getServerOwnerId, getServerMachineId } = require("../utils/plex");
+const { checkWizarrAccess } = require("../utils/wizarr");
 
 /**
  * Grab le cookie connect.sid de Seerr via le token Plex.
@@ -137,12 +138,12 @@ router.get("/auth-complete", async (req, res) => {
 
   logAuth.info(`Connexion: ${user.username} <${user.email}> (ID ${user.id})`);
 
-  // ── Vérification accès serveur ─────────────────────────────────────────────
+  // ── Vérification accès serveur (Plex) ─────────────────────────────────────────────
   // On lance en parallèle ownerId (mis en cache dès le 1er login) et machineId
   // (mis en cache dès le 1er login) pendant que le profil vient d'être récupéré.
   // Après le 1er login : ownerId + machineId = instantané (cache mémoire).
   // La liste des utilisateurs autorisés est le seul appel réseau restant.
-  let authorized = true;
+  let authorizedByPlex = true;
   if (process.env.PLEX_URL && process.env.PLEX_TOKEN) {
     try {
       const userId = parseInt(user.id);
@@ -161,7 +162,7 @@ router.get("/auth-complete", async (req, res) => {
         const authorizedUsers = await getAuthorizedServerUsers(process.env.PLEX_TOKEN, machineId);
         if (!authorizedUsers.some(u => u.id === userId)) {
           logAuth.warn(`Accès refusé — ${user.username} (${userId}) absent du serveur`);
-          authorized = false;
+          authorizedByPlex = false;
         }
       }
     } catch (authErr) {
@@ -171,8 +172,16 @@ router.get("/auth-complete", async (req, res) => {
     logAuth.warn("PLEX_URL ou PLEX_TOKEN manquant — vérification d'accès ignorée");
   }
 
-  if (!authorized) {
+  if (!authorizedByPlex) {
     return res.redirect((req.basePath || "") + "/?error=unauthorized");
+  }
+
+  // ── Vérification accès Wizarr ──────────────────────────────────────────────────────
+  // Vérifie que l'utilisateur a un abonnement actif chez Wizarr
+  const wizarrCheck = await checkWizarrAccess(user, process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
+  if (!wizarrCheck.authorized) {
+    logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
+    return res.redirect((req.basePath || "") + "/?error=wizarr_access_denied");
   }
 
   // 2) Cookie SSO Seerr — seulement si autorisé
