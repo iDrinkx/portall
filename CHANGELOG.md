@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## [1.16.0](https://github.com/iDrinkx/plex-portal/compare/v1.15.5...v1.16.0) (2026-02-22)
+
+### ✨ Nouvelles fonctionnalités
+
+* add latest version check from GitHub API and update version badge styling ([402a77c](https://github.com/iDrinkx/plex-portal/commit/402a77ce8408ea633d8693790bf4bae7724fecd4))
+
 ## [1.15.5](https://github.com/iDrinkx/plex-portal/compare/v1.15.4...v1.15.5) (2026-02-22)
 
 ### 🐛 Corrections de bugs
