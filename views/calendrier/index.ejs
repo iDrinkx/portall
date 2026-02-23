@@ -436,42 +436,103 @@
       .cal-grid-week {
         grid-template-columns: repeat(4, 1fr);
       }
+
+      .cal-day-col {
+        min-height: 350px;
+      }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 768px) {
+      .cal-page {
+        padding: 12px;
+      }
+
       .cal-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 20px;
       }
 
       .cal-header h2 {
         width: 100%;
+        font-size: 18px;
       }
 
       .cal-toolbar {
         width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .cal-toolbar button {
+        padding: 5px 10px;
+        font-size: 11px;
       }
 
       .cal-grid-week {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+
+      .cal-day-col {
+        min-height: 300px;
+        padding: 6px;
+      }
+
+      .cal-day-header {
+        font-size: 10px;
+        padding: 6px 0;
+        margin-bottom: 6px;
+      }
+
+      .cal-event {
+        padding: 5px 6px;
+        margin-bottom: 4px;
+        font-size: 10px;
       }
 
       .cal-grid-month {
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
       }
 
       .cal-month-cell {
-        min-height: 60px;
+        min-height: 70px;
         padding: 4px;
       }
 
       .cal-month-day {
         font-size: 9px;
+        font-weight: 700;
         margin-bottom: 2px;
+      }
+
+      .cal-month-events {
+        font-size: 8px;
+        line-height: 1.1;
       }
 
       .cal-month-event-mini {
         font-size: 8px;
+        margin-bottom: 1px;
+      }
+
+      .cal-event-card {
+        padding: 10px;
+        gap: 8px;
+      }
+
+      .cal-event-card-thumb {
+        width: 40px;
+        height: 60px;
+      }
+
+      .cal-event-card-title {
+        font-size: 12px;
+      }
+
+      .cal-event-card-sub {
+        font-size: 10px;
       }
 
       .cal-table {
@@ -479,11 +540,104 @@
       }
 
       .cal-table th, .cal-table td {
-        padding: 8px;
+        padding: 6px;
       }
 
       .cal-table-type {
         width: auto;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .cal-page {
+        padding: 8px;
+      }
+
+      .cal-header h2 {
+        font-size: 16px;
+      }
+
+      .cal-nav-buttons {
+        gap: 8px;
+      }
+
+      .cal-nav-buttons button {
+        padding: 6px 10px;
+        font-size: 14px;
+      }
+
+      .cal-toolbar {
+        gap: 6px;
+      }
+
+      .cal-toolbar button {
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+
+      .cal-toolbar-sep {
+        height: 16px;
+      }
+
+      .cal-grid-week {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .cal-day-col {
+        min-height: 200px;
+        padding: 4px;
+      }
+
+      .cal-day-header {
+        font-size: 9px;
+        padding: 4px 0;
+        margin-bottom: 4px;
+      }
+
+      .cal-event {
+        padding: 4px 5px;
+        margin-bottom: 3px;
+        font-size: 9px;
+      }
+
+      .cal-grid-month {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+      }
+
+      .cal-month-cell {
+        min-height: 60px;
+        padding: 3px;
+      }
+
+      .cal-month-day {
+        font-size: 8px;
+        margin-bottom: 1px;
+      }
+
+      .cal-month-events {
+        font-size: 7px;
+      }
+
+      .cal-event-card {
+        flex-direction: column;
+        padding: 8px;
+        gap: 6px;
+      }
+
+      .cal-event-card-thumb {
+        width: 100%;
+        height: 40px;
+      }
+
+      .cal-table {
+        overflow-x: auto;
+      }
+
+      .cal-table th, .cal-table td {
+        padding: 5px;
+        font-size: 10px;
       }
     }
   </style>

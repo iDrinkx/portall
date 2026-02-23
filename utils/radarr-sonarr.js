@@ -1,26 +1,30 @@
 const fetch = require('node-fetch');
 
 /**
- * Convertit une URL relative en URL absolue en utilisant le baseUrl
+ * Convertit une URL relative en URL absolue en utilisant le baseUrl public ou serveur
  * @param {string|null} url - URL relative ou absolue
- * @param {string} baseUrl - URL de base (ex: http://sonarr:8989)
+ * @param {string} baseUrl - URL de base interne (ex: http://sonarr:8989)
+ * @param {string|null} publicUrl - URL publique accessible au client (ex: https://sonarr.example.com)
  * @returns {string|null} - URL absolue ou null
  */
-function makeAbsoluteUrl(url, baseUrl) {
+function makeAbsoluteUrl(url, baseUrl, publicUrl) {
   if (!url) return null;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${baseUrl}${url}`;
+  // Utiliser l'URL publique si disponible, sinon l'URL du serveur
+  const targetUrl = publicUrl || baseUrl;
+  return `${targetUrl}${url}`;
 }
 
 /**
  * Récupère les films de Radarr pour une plage de dates.
- * @param {string} radarrUrl  - URL Radarr (ex: http://radarr:7878)
+ * @param {string} radarrUrl  - URL Radarr interne (ex: http://radarr:7878)
  * @param {string} apiKey     - Clé API Radarr
  * @param {string} start      - Date de début ISO (YYYY-MM-DD)
  * @param {string} end        - Date de fin ISO (YYYY-MM-DD)
+ * @param {string} publicUrl  - URL publique Radarr accessible au client (optionnel)
  * @returns {Promise<Array>}  - Liste d'events normalisés
  */
-async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
+async function getRadarrCalendar(radarrUrl, apiKey, start, end, publicUrl) {
   if (!radarrUrl || !apiKey) return [];
 
   try {
@@ -45,7 +49,7 @@ async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
         date: (m.digitalRelease || m.physicalRelease || m.inCinemas || '').slice(0, 10),
         runtime: m.runtime || 0,
         available: !!m.hasFile,
-        thumb: makeAbsoluteUrl(m.images?.find(img => img.coverType === 'poster')?.url, baseUrl),
+        thumb: makeAbsoluteUrl(m.images?.find(img => img.coverType === 'poster')?.url, baseUrl, publicUrl),
         year: m.year || null,
         source: 'radarr'
       }))
@@ -57,13 +61,14 @@ async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
 
 /**
  * Récupère les épisodes de Sonarr pour une plage de dates.
- * @param {string} sonarrUrl  - URL Sonarr (ex: http://sonarr:8989)
+ * @param {string} sonarrUrl  - URL Sonarr interne (ex: http://sonarr:8989)
  * @param {string} apiKey     - Clé API Sonarr
  * @param {string} start      - Date de début ISO (YYYY-MM-DD)
  * @param {string} end        - Date de fin ISO (YYYY-MM-DD)
+ * @param {string} publicUrl  - URL publique Sonarr accessible au client (optionnel)
  * @returns {Promise<Array>}  - Liste d'events normalisés
  */
-async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
+async function getSonarrCalendar(sonarrUrl, apiKey, start, end, publicUrl) {
   if (!sonarrUrl || !apiKey) return [];
 
   try {
@@ -85,7 +90,7 @@ async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
       seriesMap[s.id] = {
         title: s.title,
         runtime: s.runtime || 0,
-        thumb: makeAbsoluteUrl(s.images?.find(img => img.coverType === 'poster')?.url, baseUrl)
+        thumb: makeAbsoluteUrl(s.images?.find(img => img.coverType === 'poster')?.url, baseUrl, publicUrl)
       };
     });
 

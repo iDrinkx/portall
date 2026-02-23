@@ -187,10 +187,12 @@ SEERR_PUBLIC_URL: "https://seerr.votredomaine.com" # URL publique (src iframe)
 SEERR_API_KEY: "votre-cle"                        # Clé API (stats profil)
 
 # Radarr & Sonarr  calendrier des sorties
-RADARR_URL: "http://radarr:7878"
+RADARR_URL: "http://radarr:7878"              # URL interne (appels API)
 RADARR_API_KEY: "votre-cle"
-SONARR_URL: "http://sonarr:8989"
+RADARR_PUBLIC_URL: "https://radarr.votredomaine.com"  # URL publique (images affichées au client)
+SONARR_URL: "http://sonarr:8989"              # URL interne (appels API)
 SONARR_API_KEY: "votre-cle"
+SONARR_PUBLIC_URL: "https://sonarr.votredomaine.com"  # URL publique (images affichées au client)
 
 # Sécurité  restriction aux utilisateurs du serveur Plex
 PLEX_URL: "http://plex:32400"

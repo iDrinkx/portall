@@ -974,8 +974,20 @@ router.get("/api/calendar", requireAuth, async (req, res) => {
   try {
     const data = await cache.getOrSet(cacheKey, async () => {
       const [movies, episodes] = await Promise.all([
-        getRadarrCalendar(process.env.RADARR_URL, process.env.RADARR_API_KEY, start, end).catch(() => []),
-        getSonarrCalendar(process.env.SONARR_URL, process.env.SONARR_API_KEY, start, end).catch(() => [])
+        getRadarrCalendar(
+          process.env.RADARR_URL,
+          process.env.RADARR_API_KEY,
+          start,
+          end,
+          process.env.RADARR_PUBLIC_URL
+        ).catch(() => []),
+        getSonarrCalendar(
+          process.env.SONARR_URL,
+          process.env.SONARR_API_KEY,
+          start,
+          end,
+          process.env.SONARR_PUBLIC_URL
+        ).catch(() => [])
       ]);
       return [...movies, ...episodes].sort((a, b) => a.date.localeCompare(b.date));
     }, 5 * 60 * 1000);  // cache 5 min

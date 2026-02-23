@@ -57,8 +57,10 @@ services:
       # Affiche un calendrier des sorties films/séries à venir
       # RADARR_URL: "http://192.168.1.x:7878"
       # RADARR_API_KEY: "your-radarr-api-key"
+      # RADARR_PUBLIC_URL: "https://radarr.votredomaine.com"  # URL publique pour les images des posters
       # SONARR_URL: "http://192.168.1.x:8989"
       # SONARR_API_KEY: "your-sonarr-api-key"
+      # SONARR_PUBLIC_URL: "https://sonarr.votredomaine.com"  # URL publique pour les images des posters
     
     volumes:
       # Logo et fichiers de config
