@@ -105,7 +105,7 @@ async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
       seriesMap[s.id] = {
         title: s.title,
         runtime: s.runtime || 0,
-        thumb: getTvdbPosterUrl(s.images?.find(img => img.coverType === 'poster')?.url)
+        thumb: getTvdbPosterUrl(s.images?.find(img => img.coverType === 'poster')?.remoteUrl || s.images?.find(img => img.coverType === 'poster')?.url)
       };
     });
 
