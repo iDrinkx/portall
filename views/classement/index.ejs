@@ -349,8 +349,8 @@
       : 'drop-shadow(0 0 9px ' + user.rank.color + 'cc) drop-shadow(0 0 22px ' + user.rank.color + '55)';
     var imgPart  = user.thumb
       ? '<img src="' + user.thumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
-        + '<div class="lb-pod-placeholder" style="display:none">' + initials + '</div>'
-      : '<div class="lb-pod-placeholder">' + initials + '</div>';
+        + '<div class="lb-pod-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
+      : '<div class="lb-pod-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
     return '<div class="lb-podium-card lb-podium-card--' + rank + '">'
       + '<span class="lb-podium-medal">' + medal + '</span>'
@@ -388,8 +388,8 @@
 
     var imgPart = user.thumb
       ? '<img src="' + user.thumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
-        + '<div class="lb-row-placeholder" style="display:none">' + initials + '</div>'
-      : '<div class="lb-row-placeholder">' + initials + '</div>';
+        + '<div class="lb-row-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
+      : '<div class="lb-row-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
     return '<div class="lb-row' + (isMe ? ' lb-row--me' : '') + '">'
       + posHtml
