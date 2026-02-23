@@ -1032,6 +1032,7 @@
   let allEvents = [];
   let eventsByDate = {};
   const translationCache = {}; // Cache local pour les traductions
+  let lastTranslationTime = 0; // Throttling pour éviter rate limiting
 
   // Fonction pour traduire du texte en français (lazy - uniquement quand demandé)
   async function translateToFrench(text) {
@@ -1041,9 +1042,18 @@
     if (translationCache[text]) return translationCache[text];
 
     try {
-      const encoded = encodeURIComponent(text);
+      // Throttling: attendre au moins 1 seconde entre les requêtes
+      const now = Date.now();
+      if (now - lastTranslationTime < 1000) {
+        await new Promise(r => setTimeout(r, 1000 - (now - lastTranslationTime)));
+      }
+      lastTranslationTime = Date.now();
+
+      // Limiter la longueur du texte pour éviter les erreurs API
+      const textToTranslate = text.length > 500 ? text.substring(0, 497) + '...' : text;
+      const encoded = encodeURIComponent(textToTranslate);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 8000);
 
       const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|fr`, {
         signal: controller.signal
@@ -1147,9 +1157,46 @@
       allEvents = events || [];
       buildEventsByDate();
       render();
+
+      // Traduire les titres des séries en arrière-plan (lazy)
+      translateSeriesTitles();
     } catch (err) {
       console.error('Calendar fetch failed:', err);
       elView.innerHTML = `<div class="cal-error">❌ Erreur: ${err.message}</div>`;
+    }
+  }
+
+  // Traduire les titres des séries (Sonarr) en arrière-plan
+  async function translateSeriesTitles() {
+    // Récupérer tous les titres uniques des séries
+    const seriesTitles = {};
+    allEvents.forEach(evt => {
+      if (evt.source === 'sonarr' && evt.title && !seriesTitles[evt.title]) {
+        seriesTitles[evt.title] = true;
+      }
+    });
+
+    // Traduire chaque titre en arrière-plan
+    let titlesUpdated = false;
+    for (const title of Object.keys(seriesTitles)) {
+      try {
+        const translated = await translateToFrench(title);
+        if (translated && translated !== title) {
+          // Remplacer dans allEvents
+          allEvents.forEach(evt => {
+            if (evt.title === title) {
+              evt.title = translated;
+            }
+          });
+          titlesUpdated = true;
+
+          // Re-construire et re-rendre pour mettre à jour l'affichage
+          buildEventsByDate();
+          render();
+        }
+      } catch (err) {
+        // Ignorer les erreurs de traduction
+      }
     }
   }
 
