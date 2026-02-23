@@ -1,6 +1,18 @@
 const fetch = require('node-fetch');
 
 /**
+ * Convertit une URL relative en URL absolue en utilisant le baseUrl
+ * @param {string|null} url - URL relative ou absolue
+ * @param {string} baseUrl - URL de base (ex: http://sonarr:8989)
+ * @returns {string|null} - URL absolue ou null
+ */
+function makeAbsoluteUrl(url, baseUrl) {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${baseUrl}${url}`;
+}
+
+/**
  * Récupère les films de Radarr pour une plage de dates.
  * @param {string} radarrUrl  - URL Radarr (ex: http://radarr:7878)
  * @param {string} apiKey     - Clé API Radarr
@@ -12,7 +24,8 @@ async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
   if (!radarrUrl || !apiKey) return [];
 
   try {
-    const url = `${radarrUrl.replace(/\/$/, '')}/api/v3/calendar?start=${start}&end=${end}&unmonitored=false`;
+    const baseUrl = radarrUrl.replace(/\/$/, '');
+    const url = `${baseUrl}/api/v3/calendar?start=${start}&end=${end}&unmonitored=false`;
     const resp = await fetch(url, {
       headers: {
         'X-Api-Key': apiKey,
@@ -32,7 +45,7 @@ async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
         date: (m.digitalRelease || m.physicalRelease || m.inCinemas || '').slice(0, 10),
         runtime: m.runtime || 0,
         available: !!m.hasFile,
-        thumb: m.images?.find(img => img.coverType === 'poster')?.url || null,
+        thumb: makeAbsoluteUrl(m.images?.find(img => img.coverType === 'poster')?.url, baseUrl),
         year: m.year || null,
         source: 'radarr'
       }))
@@ -72,7 +85,7 @@ async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
       seriesMap[s.id] = {
         title: s.title,
         runtime: s.runtime || 0,
-        thumb: s.images?.find(img => img.coverType === 'poster')?.url || null
+        thumb: makeAbsoluteUrl(s.images?.find(img => img.coverType === 'poster')?.url, baseUrl)
       };
     });
 
