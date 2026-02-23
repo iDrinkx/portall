@@ -1157,7 +1157,7 @@
 
       evts.slice(0, 3).forEach(evt => {
         const cls = evt.available ? 'available' : '';
-        html += `<div class="cal-month-event-mini ${cls}">• ${evt.title}</div>`;
+        html += `<div class="cal-month-event-mini ${cls}" data-event-id="${evt.id}" style="cursor: pointer;">• ${evt.title}</div>`;
       });
 
       if (evts.length > 3) {
@@ -1210,6 +1210,7 @@
 
     html += '</div>';
     elView.innerHTML = html;
+    attachEventListeners();
   }
 
   function renderWeekBlock(weekStart, days) {
@@ -1233,7 +1234,7 @@
       } else {
         evts.forEach(evt => {
           const cls = evt.available ? 'available' : '';
-          html += `<div class="cal-week-event ${cls}">✓ ${evt.title}</div>`;
+          html += `<div class="cal-week-event ${cls}" data-event-id="${evt.id}" style="cursor: pointer;">✓ ${evt.title}</div>`;
         });
       }
 
@@ -1257,7 +1258,7 @@
 
     let html = '<div class="cal-day-detail">';
     evts.forEach(evt => {
-      html += `<div class="cal-event-card">
+      html += `<div class="cal-event-card" data-event-id="${evt.id}">
         ${evt.thumb ? `<div class="cal-event-card-thumb"><img src="${evt.thumb}" alt="${evt.title}"></div>` : ''}
         <div class="cal-event-card-content">
           <div class="cal-event-card-title">${evt.title}</div>
@@ -1300,7 +1301,7 @@
       <tbody>`;
 
     allEvents.forEach(evt => {
-      html += `<tr>
+      html += `<tr data-event-id="${evt.id}" style="cursor: pointer;">
         <td>${dayFormat.format(isoToDate(evt.date))}</td>
         <td class="cal-table-type">${evt.type === 'movie' ? '🎬' : '📺'}</td>
         <td><strong>${evt.title}</strong></td>
@@ -1426,7 +1427,7 @@
 
   // Ajouter le événement de clic sur les cartes (sera attaché après le rendu)
   function attachEventListeners() {
-    document.querySelectorAll('.cal-event').forEach(el => {
+    document.querySelectorAll('[data-event-id]').forEach(el => {
       el.addEventListener('click', function() {
         const eventId = this.dataset.eventId;
         const event = allEvents.find(e => e.id === eventId);
