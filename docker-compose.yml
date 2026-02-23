@@ -52,6 +52,13 @@ services:
       # Permet de restreindre l'accès aux utilisateurs du serveur Plex
       # PLEX_URL: "http://192.168.10.104:32400"
       # PLEX_TOKEN: "your-plex-token"
+
+      # 📅 CALENDRIER (Radarr + Sonarr)
+      # Affiche un calendrier des sorties films/séries à venir
+      # RADARR_URL: "http://192.168.1.x:7878"
+      # RADARR_API_KEY: "your-radarr-api-key"
+      # SONARR_URL: "http://192.168.1.x:8989"
+      # SONARR_API_KEY: "your-sonarr-api-key"
     
     volumes:
       # Logo et fichiers de config

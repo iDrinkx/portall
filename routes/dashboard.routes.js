@@ -7,6 +7,7 @@ const { computeSubscription } = require("../utils/wizarr");
 const { getTautulliStats } = require("../utils/tautulli");
 const { getSeerrStats } = require("../utils/seerr");
 const { getPlexJoinDate } = require("../utils/plex");
+const { getRadarrCalendar, getSonarrCalendar } = require("../utils/radarr-sonarr");
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
 const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("../utils/database");
@@ -237,6 +238,14 @@ router.get("/succes", requireAuth, async (req, res) => {
       embed: req.query.embed === '1'
     });
   }
+});
+
+/* ===============================
+   📅 CALENDRIER
+=============================== */
+
+router.get("/calendrier", requireAuth, (req, res) => {
+  res.render("calendrier/index", { user: req.session.user, basePath: req.basePath });
 });
 
 /* ===============================
@@ -940,6 +949,41 @@ router.get('/api/classement', requireAuth, async (req, res) => {
   } catch (err) {
     logLB.error('API classement:', err.message);
     res.status(500).json({ error: 'classement failed' });
+  }
+});
+
+/* ===============================
+   📅 API CALENDRIER (Radarr + Sonarr)
+=============================== */
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function plusDaysISO(iso, n) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+router.get("/api/calendar", requireAuth, async (req, res) => {
+  const start = req.query.start || todayISO();
+  const end   = req.query.end   || plusDaysISO(start, 30);
+  const cacheKey = `calendar:${start}:${end}`;
+
+  try {
+    const data = await cache.getOrSet(cacheKey, async () => {
+      const [movies, episodes] = await Promise.all([
+        getRadarrCalendar(process.env.RADARR_URL, process.env.RADARR_API_KEY, start, end).catch(() => []),
+        getSonarrCalendar(process.env.SONARR_URL, process.env.SONARR_API_KEY, start, end).catch(() => [])
+      ]);
+      return [...movies, ...episodes].sort((a, b) => a.date.localeCompare(b.date));
+    }, 5 * 60 * 1000);  // cache 5 min
+
+    res.json({ events: data, start, end });
+  } catch (err) {
+    log.create('[Calendrier]').error(err.message);
+    res.status(500).json({ error: err.message, events: [] });
   }
 });
 
