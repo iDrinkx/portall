@@ -1157,46 +1157,9 @@
       allEvents = events || [];
       buildEventsByDate();
       render();
-
-      // Traduire les titres des séries en arrière-plan (lazy)
-      translateSeriesTitles();
     } catch (err) {
       console.error('Calendar fetch failed:', err);
       elView.innerHTML = `<div class="cal-error">❌ Erreur: ${err.message}</div>`;
-    }
-  }
-
-  // Traduire les titres des séries (Sonarr) en arrière-plan
-  async function translateSeriesTitles() {
-    // Récupérer tous les titres uniques des séries
-    const seriesTitles = {};
-    allEvents.forEach(evt => {
-      if (evt.source === 'sonarr' && evt.title && !seriesTitles[evt.title]) {
-        seriesTitles[evt.title] = true;
-      }
-    });
-
-    // Traduire chaque titre en arrière-plan
-    let titlesUpdated = false;
-    for (const title of Object.keys(seriesTitles)) {
-      try {
-        const translated = await translateToFrench(title);
-        if (translated && translated !== title) {
-          // Remplacer dans allEvents
-          allEvents.forEach(evt => {
-            if (evt.title === title) {
-              evt.title = translated;
-            }
-          });
-          titlesUpdated = true;
-
-          // Re-construire et re-rendre pour mettre à jour l'affichage
-          buildEventsByDate();
-          render();
-        }
-      } catch (err) {
-        // Ignorer les erreurs de traduction
-      }
     }
   }
 
