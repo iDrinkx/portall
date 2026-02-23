@@ -893,6 +893,8 @@
       position: absolute;
       top: 12px;
       right: 12px;
+      z-index: 10;
+      pointer-events: auto;
       background: rgba(255, 255, 255, 0.1);
       border: none;
       color: var(--text);
@@ -1474,10 +1476,14 @@
     }
   }
 
-  elModalClose.addEventListener('click', closeModal);
-  elModalOverlay.addEventListener('click', (e) => {
-    if (e.target === elModalOverlay) closeModal();
-  });
+  if (elModalClose) {
+    elModalClose.addEventListener('click', closeModal);
+  }
+  if (elModalOverlay) {
+    elModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elModalOverlay) closeModal();
+    });
+  }
 
   // Gestion overlay jour dynamique
   const elDayOverlay = document.getElementById('calDayOverlay');
@@ -1487,10 +1493,14 @@
     elDayOverlay.classList.remove('active');
   }
 
-  elDayOverlayClose.addEventListener('click', closeDayOverlay);
-  elDayOverlay.addEventListener('click', (e) => {
-    if (e.target === elDayOverlay) closeDayOverlay();
-  });
+  if (elDayOverlayClose) {
+    elDayOverlayClose.addEventListener('click', closeDayOverlay);
+  }
+  if (elDayOverlay) {
+    elDayOverlay.addEventListener('click', (e) => {
+      if (e.target === elDayOverlay) closeDayOverlay();
+    });
+  }
 
   // Ajouter le événement de clic sur les cartes (sera attaché après le rendu)
   function attachEventListeners() {
