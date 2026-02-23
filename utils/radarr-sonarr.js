@@ -24,10 +24,12 @@ function getTmdbPosterUrl(posterPath) {
  */
 function getTvdbPosterUrl(posterPath) {
   if (!posterPath) return null;
-  // Si c'est une URL externe, la retourner telle quelle
-  if (posterPath.startsWith('http://') || posterPath.startsWith('https://')) return posterPath;
+  // Si c'est une URL externe, la retourner telle quelle (mais enlever les query params CORS restrictifs)
+  if (posterPath.startsWith('http://') || posterPath.startsWith('https://')) {
+    return posterPath.split('?')[0]; // Enlever les query params (ex: ?lastWrite=...)
+  }
   // Construire l'URL TVDB (CDN artworks)
-  return `https://artworks.thetvdb.com${posterPath}`;
+  return `https://artworks.thetvdb.com${posterPath.split('?')[0]}`; // Enlever query params si présents
 }
 
 /**
