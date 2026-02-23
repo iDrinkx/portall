@@ -506,6 +506,9 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     const rank     = XP_SYSTEM.getRankByLevel(level);
     const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
 
+    // 🔍 DEBUG: Log pour diagnostic XP
+    log.create('[XP-DEBUG]').info(`${user.username}: hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
+
     res.json({
       rank: { color: rank.color, name: rank.name, icon: rank.icon, bgColor: rank.bgColor, borderColor: rank.borderColor },
       level, totalXp,
@@ -936,6 +939,11 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       const level      = XP_SYSTEM.getLevel(totalXp);
       const rank       = XP_SYSTEM.getRankByLevel(level);
       const thumb      = thumbMap[key] || null;
+
+      // 🔍 DEBUG: Log pour diagnostic XP
+      if (key === 'idrink') {
+        logLB.info(`[DEBUG] ${stats.username}: hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
+      }
 
       return { username: stats.username, thumb, totalHours, totalXp, level,
                rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
