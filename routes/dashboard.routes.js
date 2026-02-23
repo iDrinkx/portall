@@ -915,6 +915,11 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       const key    = (stats.username || '').toLowerCase();
       const dbUser = dbMap[key] || null;
 
+      // 🔍 DEBUG: Vérifier si dbUser est trouvé
+      if (key.includes('idrink')) {
+        logLB.info(`[DEBUG-LOOKUP] username=${stats.username}, key=${key}, dbUser found=${!!dbUser}, dbUser.joinedAt=${dbUser?.joinedAt || 'NULL'}`);
+      }
+
       let badgeCount = 0;
       let achievementsXp = 0;
       if (dbUser) {
@@ -922,7 +927,12 @@ router.get('/api/classement', requireAuth, async (req, res) => {
           const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
           badgeCount = Object.keys(unlockedMap).length;
           achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-        } catch (_) {}
+          if (key.includes('idrink')) {
+            logLB.info(`[DEBUG-ACHIEVEMENTS] dbUser.id=${dbUser.id}, unlockedMap=${JSON.stringify(unlockedMap)}, achievementsXp=${achievementsXp}`);
+          }
+        } catch (err) {
+          logLB.error(`[DEBUG-ERROR] Error getting achievements for ${key}: ${err.message}`);
+        }
       }
 
       // 🔧 FIX: Calculer daysJoined de manière cohérente avec le profil
