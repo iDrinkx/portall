@@ -14,6 +14,7 @@ const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = requ
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
+const { DatabaseMaintenance } = require("../utils/database");  // 🧹 Database maintenance
 
 /* ===============================
    🔐 AUTH
@@ -943,7 +944,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
     const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
 
     const result = { byHours, byLevel };
-    cache.set(cacheKey, result, 5 * 60 * 1000); // 5 min
+    cache.set(cacheKey, result, 30 * 1000); // 30 secondes (synchro avec profil)
     logLB.debug(`Classement généré: ${users.length} users`);
     res.json(result);
   } catch (err) {
@@ -1045,6 +1046,36 @@ router.get('/api/version-badge.svg', (_, res) => {
     res.send(svg);
   } catch (err) {
     res.status(500).json({ error: 'Could not generate version badge' });
+  }
+});
+
+/* ===============================
+   🧹 DATABASE MAINTENANCE
+=============================== */
+
+/**
+ * POST /api/maintenance/database
+ * Lance une maintenance manuelle de la base de données
+ * (nettoyage des anciennes données, optimisation)
+ */
+router.post('/api/maintenance/database', requireAuth, async (req, res) => {
+  try {
+    const logMaint = log.create('[API-Maintenance]');
+    logMaint.info('Maintenance manuelle lancée par', req.session.user?.username || 'unknown');
+
+    const result = DatabaseMaintenance.runFullMaintenance();
+
+    res.json({
+      success: true,
+      message: 'Maintenance complète exécutée avec succès',
+      details: result
+    });
+  } catch (err) {
+    log.create('[API-Maintenance]').error('Erreur maintenance:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la maintenance: ' + err.message
+    });
   }
 });
 

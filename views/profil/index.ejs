@@ -206,7 +206,7 @@
   <!-- SECTION SUCCÈS -->
   <div class="badges-section">
     <div class="badges-header-with-link">
-      <h2>🏆 Progression des Succès</h2>
+      <h2>🏆 Progression des Badges</h2>
       <button class="action-pill" onclick="openXpModal()">⚡ Répartition XP →</button>
     </div>
     <div class="badges-container" id="badgesContainer"></div>
@@ -1921,10 +1921,10 @@
               if (rankData) item.classList.toggle("unlocked", newLevel >= rankData.minLevel);
             });
             
-            // Update formules / sources d'XP
-            const newHoursXp = Math.round(newTotalHours * 8);
+            // Update formules / sources d'XP (multipliers: hours=10, anciennete=1.5)
+            const newHoursXp = Math.round(newTotalHours * 10);
             const newDaysJoined = Math.floor((Date.now() - (new Date(readyStats.joinedAt).getTime())) / (1000 * 60 * 60 * 24));
-            const newAncienneteXp = newDaysJoined * 5;
+            const newAncienneteXp = Math.round(newDaysJoined * 1.5);
             const newTotalXpBreakdown = newHoursXp + 0 + newAncienneteXp;
             
             const newHoursPercent = newTotalXpBreakdown > 0 ? Math.round((newHoursXp / newTotalXpBreakdown) * 100) : 0;

@@ -447,6 +447,135 @@ const SessionCacheQueries = {
 };
 
 /**
+ * 🧹 Database Maintenance - Nettoyage automatique de la base de données
+ */
+const DatabaseMaintenance = {
+  /**
+   * 🗑️ Supprimer les sessions Tautulli de plus de 365 jours (1 an)
+   * C'est la table la plus volumineuse
+   */
+  cleanOldTautulliSessions(days = 365) {
+    const db = getDb();
+    const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const stmt = db.prepare('DELETE FROM tautulli_sessions WHERE session_date < ?');
+    const result = stmt.run(beforeDate);
+    require('./logger').create('[DB-Maintenance]').info(`✂️ tautulli_sessions: ${result.changes} sessions supprimées (>${days} jours)`);
+    return result.changes;
+  },
+
+  /**
+   * 🗑️ Supprimer le cache de session ancien (> 90 jours)
+   */
+  cleanOldSessionCache(days = 90) {
+    const db = getDb();
+    const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const stmt = db.prepare('DELETE FROM session_cache WHERE startedAt < ?');
+    const result = stmt.run(beforeDate);
+    require('./logger').create('[DB-Maintenance]').info(`✂️ session_cache: ${result.changes} entrées supprimées (>${days} jours)`);
+    return result.changes;
+  },
+
+  /**
+   * 🗑️ Garder seulement 2 ans d'historique watch_history
+   */
+  cleanOldWatchHistory(days = 730) {  // 2 ans
+    const db = getDb();
+    const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const stmt = db.prepare('DELETE FROM watch_history WHERE scannedAt < ?');
+    const result = stmt.run(beforeDate);
+    require('./logger').create('[DB-Maintenance]').info(`✂️ watch_history: ${result.changes} entrées supprimées (>${days} jours)`);
+    return result.changes;
+  },
+
+  /**
+   * 🗑️ Nettoyer les métadonnées de sync anciennes
+   */
+  cleanOldSyncMetadata(days = 180) {  // 6 mois
+    const db = getDb();
+    const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const stmt = db.prepare('DELETE FROM sync_metadata WHERE synced_at < ?');
+    const result = stmt.run(beforeDate);
+    require('./logger').create('[DB-Maintenance]').info(`✂️ sync_metadata: ${result.changes} entrées supprimées (>${days} jours)`);
+    return result.changes;
+  },
+
+  /**
+   * 💾 Optimiser la base de données (VACUUM)
+   * Récupère l'espace disque après les suppressions
+   */
+  vacuumDatabase() {
+    try {
+      const db = getDb();
+      db.exec('VACUUM');
+      require('./logger').create('[DB-Maintenance]').info('💾 VACUUM terminé - base de données optimisée');
+      return true;
+    } catch (err) {
+      require('./logger').create('[DB-Maintenance]').error('VACUUM échoué:', err.message);
+      return false;
+    }
+  },
+
+  /**
+   * 🧹 MAINTENANCE COMPLÈTE - à exécuter une fois par semaine
+   * Nettoie tous les anciens enregistrements et optimise la DB
+   */
+  runFullMaintenance() {
+    const log = require('./logger').create('[DB-Maintenance]');
+    const startTime = Date.now();
+
+    log.info('═══════════════════════════════════════════════════');
+    log.info('🧹 DÉBUT MAINTENANCE COMPLÈTE DE LA BASE DE DONNÉES');
+    log.info('═══════════════════════════════════════════════════');
+
+    const results = {
+      tautulliSessions: 0,
+      sessionCache: 0,
+      watchHistory: 0,
+      syncMetadata: 0,
+      vacuumSuccess: false,
+      duration: 0
+    };
+
+    try {
+      // Exécuter tous les nettoyages
+      results.tautulliSessions = this.cleanOldTautulliSessions(365);  // 1 an
+      results.sessionCache = this.cleanOldSessionCache(90);           // 3 mois
+      results.watchHistory = this.cleanOldWatchHistory(730);          // 2 ans
+      results.syncMetadata = this.cleanOldSyncMetadata(180);          // 6 mois
+
+      // Optimiser
+      results.vacuumSuccess = this.vacuumDatabase();
+
+      results.duration = Math.round((Date.now() - startTime) / 1000);
+
+      // Résumé
+      const totalDeleted =
+        results.tautulliSessions +
+        results.sessionCache +
+        results.watchHistory +
+        results.syncMetadata;
+
+      log.info('─────────────────────────────────────────────────');
+      log.info(`📊 RÉSUMÉ NETTOYAGE:`);
+      log.info(`   • tautulli_sessions:  ${results.tautulliSessions} supprimées`);
+      log.info(`   • session_cache:      ${results.sessionCache} supprimées`);
+      log.info(`   • watch_history:      ${results.watchHistory} supprimées`);
+      log.info(`   • sync_metadata:      ${results.syncMetadata} supprimées`);
+      log.info(`   • VACUUM:             ${results.vacuumSuccess ? '✅ OK' : '❌ ÉCHOUÉ'}`);
+      log.info(`   • TOTAL SUPPRIMÉ:     ${totalDeleted} enregistrements`);
+      log.info(`   • DURÉE:              ${results.duration}s`);
+      log.info('═══════════════════════════════════════════════════');
+
+      return results;
+    } catch (err) {
+      log.error('❌ ERREUR MAINTENANCE:', err.message);
+      log.error(err.stack);
+      throw err;
+    }
+  }
+};
+
+/**
  * User achievements queries (succès secrets débloqués manuellement)
  */
 const UserAchievementQueries = {
@@ -532,6 +661,7 @@ module.exports = {
   UserQueries,
   WatchHistoryQueries,
   SessionCacheQueries,
+  DatabaseMaintenance,
   UserAchievementQueries,
   AchievementProgressQueries,
   DB_PATH

@@ -196,6 +196,45 @@
 .lb-ranking-icon { font-size: 18px; }
 .lb-ranking-title { font-size: 14px; font-weight: 800; color: #fff; margin: 0; }
 
+/* TABS / Boutons d'onglets */
+.lb-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.lb-tab-btn {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.lb-tab-btn:hover {
+  color: #bbb;
+}
+
+.lb-tab-btn--active {
+  color: var(--lb-blue);
+  border-bottom-color: var(--lb-blue);
+}
+
+/* Vues des classements */
+.lb-ranking-view {
+  display: none;
+}
+
+.lb-ranking-view--active {
+  display: block;
+}
+
 .lb-row {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 18px;
@@ -297,26 +336,20 @@
 
   <div id="lbContent" style="display:none">
 
-    <div class="lb-podium-section">
-      <p class="lb-podium-title">&#x1F396;&#xFE0F; Podium &mdash; Top 3 niveaux</p>
-      <div class="lb-podium" id="lbPodium"></div>
+    <!-- Boutons d'onglets -->
+    <div class="lb-tabs">
+      <button class="lb-tab-btn lb-tab-btn--active" id="tabLevel">⭐ Par Niveau</button>
+      <button class="lb-tab-btn" id="tabHours">🎬 Plus d'heures</button>
     </div>
 
-    <div class="lb-rankings">
-      <div class="lb-ranking-block">
-        <div class="lb-ranking-header">
-          <span class="lb-ranking-icon">&#x2B50;</span>
-          <h2 class="lb-ranking-title">Par niveau</h2>
-        </div>
-        <div id="rankLevelList"></div>
-      </div>
-      <div class="lb-ranking-block">
-        <div class="lb-ranking-header">
-          <span class="lb-ranking-icon">&#x1F3AC;</span>
-          <h2 class="lb-ranking-title">Plus d&rsquo;heures visionn&eacute;es</h2>
-        </div>
-        <div id="rankHoursList"></div>
-      </div>
+    <!-- Classement par Niveau -->
+    <div class="lb-ranking-view lb-ranking-view--active" id="viewLevel">
+      <div id="rankLevelList"></div>
+    </div>
+
+    <!-- Classement par Heures -->
+    <div class="lb-ranking-view" id="viewHours">
+      <div id="rankHoursList"></div>
     </div>
 
   </div>
@@ -430,15 +463,34 @@
     document.getElementById('lbPodium').innerHTML = html;
   }
 
+  // Gestion des onglets
+  var tabLevel = document.getElementById('tabLevel');
+  var tabHours = document.getElementById('tabHours');
+  var viewLevel = document.getElementById('viewLevel');
+  var viewHours = document.getElementById('viewHours');
+
+  tabLevel.addEventListener('click', function() {
+    tabLevel.classList.add('lb-tab-btn--active');
+    tabHours.classList.remove('lb-tab-btn--active');
+    viewLevel.classList.add('lb-ranking-view--active');
+    viewHours.classList.remove('lb-ranking-view--active');
+  });
+
+  tabHours.addEventListener('click', function() {
+    tabHours.classList.add('lb-tab-btn--active');
+    tabLevel.classList.remove('lb-tab-btn--active');
+    viewHours.classList.add('lb-ranking-view--active');
+    viewLevel.classList.remove('lb-ranking-view--active');
+  });
+
   var bp = (window.APP_BASE_PATH || '');
   fetch(bp + '/api/classement')
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
       document.getElementById('lbLoading').style.display = 'none';
       document.getElementById('lbContent').style.display = 'block';
-      renderPodium(data.byLevel);
-      renderTable(data.byLevel, 'rankLevelList', 'level', 3);
-      renderTable(data.byHours, 'rankHoursList', 'hours');
+      renderTable(data.byLevel, 'rankLevelList', 'level', 0);
+      renderTable(data.byHours, 'rankHoursList', 'hours', 0);
     })
     .catch(function() {
       document.getElementById('lbLoading').style.display = 'none';

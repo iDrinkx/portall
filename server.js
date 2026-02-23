@@ -8,6 +8,7 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
+const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
@@ -252,4 +253,7 @@ app.listen(PORT, async () => {
     process.env.PLEX_TOKEN,
     allUsers // ✅ Liste réelle de tous les utilisateurs
   );
+
+  // 🧹 Démarrer le job de maintenance de la base de données
+  startDatabaseMaintenanceJob();
 });
