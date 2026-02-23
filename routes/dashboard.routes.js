@@ -855,7 +855,8 @@ const logLB = log.create('[Classement]');
 router.get('/api/classement', requireAuth, async (req, res) => {
   try {
     const cacheKey = 'classement_data';
-    const cached   = cache.get(cacheKey);
+    // 🔍 DEBUG: Forcer le recalcul (ignorer le cache)
+    const cached   = req.query.skipCache ? null : cache.get(cacheKey);
     if (cached) return res.json(cached);
 
     const { getAllUserStatsFromTautulli, isTautulliReady } = require('../utils/tautulli-direct');
@@ -941,7 +942,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       const thumb      = thumbMap[key] || null;
 
       // 🔍 DEBUG: Log pour diagnostic XP
-      if (key === 'idrink') {
+      if (key.includes('idrink')) {
         logLB.info(`[DEBUG] ${stats.username}: hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
       }
 
