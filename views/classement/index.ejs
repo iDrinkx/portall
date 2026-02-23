@@ -179,6 +179,14 @@
   .lb-podium-card--1 { order: 1; }
   .lb-podium-card--2 { order: 2; }
   .lb-podium-card--3 { order: 3; }
+
+  /* Améliorer la visibilité du halo lumineux sur mobile */
+  .lb-row-ring,
+  .lb-pod-ring {
+    opacity: 0.9;
+    -webkit-mask-image: radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px));
+    mask-image: radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px));
+  }
 }
 
 .lb-ranking-block {
