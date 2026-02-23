@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.20.0 (2026-02-23)
+
+* Merge pull request #4 from iDrinkx/develop ([3209766](https://github.com/iDrinkx/plex-portal/commit/3209766)), closes [#4](https://github.com/iDrinkx/plex-portal/issues/4)
+* fix: adjust XP calculation multipliers for hours and anciennete ([6f0eaff](https://github.com/iDrinkx/plex-portal/commit/6f0eaff))
+* fix: update section title from "Progression des Succès" to "Progression des Badges" ([aac68d7](https://github.com/iDrinkx/plex-portal/commit/aac68d7))
+* feat: add tabbed navigation for ranking views with dynamic content switching ([0e317ed](https://github.com/iDrinkx/plex-portal/commit/0e317ed))
+* feat: implement automated database maintenance system with manual trigger API ([2bddc91](https://github.com/iDrinkx/plex-portal/commit/2bddc91))
+
 ## 1.19.0 (2026-02-23)
 
 * Merge pull request #3 from iDrinkx/develop ([1438295](https://github.com/iDrinkx/plex-portal/commit/1438295)), closes [#3](https://github.com/iDrinkx/plex-portal/issues/3)
