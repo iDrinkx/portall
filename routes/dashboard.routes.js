@@ -494,9 +494,6 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
         const allAchievements = ACHIEVEMENTS.getAll();
         const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
         achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-
-        // 🔍 DEBUG: Vérifier ID et succès du profil
-        log.create('[XP-PROFILE-DEBUG]').info(`Profile: username=${user.username}, dbUser.id=${dbUser.id}, unlockedMap=${JSON.stringify(unlockedMap)}, achievementsXp=${achievementsXp}`);
       }
     } catch (err) {
       log.create('[XP-PROFILE-ERROR]').error(`Error getting achievements: ${err.message}`);
@@ -510,9 +507,6 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     const level    = XP_SYSTEM.getLevel(totalXp);
     const rank     = XP_SYSTEM.getRankByLevel(level);
     const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
-
-    // 🔍 DEBUG: Log pour diagnostic XP
-    log.create('[XP-DEBUG]').info(`${user.username}: hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
 
     res.json({
       rank: { color: rank.color, name: rank.name, icon: rank.icon, bgColor: rank.bgColor, borderColor: rank.borderColor },
@@ -867,11 +861,6 @@ router.get('/api/classement', requireAuth, async (req, res) => {
     const { getAllUserStatsFromTautulli, isTautulliReady } = require('../utils/tautulli-direct');
     const tautulliStats = isTautulliReady() ? getAllUserStatsFromTautulli() : [];
 
-    // Tous les users de notre DB (joinedAt inclus)
-    const dbUsers = UserQueries.getAll();
-    const dbMap   = {};
-    dbUsers.forEach(u => { dbMap[(u.username || '').toLowerCase()] = u; });
-
     // Thumbs Plex via XML plex.tv/api/users (admin token)
     const plexToken = process.env.PLEX_TOKEN || '';
     const thumbMap  = {}; // username.lower → thumb URL
@@ -918,12 +907,8 @@ router.get('/api/classement', requireAuth, async (req, res) => {
 
     const users = tautulliStats.map(stats => {
       const key    = (stats.username || '').toLowerCase();
-      const dbUser = dbMap[key] || null;
-
-      // 🔍 DEBUG: Vérifier si dbUser est trouvé
-      if (key.includes('idrink')) {
-        logLB.info(`[DEBUG-LOOKUP] username=${stats.username}, key=${key}, dbUser found=${!!dbUser}, dbUser.joinedAt=${dbUser?.joinedAt || 'NULL'}`);
-      }
+      // FIX: Use UserQueries.getByUsername() instead of dbMap to ensure consistency with profile route
+      const dbUser = UserQueries.getByUsername(stats.username) || null;
 
       let badgeCount = 0;
       let achievementsXp = 0;
@@ -932,11 +917,8 @@ router.get('/api/classement', requireAuth, async (req, res) => {
           const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
           badgeCount = Object.keys(unlockedMap).length;
           achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-          if (key.includes('idrink')) {
-            logLB.info(`[DEBUG-ACHIEVEMENTS] dbUser.id=${dbUser.id}, unlockedMap=${JSON.stringify(unlockedMap)}, achievementsXp=${achievementsXp}`);
-          }
         } catch (err) {
-          logLB.error(`[DEBUG-ERROR] Error getting achievements for ${key}: ${err.message}`);
+          logLB.error(`Error getting achievements for ${key}: ${err.message}`);
         }
       }
 
@@ -955,11 +937,6 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       const level      = XP_SYSTEM.getLevel(totalXp);
       const rank       = XP_SYSTEM.getRankByLevel(level);
       const thumb      = thumbMap[key] || null;
-
-      // 🔍 DEBUG: Log pour diagnostic XP
-      if (key.includes('idrink')) {
-        logLB.info(`[DEBUG] ${stats.username}: hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
-      }
 
       return { username: stats.username, thumb, totalHours, totalXp, level,
                rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
