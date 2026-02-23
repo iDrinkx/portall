@@ -2,6 +2,11 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.20.3 (2026-02-23)</small>
+
+* Merge pull request #7 from iDrinkx/develop ([c893d76](https://github.com/iDrinkx/plex-portal/commit/c893d76)), closes [#7](https://github.com/iDrinkx/plex-portal/issues/7)
+* fix: add option to skip cache for classement API and enhance debug logging for XP calculations ([ef2cd37](https://github.com/iDrinkx/plex-portal/commit/ef2cd37))
+
 ## <small>1.20.2 (2026-02-23)</small>
 
 * Merge pull request #6 from iDrinkx/develop ([fcd794f](https://github.com/iDrinkx/plex-portal/commit/fcd794f)), closes [#6](https://github.com/iDrinkx/plex-portal/issues/6)
