@@ -2,6 +2,11 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.20.5 (2026-02-23)</small>
+
+* Merge pull request #9 from iDrinkx/develop ([ee4c520](https://github.com/iDrinkx/plex-portal/commit/ee4c520)), closes [#9](https://github.com/iDrinkx/plex-portal/issues/9)
+* fix: enhance debug logging for XP profile retrieval and handle errors ([cc1dc8a](https://github.com/iDrinkx/plex-portal/commit/cc1dc8a))
+
 ## <small>1.20.4 (2026-02-23)</small>
 
 * Merge pull request #8 from iDrinkx/develop ([5278b58](https://github.com/iDrinkx/plex-portal/commit/5278b58)), closes [#8](https://github.com/iDrinkx/plex-portal/issues/8)
