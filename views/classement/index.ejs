@@ -18,9 +18,19 @@
 }
 
 /*  Header  */
-.lb-header { margin-bottom: 32px; }
+.lb-header { position: relative; margin-bottom: 32px; padding-right: 220px; }
 .lb-title  { font-size: 26px; font-weight: 800; color: #fff; margin: 0 0 4px; }
 .lb-subtitle { font-size: 13px; color: #555; margin: 0; }
+.lb-refresh-timer {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  font-size: 11px;
+  color: #555;
+  font-style: italic;
+  text-align: right;
+  white-space: nowrap;
+}
 
 /* 
    PODIUM TOP 3
@@ -170,6 +180,8 @@
   gap: 20px;
 }
 @media (max-width: 720px) {
+  .lb-header { padding-right: 0; }
+  .lb-refresh-timer { position: static; margin-top: 8px; text-align: left; }
   .lb-rankings { grid-template-columns: 1fr; }
   .lb-podium   { flex-direction: column; align-items: center; }
   .lb-podium-card--1,
@@ -327,6 +339,7 @@
   <div class="lb-header">
     <h1 class="lb-title">&#x1F3C6; Classement</h1>
     <p class="lb-subtitle">Top membres du serveur &mdash; heures de visionnage &amp; niveaux</p>
+    <div class="lb-refresh-timer" id="lbRefreshTimer"></div>
   </div>
 
   <div class="lb-loading" id="lbLoading">
@@ -484,9 +497,31 @@
   });
 
   var bp = (window.APP_BASE_PATH || '');
+  var lastRefreshTime = null;
+
+  function updateTimer() {
+    if (!lastRefreshTime) return;
+    var now = Date.now();
+    var diff = Math.floor((now - lastRefreshTime) / 1000);
+    var text;
+    if (diff < 60) {
+      text = 'Données actualisées il y a ' + diff + 's';
+    } else {
+      var minutes = Math.floor(diff / 60);
+      text = 'Données actualisées il y a ' + minutes + 'm';
+    }
+    var timerEl = document.getElementById('lbRefreshTimer');
+    if (timerEl) timerEl.textContent = text;
+  }
+
   fetch(bp + '/api/classement')
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
+      if (data.lastRefresh) {
+        lastRefreshTime = new Date(data.lastRefresh).getTime();
+        updateTimer();
+        setInterval(updateTimer, 1000);
+      }
       document.getElementById('lbLoading').style.display = 'none';
       document.getElementById('lbContent').style.display = 'block';
       renderTable(data.byLevel, 'rankLevelList', 'level', 0);

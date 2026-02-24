@@ -6,8 +6,16 @@
 
   <!-- ── HEADER ──────────────────────────────────────────────── -->
   <div class="ms-header">
+    <div class="ms-header-top">
+      <div class="ms-header-main">
     <h1 class="ms-title">Mes Statistiques&nbsp;📊</h1>
-    <p class="ms-subtitle">Votre résumé de visionnage complet</p>
+    <p class="ms-subtitle" id="msSubtitle">Votre résumé de visionnage complet</p>
+      </div>
+    </div>
+    <div class="ms-tabs">
+      <button class="ms-tab ms-tab--active" id="msTabPersonal" type="button">Mes stats</button>
+      <button class="ms-tab" id="msTabGlobal" type="button">Stats globales</button>
+    </div>
   </div>
 
   <!-- ── SKELETON loading ──────────────────────────────────────── -->
@@ -106,6 +114,15 @@
 .ms-header {
   margin-bottom: 28px;
 }
+.ms-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.ms-header-main {
+  min-width: 0;
+}
 .ms-title {
   font-size: 24px;
   font-weight: 800;
@@ -116,6 +133,33 @@
   font-size: 13px;
   color: #555;
   margin: 0;
+}
+.ms-tabs {
+  margin-top: 14px;
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.ms-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ms-tab:hover {
+  color: #d1d5db;
+}
+.ms-tab--active {
+  color: #fff;
+  border-color: rgba(59,130,246,0.45);
+  background: rgba(59,130,246,0.18);
 }
 
 /* ── Cards ── */
@@ -408,6 +452,10 @@
 <script>
 (function () {
   const bp = '<%= basePath %>';
+  let currentMode = 'personal';
+  let donutChartInstance = null;
+  let hourChartInstance = null;
+  let dayChartInstance = null;
 
   /* ─────────────────────────────────────────────────────────────────
      COULEURS
@@ -501,7 +549,8 @@
 
     const total = data.reduce((s, v) => s + v, 0);
     const ctx = document.getElementById('donutChart').getContext('2d');
-    new Chart(ctx, {
+    if (donutChartInstance) donutChartInstance.destroy();
+    donutChartInstance = new Chart(ctx, {
       type: 'doughnut',
       data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
       options: {
@@ -627,7 +676,8 @@
     }
     const labels = Array.from({length: 24}, (_, i) => i + 'h');
     const ctx = document.getElementById('hourChart').getContext('2d');
-    new Chart(ctx, {
+    if (hourChartInstance) hourChartInstance.destroy();
+    hourChartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
@@ -698,7 +748,8 @@
       if (r.type === 'episode') hoursS[r.dow] = (hoursS[r.dow] || 0) + r.hours;
     }
     const ctx = document.getElementById('dayChart').getContext('2d');
-    new Chart(ctx, {
+    if (dayChartInstance) dayChartInstance.destroy();
+    dayChartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: DAY_NAMES,
@@ -760,9 +811,32 @@
   /* ─────────────────────────────────────────────────────────────────
      MAIN LOAD
   ───────────────────────────────────────────────────────────────── */
-  async function load() {
+  function setTab(mode) {
+    currentMode = mode;
+    const btnPersonal = document.getElementById('msTabPersonal');
+    const btnGlobal = document.getElementById('msTabGlobal');
+    const subtitle = document.getElementById('msSubtitle');
+    if (btnPersonal) btnPersonal.classList.toggle('ms-tab--active', mode === 'personal');
+    if (btnGlobal) btnGlobal.classList.toggle('ms-tab--active', mode === 'global');
+    if (subtitle) {
+      subtitle.textContent = mode === 'personal'
+        ? 'Votre résumé de visionnage complet'
+        : 'Résumé consolidé de tous les utilisateurs';
+    }
+  }
+
+  function resetViewForLoading() {
+    document.getElementById('msUnavailable').style.display = 'none';
+    document.getElementById('msContent').style.display = 'none';
+    document.getElementById('msSkeleton').style.display = 'block';
+  }
+
+  async function load(mode = currentMode) {
+    setTab(mode);
+    resetViewForLoading();
     try {
-      const res  = await fetch(bp + '/api/mes-stats');
+      const endpoint = mode === 'global' ? '/api/mes-stats-global' : '/api/mes-stats';
+      const res  = await fetch(bp + endpoint);
       const data = await res.json();
 
       document.getElementById('msSkeleton').style.display = 'none';
@@ -788,7 +862,6 @@
       renderGenres(data.seriesGenres || [], 'seriesGenresList');
       renderHourChart(data.hourActivity || []);
       renderDayChart(data.dayActivity  || []);
-
     } catch (err) {
       console.error('[MesStats]', err);
       document.getElementById('msSkeleton').style.display = 'none';
@@ -796,6 +869,9 @@
     }
   }
 
-  load();
+  document.getElementById('msTabPersonal')?.addEventListener('click', () => load('personal'));
+  document.getElementById('msTabGlobal')?.addEventListener('click', () => load('global'));
+
+  load('personal');
 })();
 </script>

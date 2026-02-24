@@ -11,10 +11,11 @@ const { getRadarrCalendar, getSonarrCalendar } = require("../utils/radarr-sonarr
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
 const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("../utils/database");
-const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem } = require("../utils/tautulli-direct");
+const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
 const { DatabaseMaintenance } = require("../utils/database");  // 🧹 Database maintenance
+const { calculateUserXp } = require("../utils/xp-calculator");  // 🎯 Fonction centralisée XP
 
 /* ===============================
    🔐 AUTH
@@ -118,6 +119,9 @@ router.get("/profil", requireAuth, async (req, res) => {
       daysSince: Math.floor((Date.now() - (req.session.user.joinedAtTimestamp * 1000)) / (1000 * 60 * 60 * 24))
     };
 
+      // Sauvegarder les stats recalculées en DB pour garantir la cohérence classement/profil
+      const SessionStatsCacheDB = require("../utils/session-stats-cache-db");
+      SessionStatsCacheDB.set(req.session.user.username, stats);
     // Compter les badges débloqués (avec succ\u00e8s manuels depuis la DB)
     const dbUser = UserQueries.upsert(
       req.session.user.username,
@@ -470,51 +474,33 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
   try {
     const user         = req.session.user;
     const joinedAtTs   = user.joinedAtTimestamp || 0;
-    const daysJoined   = Math.floor((Date.now() - (joinedAtTs * 1000)) / (1000 * 60 * 60 * 24));
 
-    // Stats Tautulli (depuis le cache serveur si déjà calculé, sinon rapide)
-    let totalHours = 0;
-    try {
-      const stats = await Promise.race([
-        getTautulliStats(
-          user.username, process.env.TAUTULLI_URL, process.env.TAUTULLI_API_KEY,
-          user.id, process.env.PLEX_URL, process.env.PLEX_TOKEN, joinedAtTs
-        ),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('XP_TIMEOUT')), 4000))
-      ]);
-      totalHours = stats?.watchStats?.totalHours || 0;
-    } catch (_) {}
+    // ⚡ Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
+    const directStats  = getUserStatsFromTautulli(user.username);
+    const hoursHint    = directStats?.totalHours ?? null;
+    const statsHint    = directStats ? {
+      totalHours: directStats.totalHours || 0,
+      sessionCount: directStats.sessionCount || 0,
+      movieCount: directStats.movieCount || 0,
+      episodeCount: directStats.episodeCount || 0,
+      monthlyHours: 0,
+      nightCount: 0,
+      morningCount: 0
+    } : null;
 
-    // Badges débloqués et XP (lecture DB ultra-rapide)
-    let achievementsXp = 0;
-    try {
-      const dbUser = UserQueries.getByUsername(user.username);
-      if (dbUser) {
-        const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-        const allAchievements = ACHIEVEMENTS.getAll();
-        const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-        achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-      }
-    } catch (err) {
-      log.create('[XP-PROFILE-ERROR]').error(`Error getting achievements: ${err.message}`);
-    }
-
-    // Calcul XP (même formule que la page Profil) — v1.13: système ultra-optimisé
-    const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
-    const totalXp      = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
-                       + achievementsXp
-                       + Math.round(daysJoined * XP_MULTIPLIERS.ANCIENNETE);
-    const level    = XP_SYSTEM.getLevel(totalXp);
-    const rank     = XP_SYSTEM.getRankByLevel(level);
-    const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
+    // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
+    const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint, statsHint);
 
     res.json({
-      rank: { color: rank.color, name: rank.name, icon: rank.icon, bgColor: rank.bgColor, borderColor: rank.borderColor },
-      level, totalXp,
-      progressPercent: progress.progressPercent,
-      xpNeeded: progress.xpNeeded
+      rank: { color: xpData.rank.color, name: xpData.rank.name, icon: xpData.rank.icon, bgColor: xpData.rank.bgColor, borderColor: xpData.rank.borderColor },
+      level: xpData.level,
+      totalXp: xpData.totalXp,
+      badgeCount: xpData.badgeCount,
+      progressPercent: xpData.progressPercent,
+      xpNeeded: xpData.xpNeeded
     });
   } catch (err) {
+    log.create('[XP-SNAPSHOT]').error(`Erreur: ${err.message}`);
     res.status(500).json({ error: 'xp-snapshot failed' });
   }
 });
@@ -733,9 +719,9 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
   const thumbPath = req.query.path;
   if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
 
-  // Validation anti-SSRF : le chemin doit commencer par /library/ ou /photo/
+  // Validation anti-SSRF : le chemin doit commencer par /library/, /photo/, ou /users/ (avatars)
   // et ne pas contenir de séquences de traversal
-  const allowedPrefixes = ["/library/", "/photo/"];
+  const allowedPrefixes = ["/library/", "/photo/", "/users/"];
   const isAllowed = allowedPrefixes.some(p => thumbPath.startsWith(p));
   const hasTraversal = /(\.\.|%2e%2e|%252e)/i.test(thumbPath);
   if (!isAllowed || hasTraversal) {
@@ -846,110 +832,45 @@ router.get('/api/mes-stats', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/api/mes-stats-global', requireAuth, async (req, res) => {
+  try {
+    const cacheKey = 'mes_stats_global';
+    const cached   = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { getGlobalDetailedStats, isTautulliReady } = require('../utils/tautulli-direct');
+    if (!isTautulliReady()) return res.json({ available: false, reason: 'tautulli_not_ready' });
+
+    const data = getGlobalDetailedStats();
+    if (!data) return res.json({ available: false, reason: 'no_data' });
+
+    const result = { available: true, ...data };
+    cache.set(cacheKey, result, 10 * 60 * 1000); // 10 min
+    logStats.debug('Stats globales générées');
+    res.json(result);
+  } catch (err) {
+    logStats.error('API mes-stats-global:', err.message);
+    res.status(500).json({ error: 'mes-stats-global failed' });
+  }
+});
+
 /* ===============================
    🏆 CLASSEMENT (Leaderboard)
 =============================== */
 const logLB = log.create('[Classement]');
 
-router.get('/api/classement', requireAuth, async (req, res) => {
+router.get('/api/classement', requireAuth, (req, res) => {
   try {
-    const cacheKey = 'classement_data';
-    // 🔍 DEBUG: Forcer le recalcul (ignorer le cache)
-    const cached   = req.query.skipCache ? null : cache.get(cacheKey);
-    if (cached) return res.json(cached);
+    // ✅ Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
+    const { getClassementCache } = require('../utils/cron-classement-refresh');
+    const cacheData = getClassementCache();
 
-    const { getAllUserStatsFromTautulli, isTautulliReady } = require('../utils/tautulli-direct');
-    const tautulliStats = isTautulliReady() ? getAllUserStatsFromTautulli() : [];
-
-    // Thumbs Plex via XML plex.tv/api/users (admin token)
-    const plexToken = process.env.PLEX_TOKEN || '';
-    const thumbMap  = {}; // username.lower → thumb URL
-
-    try {
-      // owner thumb
-      const ownerResp = await fetch('https://plex.tv/api/v2/user', {
-        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/json' },
-        timeout: 6000
-      });
-      if (ownerResp.ok) {
-        const od = await ownerResp.json();
-        if (od.username && od.thumb) thumbMap[od.username.toLowerCase()] = od.thumb;
-      }
-    } catch (_) {}
-
-    try {
-      const xmlResp = await fetch('https://plex.tv/api/users', {
-        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/xml' },
-        timeout: 6000
-      });
-      if (xmlResp.ok) {
-        const xml = await xmlResp.text();
-        const blockRe = /<User\s[\s\S]*?(?:\/>|<\/User>)/g;
-        const attrRe  = /(\w+)="([^"]*)"/g;
-        let bm;
-        while ((bm = blockRe.exec(xml)) !== null) {
-          const openTag = bm[0].match(/<User\s([^>]+)/);
-          if (!openTag) continue;
-          const attrs = {};
-          let am;
-          attrRe.lastIndex = 0;
-          while ((am = attrRe.exec(openTag[1])) !== null) attrs[am[1]] = am[2];
-          const name = (attrs.title || attrs.username || '').toLowerCase();
-          if (name && attrs.thumb) thumbMap[name] = attrs.thumb;
-        }
-      }
-    } catch (_) {}
-
-    const XP_M = { HOURS: 10, ANCIENNETE: 1.5 }; // v1.13: système ultra-optimisé
-    const now  = Date.now();
-    const allAchievements = ACHIEVEMENTS.getAll();
-    const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-
-    const users = tautulliStats.map(stats => {
-      const key    = (stats.username || '').toLowerCase();
-      // FIX: Use UserQueries.getByUsername() instead of dbMap to ensure consistency with profile route
-      const dbUser = UserQueries.getByUsername(stats.username) || null;
-
-      let badgeCount = 0;
-      let achievementsXp = 0;
-      if (dbUser) {
-        try {
-          const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-          badgeCount = Object.keys(unlockedMap).length;
-          achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-        } catch (err) {
-          logLB.error(`Error getting achievements for ${key}: ${err.message}`);
-        }
-      }
-
-      // 🔧 FIX: Calculer daysJoined de manière cohérente avec le profil
-      // Source: dbUser.joinedAt (stocké via user.joinedAt de Plex lors de la connexion)
-      let daysJoined = 0;
-      if (dbUser && dbUser.joinedAt) {
-        // joinedAt peut être un timestamp (en secondes) ou une ISO string
-        const ts = Number(dbUser.joinedAt);
-        const ms = !isNaN(ts) && ts > 1e8 ? ts * 1000 : new Date(dbUser.joinedAt).getTime();
-        if (!isNaN(ms)) daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
-      }
-
-      const totalHours = stats.totalHours || 0;
-      const totalXp    = Math.round(totalHours * XP_M.HOURS) + achievementsXp + Math.round(daysJoined * XP_M.ANCIENNETE);
-      const level      = XP_SYSTEM.getLevel(totalXp);
-      const rank       = XP_SYSTEM.getRankByLevel(level);
-      const thumb      = thumbMap[key] || null;
-
-      return { username: stats.username, thumb, totalHours, totalXp, level,
-               rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
-               badgeCount };
+    // Ajouter le timestamp du dernier refresh dans la réponse
+    res.json({
+      ...cacheData.data,
+      lastRefresh: cacheData.lastRefresh,
+      cacheTimestamp: cacheData.timestamp
     });
-
-    const byHours = [...users].sort((a, b) => b.totalHours - a.totalHours);
-    const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
-
-    const result = { byHours, byLevel };
-    cache.set(cacheKey, result, 30 * 1000); // 30 secondes (synchro avec profil)
-    logLB.debug(`Classement généré: ${users.length} users`);
-    res.json(result);
   } catch (err) {
     logLB.error('API classement:', err.message);
     res.status(500).json({ error: 'classement failed' });

@@ -7,8 +7,8 @@ const SessionStatsCache = require('./session-stats-cache-db');  // 🗄️ Utili
  * Utilise le scan intelligent (delta) pour une perf optimale
  */
 function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKEN, userList = []) {
-  // Job cron: tous les jours à 2h du matin
-  const cronJob = cron.schedule('0 2 * * *', async () => {
+  // Job cron: toutes les 60 minutes
+  const cronJob = cron.schedule('0 * * * *', async () => {
     console.log("\n========== [CRON-JOB] 🕐 DEBUT MISE A JOUR CACHE (2h du matin) ==========");
     console.log("[CRON-JOB] Timestamp:", new Date().toISOString());
 
@@ -34,6 +34,15 @@ function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKE
       console.log("[CRON-JOB]   💾 Total en cache:", cachedCount);
       console.log("[CRON-JOB]   ⏱️  Durée:", duration, 'secondes');
       console.log("[CRON-JOB]   📢 Les données mises à jour seront visibles aux clients connectés");
+
+        // Patch: rafraîchir le classement juste après la mise à jour des sessions
+        try {
+          const { refreshClassementCache } = require('./cron-classement-refresh');
+          await refreshClassementCache();
+          console.log("[CRON-JOB] 🏆 Classement rafraîchi après mise à jour sessions.");
+        } catch (err) {
+          console.error("[CRON-JOB] ❌ Erreur refresh classement:", err.message);
+        }
       
     } catch (err) {
       console.error("[CRON-JOB] ❌ Erreur scan cron:", err.message);
@@ -49,6 +58,18 @@ function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKE
   console.log("[CRON] ⚙️  Mode: Scan intelligent avec delta sync (arrêt automatique au cache)");
   
   return cronJob;
+  // Exécution immédiate au démarrage
+  (async () => {
+    try {
+      console.log("[CRON-JOB] 🚀 Scan sessions immédiat au démarrage");
+      await scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY);
+      const { refreshClassementCache } = require('./cron-classement-refresh');
+      await refreshClassementCache();
+      console.log("[CRON-JOB] 🏆 Classement rafraîchi au démarrage.");
+    } catch (err) {
+      console.error("[CRON-JOB] ❌ Erreur scan/refresh au démarrage:", err.message);
+    }
+  })();
 }
 
 /**

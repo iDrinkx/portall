@@ -9,6 +9,7 @@ const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
 const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
+const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
@@ -256,4 +257,35 @@ app.listen(PORT, async () => {
 
   // 🧹 Démarrer le job de maintenance de la base de données
   startDatabaseMaintenanceJob();
+
+  // 📋 IMPORT AUTOMATIQUE depuis Wizarr au démarrage
+  // Cela garantit que le classement est complet même après suppression DB
+  // Source de vérité: Wizarr (email + username + joinedAtTimestamp)
+  console.log("[SETUP] 📋 Import automatique des users Wizarr en DB...");
+  try {
+    const { getAllWizarrUsers } = require("./utils/wizarr");
+    const { UserQueries } = require("./utils/database");
+
+    const wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
+    if (wizarrUsers.length > 0) {
+      let upserted = 0;
+      for (const wUser of wizarrUsers) {
+        try {
+          if (wUser.username) {
+            UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, wUser.joinedAtTimestamp);
+            upserted++;
+          }
+        } catch (_) {}
+      }
+      console.log(`[SETUP] ✅ Import Wizarr: ${upserted}/${wizarrUsers.length} users synchronisés en DB`);
+    } else {
+      console.warn("[SETUP] ⚠️  Wizarr non configuré ou inaccessible — import ignoré");
+    }
+  } catch (err) {
+    console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
+  }
+
+  // 🏆 Démarrer le job de refresh du classement (toutes les 5 minutes)
+  // 🔄 ATTENDU pour s'assurer que le cache est rempli au démarrage
+  await startClassementRefreshJob();
 });

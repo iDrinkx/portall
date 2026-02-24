@@ -174,6 +174,20 @@ router.get("/auth-complete", async (req, res) => {
   req.session.plexToken = authToken;
   delete req.session.pinId;
 
+  // 💾 Sauvegarder joinedAtTimestamp dans la DB pour cohérence XP/niveau avec classement
+  const { UserQueries } = require("../utils/database");
+  try {
+    UserQueries.upsert(
+      user.username,
+      user.id || null,
+      user.email || null,
+      user.joinedAt || null  // Timestamp Unix ou ISO string
+    );
+    logAuth.debug(`✅ User sauvegardé en DB avec joinedAt=${user.joinedAt}`);
+  } catch (err) {
+    logAuth.warn(`⚠️  Erreur sauvegarde DB: ${err.message}`);
+  }
+
   // Set le cookie Seerr ET redirect (avant les vérifications en arrière-plan)
   grabSeerrCookie(authToken, res).catch(err => {
     logAuth.warn(`Seerr SSO — ${err.message}`);

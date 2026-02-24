@@ -1046,6 +1046,227 @@ function getUserDetailedStats(username) {
 }
 
 /**
+ * 📊 Statistiques détaillées globales (tous utilisateurs confondus)
+ * Retourne le même format que getUserDetailedStats pour réutiliser le même rendu front.
+ */
+function getGlobalDetailedStats() {
+  if (!tautulliDb) return null;
+  const result = {};
+
+  // Top 10 contenu global
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT
+        CASE
+          WHEN sh.media_type = 'episode' THEN shm.grandparent_title
+          ELSE shm.title
+        END as title,
+        sh.media_type,
+        SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      JOIN session_history_metadata shm ON sh.id = shm.id
+      WHERE sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+        AND (shm.title IS NOT NULL OR shm.grandparent_title IS NOT NULL)
+      GROUP BY 1
+      ORDER BY hours DESC
+      LIMIT 10
+    `).all();
+    result.topContent = rows.map(r => ({
+      title: r.title || '?',
+      type: r.media_type,
+      hours: Math.round(r.hours * 10) / 10
+    }));
+  } catch (e) {
+    log.warn('getGlobalDetailedStats topContent:', e.message);
+    result.topContent = [];
+  }
+
+  // Répartition par type de contenu
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT sh.media_type, SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      WHERE sh.stopped > sh.started
+      GROUP BY sh.media_type
+    `).all();
+    result.contentTypes = rows.map(r => ({
+      type: r.media_type,
+      hours: Math.round(r.hours * 10) / 10
+    }));
+  } catch (e) {
+    result.contentTypes = [];
+  }
+
+  // Genres films globaux
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT shm.genres, SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      JOIN session_history_metadata shm ON sh.id = shm.id
+      WHERE sh.stopped > sh.started
+        AND sh.media_type = 'movie'
+        AND shm.genres IS NOT NULL AND shm.genres != ''
+      GROUP BY shm.genres
+      ORDER BY hours DESC
+    `).all();
+    const map = {};
+    for (const r of rows) {
+      for (const g of r.genres.split(/[;,]/).map(s => s.trim()).filter(Boolean)) {
+        map[g] = (map[g] || 0) + r.hours;
+      }
+    }
+    result.movieGenres = Object.entries(map)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([name, hours]) => ({ name, hours: Math.round(hours * 10) / 10 }));
+  } catch (e) {
+    result.movieGenres = [];
+  }
+
+  // Genres séries globaux
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT shm.genres, SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      JOIN session_history_metadata shm ON sh.id = shm.id
+      WHERE sh.stopped > sh.started
+        AND sh.media_type = 'episode'
+        AND shm.genres IS NOT NULL AND shm.genres != ''
+      GROUP BY shm.genres
+      ORDER BY hours DESC
+    `).all();
+    const map = {};
+    for (const r of rows) {
+      for (const g of r.genres.split(/[;,]/).map(s => s.trim()).filter(Boolean)) {
+        map[g] = (map[g] || 0) + r.hours;
+      }
+    }
+    result.seriesGenres = Object.entries(map)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([name, hours]) => ({ name, hours: Math.round(hours * 10) / 10 }));
+  } catch (e) {
+    result.seriesGenres = [];
+  }
+
+  // Mode de lecture global
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT
+        COALESCE(shm.transcode_decision, 'direct play') as decision,
+        COUNT(*) as cnt
+      FROM session_history sh
+      JOIN session_history_media_info shm ON sh.id = shm.id
+      WHERE sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+      GROUP BY shm.transcode_decision
+    `).all();
+
+    if (rows && rows.length > 0) {
+      const total = rows.reduce((s, r) => s + r.cnt, 0);
+      const safeTotal = total || 1;
+      const map = { 'direct play': 0, 'copy': 0, 'transcode': 0 };
+      for (const r of rows) {
+        const key = (r.decision || '').toLowerCase().replace(/\s+/g, ' ');
+        if (key === 'direct play' || key === 'directplay') map['direct play'] += r.cnt;
+        else if (key === 'copy') map['copy'] += r.cnt;
+        else map['transcode'] += r.cnt;
+      }
+      result.playMethod = {
+        directPlay:   { count: map['direct play'], pct: Math.round(map['direct play'] / safeTotal * 100) },
+        directStream: { count: map['copy'], pct: Math.round(map['copy'] / safeTotal * 100) },
+        transcode:    { count: map['transcode'], pct: Math.round(map['transcode'] / safeTotal * 100) },
+        total
+      };
+    } else {
+      result.playMethod = null;
+    }
+  } catch (e) {
+    result.playMethod = null;
+  }
+
+  // Nombre de jours actifs globaux
+  let activeDaysCount = 1;
+  try {
+    const row = tautulliDb.prepare(`
+      SELECT COUNT(DISTINCT date(sh.started, 'unixepoch', 'localtime')) as cnt
+      FROM session_history sh
+      WHERE sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+    `).get();
+    activeDaysCount = Math.max(1, row?.cnt || 1);
+  } catch (_) {}
+
+  // Activité par heure (moyenne/jour actif global)
+  try {
+    const rows = tautulliDb.prepare(`
+      SELECT
+        CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) as hour,
+        sh.media_type,
+        SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      WHERE sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+      GROUP BY hour, sh.media_type
+      ORDER BY hour
+    `).all();
+    result.hourActivity = rows.map(r => ({
+      hour: r.hour,
+      type: r.media_type,
+      hours: Math.round((r.hours / activeDaysCount) * 100) / 100
+    }));
+    result.activeDaysCount = activeDaysCount;
+  } catch (e) {
+    result.hourActivity = [];
+  }
+
+  // Activité par jour de semaine (moyenne/occurrence globale)
+  try {
+    const rangeRow = tautulliDb.prepare(`
+      SELECT MIN(sh.started) as first_ts, MAX(sh.started) as last_ts
+      FROM session_history sh
+      WHERE sh.stopped > sh.started
+    `).get();
+
+    const dowCounts = Array(7).fill(1);
+    if (rangeRow?.first_ts && rangeRow?.last_ts) {
+      const start = new Date(rangeRow.first_ts * 1000);
+      const end = new Date(rangeRow.last_ts * 1000);
+      const totalDays = Math.max(1, Math.round((end - start) / 86400000));
+      const fullWeeks = Math.floor(totalDays / 7);
+      for (let d = 0; d < 7; d++) {
+        let count = fullWeeks;
+        for (let i = 0; i < (totalDays % 7); i++) {
+          const dayOfWeek = (start.getDay() + i) % 7;
+          if (dayOfWeek === d) count++;
+        }
+        dowCounts[d] = Math.max(1, count);
+      }
+    }
+
+    const rows = tautulliDb.prepare(`
+      SELECT
+        CAST(strftime('%w', sh.started, 'unixepoch', 'localtime') AS INTEGER) as dow,
+        sh.media_type,
+        SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
+      FROM session_history sh
+      WHERE sh.stopped > sh.started
+        AND sh.media_type IN ('movie', 'episode')
+      GROUP BY dow, sh.media_type
+      ORDER BY dow
+    `).all();
+    result.dayActivity = rows.map(r => ({
+      dow: r.dow,
+      type: r.media_type,
+      hours: Math.round((r.hours / dowCounts[r.dow]) * 100) / 100
+    }));
+  } catch (e) {
+    result.dayActivity = [];
+  }
+
+  return result;
+}
+
+/**
  * Fermer la connexion (au shutdown)
  */
 function closeTautulliDatabase() {
@@ -1068,5 +1289,6 @@ module.exports = {
   getLiveUsers,
   getLastPlayedItem,
   getUserDetailedStats,
+  getGlobalDetailedStats,
   closeTautulliDatabase
 };
