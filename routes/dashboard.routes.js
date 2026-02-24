@@ -733,9 +733,9 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
   const thumbPath = req.query.path;
   if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
 
-  // Validation anti-SSRF : le chemin doit commencer par /library/ ou /photo/
+  // Validation anti-SSRF : le chemin doit commencer par /library/, /photo/, ou /users/ (avatars)
   // et ne pas contenir de séquences de traversal
-  const allowedPrefixes = ["/library/", "/photo/"];
+  const allowedPrefixes = ["/library/", "/photo/", "/users/"];
   const isAllowed = allowedPrefixes.some(p => thumbPath.startsWith(p));
   const hasTraversal = /(\.\.|%2e%2e|%252e)/i.test(thumbPath);
   if (!isAllowed || hasTraversal) {
