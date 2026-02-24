@@ -18,10 +18,19 @@
 }
 
 /*  Header  */
-.lb-header { margin-bottom: 32px; }
+.lb-header { position: relative; margin-bottom: 32px; padding-right: 220px; }
 .lb-title  { font-size: 26px; font-weight: 800; color: #fff; margin: 0 0 4px; }
 .lb-subtitle { font-size: 13px; color: #555; margin: 0; }
-.lb-refresh-timer { font-size: 11px; color: #555; margin-top: 8px; font-style: italic; }
+.lb-refresh-timer {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  font-size: 11px;
+  color: #555;
+  font-style: italic;
+  text-align: right;
+  white-space: nowrap;
+}
 
 /* 
    PODIUM TOP 3
@@ -171,6 +180,8 @@
   gap: 20px;
 }
 @media (max-width: 720px) {
+  .lb-header { padding-right: 0; }
+  .lb-refresh-timer { position: static; margin-top: 8px; text-align: left; }
   .lb-rankings { grid-template-columns: 1fr; }
   .lb-podium   { flex-direction: column; align-items: center; }
   .lb-podium-card--1,
