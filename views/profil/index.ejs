@@ -84,6 +84,8 @@
 
   </div>
 
+  <div class="profil-refresh-timer" id="profilRefreshTimer"></div>
+
   <!-- GRID DE CARTES -->
   <div class="profil-grid">
     <!-- CARTE PROFIL -->
@@ -696,6 +698,16 @@
     border-radius: 10px;
     transition: width 0.6s ease-out;
     box-shadow: 0 0 15px rgba(102, 126, 234, 0.7);
+  }
+
+  .profil-refresh-timer {
+    display: flex;
+    justify-content: flex-end;
+    font-size: 11px;
+    color: #666;
+    font-style: italic;
+    margin: 4px 2px 14px;
+    min-height: 14px;
   }
 
   /* GRID */
@@ -1371,6 +1383,34 @@
   const PAGE_UNLOCKED_BADGES = <%= unlockedBadgesCount || 0 %>;
   const PAGE_TOTAL_BADGES    = <%= totalBadgesCount    || 0 %>;
   const PAGE_ACHIEVEMENTS_XP = <%= totalAchievementsXp || 0 %>;
+  let _lastProfilRefreshTs = null;
+  let _profilRefreshTimerHandle = null;
+
+  function updateProfilRefreshTimer() {
+    const el = document.getElementById("profilRefreshTimer");
+    if (!el || !_lastProfilRefreshTs) return;
+    const diffSec = Math.max(0, Math.floor((Date.now() - _lastProfilRefreshTs) / 1000));
+    if (diffSec < 60) {
+      el.textContent = `Données actualisées il y a ${diffSec}s`;
+      return;
+    }
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) {
+      el.textContent = `Données actualisées il y a ${diffMin}m`;
+      return;
+    }
+    const diffHours = Math.floor(diffMin / 60);
+    el.textContent = `Données actualisées il y a ${diffHours}h`;
+  }
+
+  function markProfilRefreshed() {
+    _lastProfilRefreshTs = Date.now();
+    updateProfilRefreshTimer();
+    if (!_profilRefreshTimerHandle) {
+      _profilRefreshTimerHandle = setInterval(updateProfilRefreshTimer, 1000);
+    }
+  }
+
   const multipliersHintEl = document.getElementById("xpMultipliersHint");
   if (multipliersHintEl) {
     multipliersHintEl.textContent =
@@ -1730,6 +1770,7 @@
           xpSnapshotData.badgeCount
         );
       }
+      markProfilRefreshed();
       saveProfilSnapshot();
       
       // ÉTAPE 3: Charger Tautulli en PARALLÈLE (peut prendre du temps)
@@ -1971,6 +2012,7 @@
       clearSkel('counterSessions','statTotalHours','counterMovies','statMovieHours',
                 'counterEpisodes','statEpisodeHours','counterMusic','statMusicHours',
                 'joinedDate','lastActivity');
+      markProfilRefreshed();
       saveProfilSnapshot(); // snapshot complet (toutes données)
 
       // Rafraîchissement automatique si calcul en cours
@@ -2097,6 +2139,7 @@
                       'joinedDate','lastActivity',
                       'totalRequests','approvedRequests','pendingRequests','availableRequests',
                       'profilSubStatus','profilSubDays','profilSubExpire');
+            markProfilRefreshed();
             saveProfilSnapshot();
             
             console.log("[PROFIL-UPDATE] ✅ Tous les éléments mis à jour!");
@@ -2293,6 +2336,7 @@
 
       // 💾 Persister
       saveXpSnapshot(xpSnap ? xpSnap.totalXp : totalXp, currentRank, progress, unlockedBadgesCount);
+      markProfilRefreshed();
       saveProfilSnapshot();
 
       // Rangs débloqués
