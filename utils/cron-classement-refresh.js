@@ -5,6 +5,7 @@ const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
 const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
+const { getAllWizarrUsers } = require('./wizarr');       // 🔑 Source de vérité
 
 const logCR = log.create('[Classement-Refresh]');
 
@@ -74,24 +75,43 @@ async function refreshClassementCache() {
       return;
     }
 
-    // 🔑 SOURCE PRINCIPALE: Récupérer TOUS les users Wizarr (liste complète)
-    const wizarrUsers = UserQueries.getAll() || [];
+    // 🔑 SOURCE PRINCIPALE: Récupérer TOUS les users directement depuis Wizarr API
+    // Cela garantit un classement complet même avec une DB vide (après reset)
+    let wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
+
+    if (wizarrUsers.length > 0) {
+      logCR.debug(`📋 ${wizarrUsers.length} users récupérés depuis Wizarr API`);
+
+      // Persister en DB pour garder email + joinedAt (utilisé par le profil)
+      for (const wUser of wizarrUsers) {
+        try {
+          UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, wUser.joinedAtTimestamp);
+        } catch (_) {}
+      }
+    } else {
+      // Fallback: DB locale si Wizarr non configuré ou inaccessible
+      const dbUsers = UserQueries.getAll() || [];
+      wizarrUsers = dbUsers.map(u => ({
+        username: u.username,
+        plexUserId: null,
+        email: u.email || null,
+        joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
+      }));
+      logCR.debug(`📋 Fallback DB: ${wizarrUsers.length} users`);
+    }
 
     if (wizarrUsers.length === 0) {
-      logCR.warn('⚠️ Aucun user Wizarr trouvé');
+      logCR.warn('⚠️ Aucun user trouvé (Wizarr non configuré et DB vide)');
       return;
     }
 
-    logCR.debug(`📋 Classement pour ${wizarrUsers.length} users Wizarr (avec ou sans stats Tautulli)`);
+    logCR.debug(`📋 Classement pour ${wizarrUsers.length} users (avec ou sans stats Tautulli)`);
 
-    // Pour chaque user Wizarr, récupérer ses stats Tautulli (0 s'il n'a jamais joué)
-    // Cela crée des "entrées" pour TOUS les users Wizarr, même inactifs
-    const statsToUse = wizarrUsers.map(dbUser => {
-      const tautulliStats = getUserStatsFromTautulli(dbUser.username);
-
-      // Si user n'a jamais eu de session, retourner stats vides mais identifié
+    // Pour chaque user Wizarr, récupérer ses stats Tautulli (0 s'il n'a jamais regardé)
+    const statsToUse = wizarrUsers.map(wUser => {
+      const tautulliStats = getUserStatsFromTautulli(wUser.username);
       return tautulliStats || {
-        username: dbUser.username,
+        username: wUser.username,
         session_count: 0,
         total_duration_seconds: 0,
         last_session_timestamp: null,
@@ -101,7 +121,8 @@ async function refreshClassementCache() {
         episode_duration_seconds: 0,
         music_count: 0,
         music_duration_seconds: 0,
-        totalHours: 0
+        totalHours: 0,
+        _joinedAtTimestamp: wUser.joinedAtTimestamp  // porté depuis Wizarr
       };
     });
 
@@ -162,22 +183,26 @@ async function refreshClassementCache() {
     // Utilise la MÊME fonction centralisée que le profil pour garantir la cohérence 100%
     const users = await Promise.all(statsToUse.map(async (stats) => {
       const key = (stats.username || '').toLowerCase();
-      const dbUser = UserQueries.getByUsername(stats.username) || null;
       const thumb = thumbMap[key] || null;
 
-      // Récupérer joinedAtTimestamp depuis la DB (passé à calculateUserXp)
-      let joinedAtTs = null;
-      if (dbUser && dbUser.joinedAt) {
-        // Convertir joinedAt en secondes Unix si c'est un timestamp millisecondes
-        const ts = Number(dbUser.joinedAt);
-        if (!isNaN(ts) && ts > 1e8) {
-          joinedAtTs = ts < 1e13 ? ts : Math.floor(ts / 1000);  // Convertir en secondes si nécessaire
+      // Priorité joinedAt: champ porté depuis Wizarr > DB locale
+      let joinedAtTs = stats._joinedAtTimestamp || null;
+      if (!joinedAtTs) {
+        const dbUser = UserQueries.getByUsername(stats.username);
+        if (dbUser && dbUser.joinedAt) {
+          const ts = Number(dbUser.joinedAt);
+          if (!isNaN(ts) && ts > 1e8) {
+            joinedAtTs = ts < 1e13 ? ts : Math.floor(ts / 1000);
+          }
         }
       }
+
+      logCR.debug(`🎯 Calcul XP ${stats.username}: joinedAtTs=${joinedAtTs}`);
 
       try {
         // 🎯 Appeler la fonction centralisée (identique au profil)
         const xpData = await calculateUserXp(stats.username, joinedAtTs);
+        logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);
 
         return {
           username: stats.username,

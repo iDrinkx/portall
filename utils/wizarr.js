@@ -131,4 +131,64 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
   }
 }
 
-module.exports = { computeSubscription, checkWizarrAccess };
+/**
+ * Récupère TOUS les utilisateurs Wizarr avec pagination
+ * @param {string} wizarrUrl - URL de Wizarr
+ * @param {string} apiKey - Clé API Wizarr
+ * @returns {Promise<Array<{id, username, plexUserId, email, joinedAtTimestamp}>>}
+ */
+async function getAllWizarrUsers(wizarrUrl, apiKey) {
+  if (!wizarrUrl || !apiKey) return [];
+
+  const users = [];
+  const take = 50;
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const resp = await fetch(`${wizarrUrl}/api/v1/user?skip=${skip}&take=${take}`, {
+        headers: { Accept: 'application/json', 'X-API-Key': apiKey },
+        timeout: 8000
+      });
+
+      if (!resp.ok) break;
+
+      const payload = await resp.json();
+      const page =
+        Array.isArray(payload)        ? payload :
+        Array.isArray(payload?.data)  ? payload.data :
+        Array.isArray(payload?.users) ? payload.users :
+        [];
+
+      if (page.length === 0) {
+        hasMore = false;
+      } else {
+        for (const u of page) {
+          users.push({
+            id:                u.id || null,
+            username:          u.username || u.plexUsername || null,
+            plexUserId:        u.plexUserId || u.plex_user_id || null,
+            email:             u.email || null,
+            joinedAtTimestamp: u.joinedAtTimestamp ||
+              (u.created_at ? Math.floor(new Date(u.created_at).getTime() / 1000) : null)
+          });
+        }
+
+        skip += take;
+
+        // Si on a tout récupéré (total connu ou page partielle)
+        const total = payload?.total ?? payload?.pageInfo?.results ?? null;
+        if ((total !== null && users.length >= total) || page.length < take) {
+          hasMore = false;
+        }
+      }
+    } catch (_) {
+      hasMore = false;
+    }
+  }
+
+  return users.filter(u => u.username); // Exclure les users sans username
+}
+
+module.exports = { computeSubscription, checkWizarrAccess, getAllWizarrUsers };
