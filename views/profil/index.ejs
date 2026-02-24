@@ -1219,6 +1219,24 @@
     } catch (_) { return null; }
   }
 
+  async function loadXpSnapshotFromApi() {
+    try {
+      const res = await fetch((basePath || "") + "/api/xp-snapshot");
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data || !data.level || !data.rank) return null;
+      return {
+        totalXp: data.totalXp || 0,
+        level: data.level,
+        rank: data.rank,
+        progressPercent: data.progressPercent || 0,
+        xpNeeded: data.xpNeeded || 0
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   /* ===============================
      💾 PROFIL SNAPSHOT — stale-while-revalidate
      Stocke toutes les valeurs dynamiques lentes (Tautulli, Wizarr, Seerr)
@@ -1602,14 +1620,16 @@
       
       // ÉTAPE 1: Charger rapidement Seerr + Wizarr (pas de timeout long)
       console.log("[PROFIL] Chargement Seerr + Wizarr (rapide)...");
-      const [seerrRes, subscriptionRes] = await Promise.allSettled([
+      const [seerrRes, subscriptionRes, xpSnapRes] = await Promise.allSettled([
         loadSeerrStats(),
-        loadSubscription()
+        loadSubscription(),
+        loadXpSnapshotFromApi()
       ]);
       
       // ÉTAPE 2: Afficher immédiatement Seerr + Wizarr (sans attendre Tautulli)
       const seerrData = seerrRes.status === 'fulfilled' ? seerrRes.value || { total: 0, pending: 0, approved: 0, available: 0 } : { total: 0, pending: 0, approved: 0, available: 0 };
       const subscriptionData = subscriptionRes.status === 'fulfilled' ? subscriptionRes.value || {} : {};
+      const xpSnapshotData = xpSnapRes.status === 'fulfilled' ? xpSnapRes.value : null;
       
       console.log("[PROFIL] ✅ Seerr + Wizarr chargés - affichage immédiat");
       
@@ -1653,6 +1673,18 @@
       // 🧹 Nettoyer skeletons — batch 1 (Seerr + Abonnement)
       clearSkel('totalRequests','approvedRequests','pendingRequests','availableRequests',
                 'profilSubStatus','profilSubDays','profilSubExpire');
+      if (xpSnapshotData) {
+        applyXpDisplay(xpSnapshotData);
+        saveXpSnapshot(
+          xpSnapshotData.totalXp,
+          xpSnapshotData.rank,
+          {
+            level: xpSnapshotData.level,
+            progressPercent: xpSnapshotData.progressPercent,
+            xpNeeded: xpSnapshotData.xpNeeded
+          }
+        );
+      }
       saveProfilSnapshot();
       
       // ÉTAPE 3: Charger Tautulli en PARALLÈLE (peut prendre du temps)
@@ -1777,9 +1809,19 @@
 
       // TOTAL XP = somme des 3 sources
       const totalXp      = hoursXp + badgesXp + ancienneteXp;
-      const currentLevel = XP_SYSTEM.getLevel(totalXp);
-      const rank         = XP_SYSTEM.getRankByLevel(currentLevel);
-      const progress     = XP_SYSTEM.getProgressToNextLevel(totalXp);
+      let currentLevel   = XP_SYSTEM.getLevel(totalXp);
+      let rank           = XP_SYSTEM.getRankByLevel(currentLevel);
+      let progress       = XP_SYSTEM.getProgressToNextLevel(totalXp);
+      const freshXpSnap  = await loadXpSnapshotFromApi();
+      if (freshXpSnap) {
+        currentLevel = freshXpSnap.level;
+        rank = freshXpSnap.rank;
+        progress = {
+          level: freshXpSnap.level,
+          progressPercent: freshXpSnap.progressPercent,
+          xpNeeded: freshXpSnap.xpNeeded
+        };
+      }
 
       // Glow avatar selon rang
       applyRankGlow(rank.color);
@@ -1796,7 +1838,7 @@
         xpBadgeEl.classList.remove("xp-skel");
       }
       if (xpAmountEl) {
-        xpAmountEl.textContent = `${totalXp.toLocaleString("fr-FR")} XP`;
+        xpAmountEl.textContent = `${(freshXpSnap ? freshXpSnap.totalXp : totalXp).toLocaleString("fr-FR")} XP`;
         xpAmountEl.classList.remove("xp-skel");
       }
 
@@ -1807,7 +1849,7 @@
       if (xpNeeded)  xpNeeded.textContent  = `${progress.xpNeeded.toLocaleString("fr-FR")} XP \u2192 Niv.\u00a0${currentLevel + 1}`;
 
       // 💾 Persister pour affichage instantané à la prochaine visite
-      saveXpSnapshot(totalXp, rank, progress);
+      saveXpSnapshot(freshXpSnap ? freshXpSnap.totalXp : totalXp, rank, progress);
 
       // Calculer les pourcentages de répartition
       const totalXpBreakdown = hoursXp + badgesXp + ancienneteXp;
@@ -2099,15 +2141,17 @@
       cacheManager.invalidate("statsCache");
       cacheManager.invalidate("seerrCache");
 
-      const [statsRes, seerrRes, subRes] = await Promise.allSettled([
+      const [statsRes, seerrRes, subRes, xpSnapRes] = await Promise.allSettled([
         loadTautulliStats(),
         loadSeerrStats(),
-        loadSubscription()
+        loadSubscription(),
+        loadXpSnapshotFromApi()
       ]);
 
       const stats = statsRes.status === "fulfilled" ? statsRes.value : null;
       const seerr = seerrRes.status === "fulfilled" ? seerrRes.value : null;
       const sub   = subRes.status   === "fulfilled" ? subRes.value   : null;
+      const xpSnap = xpSnapRes.status === "fulfilled" ? xpSnapRes.value : null;
       const el = (id) => document.getElementById(id);
 
       // ---- Seerr ----
@@ -2156,7 +2200,7 @@
       const anciennetePercent = Math.round((ancienneteXp / totalBreakdown) * 100);
       const successPct        = PAGE_TOTAL_BADGES > 0 ? Math.round((PAGE_UNLOCKED_BADGES / PAGE_TOTAL_BADGES) * 100) : 0;
 
-      if (el("xpAmount")) { const _xa = el("xpAmount"); _xa.textContent = totalXp.toLocaleString("fr-FR") + " XP"; _xa.classList.remove("skel"); }
+      if (el("xpAmount")) { const _xa = el("xpAmount"); _xa.textContent = (xpSnap ? xpSnap.totalXp : totalXp).toLocaleString("fr-FR") + " XP"; _xa.classList.remove("skel"); }
       if (el("xpHoursValue"))         el("xpHoursValue").textContent          = hoursXp.toLocaleString()      + " XP";
       if (el("xpHoursBar"))           el("xpHoursBar").style.width            = hoursPercent      + "%";
       if (el("xpHoursPercent"))       el("xpHoursPercent").textContent        = hoursPercent      + "%";
@@ -2170,9 +2214,11 @@
       if (el("detailProfilAnciennete")) el("detailProfilAnciennete").textContent = daysJoined + " j";
 
       // Rang + niveau courant + barre XP
-      const currentLevel = XP_SYSTEM.getLevel(totalXp);
-      const currentRank  = XP_SYSTEM.getRankByLevel(currentLevel);
-      const progress     = XP_SYSTEM.getProgressToNextLevel(totalXp);
+      const currentLevel = xpSnap ? xpSnap.level : XP_SYSTEM.getLevel(totalXp);
+      const currentRank  = xpSnap ? xpSnap.rank : XP_SYSTEM.getRankByLevel(currentLevel);
+      const progress     = xpSnap
+        ? { level: xpSnap.level, progressPercent: xpSnap.progressPercent, xpNeeded: xpSnap.xpNeeded }
+        : XP_SYSTEM.getProgressToNextLevel(totalXp);
       const xpBadgeEl    = el("xpBadge");
       const xpAmountEl   = el("xpAmount");
       applyRankGlow(currentRank.color);
@@ -2185,7 +2231,7 @@
         xpBadgeEl.classList.remove("xp-skel");
       }
       if (xpAmountEl) {
-        xpAmountEl.textContent = `${totalXp.toLocaleString("fr-FR")} XP`;
+        xpAmountEl.textContent = `${(xpSnap ? xpSnap.totalXp : totalXp).toLocaleString("fr-FR")} XP`;
         xpAmountEl.classList.remove("xp-skel");
       }
       if (el("xpBarFill")) el("xpBarFill").style.width = progress.progressPercent + "%";
@@ -2193,7 +2239,7 @@
         `${progress.xpNeeded.toLocaleString("fr-FR")} XP \u2192 Niv.\u00a0${currentLevel + 1}`;
 
       // 💾 Persister
-      saveXpSnapshot(totalXp, currentRank, progress);
+      saveXpSnapshot(xpSnap ? xpSnap.totalXp : totalXp, currentRank, progress);
       saveProfilSnapshot();
 
       // Rangs débloqués
