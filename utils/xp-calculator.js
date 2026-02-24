@@ -18,30 +18,37 @@ const logXP = log.create('[XP-Calculator]');
  * Calcule le XP total pour un utilisateur
  * @param {string} username - Nom d'utilisateur Plex
  * @param {number} joinedAtTimestamp - Unix timestamp (secondes) depuis Plex (optionnel)
+ * @param {number|null} precomputedHours - Heures déjà connues (évite l'appel HTTP lent, optionnel)
  * @returns {Promise<{totalHours, totalXp, level, rank, badgeCount, progressPercent, xpNeeded}>}
  */
-async function calculateUserXp(username, joinedAtTimestamp = null) {
+async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHours = null) {
   try {
     const now = Date.now();
 
     // 1️⃣ Récupérer les heures Tautulli
     let totalHours = 0;
-    try {
-      const stats = await Promise.race([
-        getTautulliStats(
-          username,
-          process.env.TAUTULLI_URL,
-          process.env.TAUTULLI_API_KEY,
-          null,
-          process.env.PLEX_URL,
-          process.env.PLEX_TOKEN,
-          joinedAtTimestamp
-        ),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
-      ]);
-      totalHours = stats?.watchStats?.totalHours || 0;
-    } catch (err) {
-      logXP.debug(`⚠️  Heures pour ${username}: ${err.message}`);
+    if (precomputedHours !== null && precomputedHours !== undefined) {
+      // Utiliser la valeur pré-calculée (depuis DB directe) — rapide, pas d'appel HTTP
+      totalHours = precomputedHours;
+      logXP.debug(`  ⚡ ${username} heures pré-calculées: ${totalHours}h`);
+    } else {
+      try {
+        const stats = await Promise.race([
+          getTautulliStats(
+            username,
+            process.env.TAUTULLI_URL,
+            process.env.TAUTULLI_API_KEY,
+            null,
+            process.env.PLEX_URL,
+            process.env.PLEX_TOKEN,
+            joinedAtTimestamp
+          ),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
+        ]);
+        totalHours = stats?.watchStats?.totalHours || 0;
+      } catch (err) {
+        logXP.debug(`⚠️  Heures pour ${username}: ${err.message}`);
+      }
     }
 
     // 2️⃣ Récupérer les achievements XP

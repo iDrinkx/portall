@@ -11,7 +11,7 @@ const { getRadarrCalendar, getSonarrCalendar } = require("../utils/radarr-sonarr
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
 const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("../utils/database");
-const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem } = require("../utils/tautulli-direct");
+const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
 const { DatabaseMaintenance } = require("../utils/database");  // 🧹 Database maintenance
@@ -472,8 +472,12 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     const user         = req.session.user;
     const joinedAtTs   = user.joinedAtTimestamp || 0;
 
+    // ⚡ Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
+    const directStats  = getUserStatsFromTautulli(user.username);
+    const hoursHint    = directStats?.totalHours ?? null;
+
     // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
-    const xpData = await calculateUserXp(user.username, joinedAtTs);
+    const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint);
 
     res.json({
       rank: { color: xpData.rank.color, name: xpData.rank.name, icon: xpData.rank.icon, bgColor: xpData.rank.bgColor, borderColor: xpData.rank.borderColor },

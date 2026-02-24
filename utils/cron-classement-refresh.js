@@ -143,7 +143,18 @@ async function refreshClassementCache() {
     let wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
 
     if (wizarrUsers.length > 0) {
-      logCR.debug(`📋 ${wizarrUsers.length} users Wizarr récupérés`);
+      // 🔧 Dédupliquer par email avant tout traitement (garder 1 entrée par email)
+      const seenWizarrEmails = new Set();
+      wizarrUsers = wizarrUsers.filter(u => {
+        if (u.email) {
+          const emailKey = u.email.toLowerCase();
+          if (seenWizarrEmails.has(emailKey)) return false;
+          seenWizarrEmails.add(emailKey);
+        }
+        return true;
+      });
+
+      logCR.debug(`📋 ${wizarrUsers.length} users Wizarr (après dédup email)`);
       for (const wUser of wizarrUsers) {
         try {
           // Résoudre le vrai username Plex via email avant de persister
@@ -202,11 +213,27 @@ async function refreshClassementCache() {
       };
     });
 
-    logCR.debug(`📋 Classement: ${statsToUse.length} users (${statsToUse.filter(s => s.totalHours > 0).length} avec stats Tautulli)`);
+    // 🔧 Dédupliquer par username résolu + filtrer les emails-comme-username
+    const seenUsernames = new Set();
+    const statsFiltered = statsToUse.filter(stats => {
+      const key = stats.username.toLowerCase();
+      if (key.includes('@')) {
+        logCR.debug(`⏭️  Skip email-as-username: ${stats.username}`);
+        return false;
+      }
+      if (seenUsernames.has(key)) {
+        logCR.debug(`⏭️  Skip doublon: ${stats.username}`);
+        return false;
+      }
+      seenUsernames.add(key);
+      return true;
+    });
+
+    logCR.debug(`📋 Classement: ${statsFiltered.length} users (${statsToUse.length - statsFiltered.length} doublons/emails filtrés, ${statsFiltered.filter(s => s.totalHours > 0).length} avec stats Tautulli)`);
 
     // 🎯 Pré-calculer les données XP pour TOUS les utilisateurs
     // Utilise la MÊME fonction centralisée que le profil pour garantir la cohérence 100%
-    const users = await Promise.all(statsToUse.map(async (stats) => {
+    const users = await Promise.all(statsFiltered.map(async (stats) => {
       const key = (stats.username || '').toLowerCase();
       const thumb = thumbMap[key] || null;
 
@@ -225,8 +252,8 @@ async function refreshClassementCache() {
       logCR.debug(`🎯 XP ${stats.username}: joinedAtTs=${joinedAtTs} src=${plexJoinedAtMap[key]?'plex':stats._joinedAtTimestamp?'wizarr':'fallback'}`);
 
       try {
-        // 🎯 Appeler la fonction centralisée (identique au profil)
-        const xpData = await calculateUserXp(stats.username, joinedAtTs);
+        // 🎯 Appeler la fonction centralisée avec heures DB directes (rapide, pas d'appel HTTP)
+        const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null);
         logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);
 
         return {
@@ -257,7 +284,7 @@ async function refreshClassementCache() {
     const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
 
     // 🔍 Valider les données avant de les mettre en cache
-    const issues = validateCacheData(users, statsToUse);
+    const issues = validateCacheData(users, statsFiltered);
 
     if (issues.length > 0) {
       logCR.warn('⚠️ Problèmes détectés dans les données calculées:');
