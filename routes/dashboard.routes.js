@@ -119,6 +119,9 @@ router.get("/profil", requireAuth, async (req, res) => {
       daysSince: Math.floor((Date.now() - (req.session.user.joinedAtTimestamp * 1000)) / (1000 * 60 * 60 * 24))
     };
 
+      // Sauvegarder les stats recalculées en DB pour garantir la cohérence classement/profil
+      const SessionStatsCacheDB = require("../utils/session-stats-cache-db");
+      SessionStatsCacheDB.set(req.session.user.username, stats);
     // Compter les badges débloqués (avec succ\u00e8s manuels depuis la DB)
     const dbUser = UserQueries.upsert(
       req.session.user.username,
