@@ -851,105 +851,18 @@ router.get('/api/mes-stats', requireAuth, async (req, res) => {
 =============================== */
 const logLB = log.create('[Classement]');
 
-router.get('/api/classement', requireAuth, async (req, res) => {
+router.get('/api/classement', requireAuth, (req, res) => {
   try {
-    // 🔄 NO CACHE - récupérer les données fraîches à chaque fois (images et XP à jour)
-    const { getAllUserStatsFromTautulli, isTautulliReady } = require('../utils/tautulli-direct');
-    const tautulliStats = isTautulliReady() ? getAllUserStatsFromTautulli() : [];
+    // ✅ Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
+    const { getClassementCache } = require('../utils/cron-classement-refresh');
+    const cacheData = getClassementCache();
 
-    // 🔄 TOUJOURS récupérer les thumbs Plex frais
-    const plexToken = process.env.PLEX_TOKEN || '';
-    const thumbMap  = {}; // username.lower → thumb URL
-
-    try {
-      const ownerResp = await fetch('https://plex.tv/api/v2/user', {
-        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/json' },
-        timeout: 6000
-      });
-      if (ownerResp.ok) {
-        const od = await ownerResp.json();
-        if (od.username && od.thumb) thumbMap[od.username.toLowerCase()] = od.thumb;
-      }
-    } catch (_) {}
-
-    try {
-      const xmlResp = await fetch('https://plex.tv/api/users', {
-        headers: { 'X-Plex-Token': plexToken, 'Accept': 'application/xml' },
-        timeout: 6000
-      });
-      if (xmlResp.ok) {
-        const xml = await xmlResp.text();
-        const blockRe = /<User\s[\s\S]*?(?:\/>|<\/User>)/g;
-        const attrRe  = /(\w+)="([^"]*)"/g;
-        let bm;
-        while ((bm = blockRe.exec(xml)) !== null) {
-          const openTag = bm[0].match(/<User\s([^>]+)/);
-          if (!openTag) continue;
-          const attrs = {};
-          let am;
-          attrRe.lastIndex = 0;
-          while ((am = attrRe.exec(openTag[1])) !== null) attrs[am[1]] = am[2];
-          const name = (attrs.title || attrs.username || '').toLowerCase();
-          if (name && attrs.thumb) thumbMap[name] = attrs.thumb;
-        }
-        logLB.debug(`[THUMBS] Chargé ${Object.keys(thumbMap).length} images de Plex`);
-        logLB.debug(`[THUMBS-KEYS] ${Object.keys(thumbMap).slice(0, 10).join(', ')}`);
-      }
-    } catch (_) {
-      logLB.error(`[THUMBS-ERROR] Impossible de récupérer les images: ${_}`);
-    }
-
-    const XP_M = { HOURS: 10, ANCIENNETE: 1.5 }; // v1.13: système ultra-optimisé
-    const now  = Date.now();
-    const allAchievements = ACHIEVEMENTS.getAll();
-    const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-
-    const users = tautulliStats.map(stats => {
-      const key    = (stats.username || '').toLowerCase();
-      const dbUser = UserQueries.getByUsername(stats.username) || null;
-
-      let badgeCount = 0;
-      let achievementsXp = 0;
-      if (dbUser) {
-        try {
-          const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-          badgeCount = Object.keys(unlockedMap).length;
-          achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-        } catch (err) {
-          logLB.error(`Error getting achievements for ${key}: ${err.message}`);
-        }
-      }
-
-      let daysJoined = 0;
-      if (dbUser && dbUser.joinedAt) {
-        const ts = Number(dbUser.joinedAt);
-        const ms = !isNaN(ts) && ts > 1e8 ? ts * 1000 : new Date(dbUser.joinedAt).getTime();
-        if (!isNaN(ms)) daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
-      }
-
-      const totalHours = stats.totalHours || 0;
-      const totalXp    = Math.round(totalHours * XP_M.HOURS) + achievementsXp + Math.round(daysJoined * XP_M.ANCIENNETE);
-      const level      = XP_SYSTEM.getLevel(totalXp);
-      const rank       = XP_SYSTEM.getRankByLevel(level);
-
-      // ✅ FIX: Envoyer les URLs Plex directement au frontend pour que le navigateur les charge
-      // (Le proxy ne peut pas accéder aux URLs publiques plex.tv depuis le serveur)
-      const thumb = thumbMap[key] || null;
-
-      // 🔍 DEBUG pour diagnostiquer images manquantes et XP
-      if (key === 'jina292' || !thumb) {
-        logLB.debug(`[USER] ${stats.username} (key=${key}): thumb=${thumb ? 'YES' : 'NO'}, hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
-      }
-
-      return { username: stats.username, thumb, totalHours, totalXp, level,
-               rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
-               badgeCount };
+    // Ajouter le timestamp du dernier refresh dans la réponse
+    res.json({
+      ...cacheData.data,
+      lastRefresh: cacheData.lastRefresh,
+      cacheTimestamp: cacheData.timestamp
     });
-
-    const byHours = [...users].sort((a, b) => b.totalHours - a.totalHours);
-    const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
-
-    res.json({ byHours, byLevel });
   } catch (err) {
     logLB.error('API classement:', err.message);
     res.status(500).json({ error: 'classement failed' });

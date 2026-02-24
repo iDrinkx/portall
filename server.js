@@ -9,6 +9,7 @@ const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
 const { startSessionCronJob } = require("./utils/cron-session-job");
 const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
+const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
@@ -256,4 +257,7 @@ app.listen(PORT, async () => {
 
   // 🧹 Démarrer le job de maintenance de la base de données
   startDatabaseMaintenanceJob();
+
+  // 🏆 Démarrer le job de refresh du classement (toutes les 5 minutes)
+  startClassementRefreshJob();
 });
