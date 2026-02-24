@@ -6,9 +6,13 @@
 
   <!-- ── HEADER ──────────────────────────────────────────────── -->
   <div class="ms-header">
+    <div class="ms-header-top">
+      <div class="ms-header-main">
     <h1 class="ms-title">Mes Statistiques&nbsp;📊</h1>
     <p class="ms-subtitle" id="msSubtitle">Votre résumé de visionnage complet</p>
-    <div class="ms-refresh-timer" id="msRefreshTimer"></div>
+      </div>
+      <div class="ms-refresh-timer" id="msRefreshTimer"></div>
+    </div>
     <div class="ms-tabs">
       <button class="ms-tab ms-tab--active" id="msTabPersonal" type="button">Mes stats</button>
       <button class="ms-tab" id="msTabGlobal" type="button">Stats globales</button>
@@ -111,6 +115,15 @@
 .ms-header {
   margin-bottom: 28px;
 }
+.ms-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.ms-header-main {
+  min-width: 0;
+}
 .ms-title {
   font-size: 24px;
   font-weight: 800;
@@ -150,10 +163,9 @@
   background: rgba(59,130,246,0.18);
 }
 .ms-refresh-timer {
-  width: 100%;
-  display: block;
+  flex-shrink: 0;
   text-align: right;
-  margin-top: 8px;
+  margin-top: 4px;
   min-height: 14px;
   font-size: 11px;
   color: #666;
