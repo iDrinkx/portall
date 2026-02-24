@@ -893,6 +893,7 @@ router.get('/api/classement', requireAuth, async (req, res) => {
           if (name && attrs.thumb) thumbMap[name] = attrs.thumb;
         }
         logLB.debug(`[THUMBS] Chargé ${Object.keys(thumbMap).length} images de Plex`);
+        logLB.debug(`[THUMBS-KEYS] ${Object.keys(thumbMap).slice(0, 10).join(', ')}`);
       }
     } catch (_) {
       logLB.error(`[THUMBS-ERROR] Impossible de récupérer les images: ${_}`);
@@ -934,6 +935,11 @@ router.get('/api/classement', requireAuth, async (req, res) => {
       // ✅ FIX: Envoyer les URLs Plex directement au frontend pour que le navigateur les charge
       // (Le proxy ne peut pas accéder aux URLs publiques plex.tv depuis le serveur)
       const thumb = thumbMap[key] || null;
+
+      // 🔍 DEBUG pour diagnostiquer images manquantes et XP
+      if (key === 'jina292' || !thumb) {
+        logLB.debug(`[USER] ${stats.username} (key=${key}): thumb=${thumb ? 'YES' : 'NO'}, hours=${totalHours}, achievementsXp=${achievementsXp}, daysJoined=${daysJoined}, totalXp=${totalXp}, level=${level}`);
+      }
 
       return { username: stats.username, thumb, totalHours, totalXp, level,
                rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
