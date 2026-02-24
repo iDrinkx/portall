@@ -15,6 +15,7 @@ const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, 
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
 const { DatabaseMaintenance } = require("../utils/database");  // 🧹 Database maintenance
+const { calculateUserXp } = require("../utils/xp-calculator");  // 🎯 Fonction centralisée XP
 
 /* ===============================
    🔐 AUTH
@@ -470,51 +471,19 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
   try {
     const user         = req.session.user;
     const joinedAtTs   = user.joinedAtTimestamp || 0;
-    const daysJoined   = Math.floor((Date.now() - (joinedAtTs * 1000)) / (1000 * 60 * 60 * 24));
 
-    // Stats Tautulli (depuis le cache serveur si déjà calculé, sinon rapide)
-    let totalHours = 0;
-    try {
-      const stats = await Promise.race([
-        getTautulliStats(
-          user.username, process.env.TAUTULLI_URL, process.env.TAUTULLI_API_KEY,
-          user.id, process.env.PLEX_URL, process.env.PLEX_TOKEN, joinedAtTs
-        ),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('XP_TIMEOUT')), 4000))
-      ]);
-      totalHours = stats?.watchStats?.totalHours || 0;
-    } catch (_) {}
-
-    // Badges débloqués et XP (lecture DB ultra-rapide)
-    let achievementsXp = 0;
-    try {
-      const dbUser = UserQueries.getByUsername(user.username);
-      if (dbUser) {
-        const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-        const allAchievements = ACHIEVEMENTS.getAll();
-        const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-        achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-      }
-    } catch (err) {
-      log.create('[XP-PROFILE-ERROR]').error(`Error getting achievements: ${err.message}`);
-    }
-
-    // Calcul XP (même formule que la page Profil) — v1.13: système ultra-optimisé
-    const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
-    const totalXp      = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
-                       + achievementsXp
-                       + Math.round(daysJoined * XP_MULTIPLIERS.ANCIENNETE);
-    const level    = XP_SYSTEM.getLevel(totalXp);
-    const rank     = XP_SYSTEM.getRankByLevel(level);
-    const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
+    // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
+    const xpData = await calculateUserXp(user.username, joinedAtTs);
 
     res.json({
-      rank: { color: rank.color, name: rank.name, icon: rank.icon, bgColor: rank.bgColor, borderColor: rank.borderColor },
-      level, totalXp,
-      progressPercent: progress.progressPercent,
-      xpNeeded: progress.xpNeeded
+      rank: { color: xpData.rank.color, name: xpData.rank.name, icon: xpData.rank.icon, bgColor: xpData.rank.bgColor, borderColor: xpData.rank.borderColor },
+      level: xpData.level,
+      totalXp: xpData.totalXp,
+      progressPercent: xpData.progressPercent,
+      xpNeeded: xpData.xpNeeded
     });
   } catch (err) {
+    log.create('[XP-SNAPSHOT]').error(`Erreur: ${err.message}`);
     res.status(500).json({ error: 'xp-snapshot failed' });
   }
 });

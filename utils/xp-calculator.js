@@ -1,0 +1,128 @@
+/**
+ * 🎯 Fonction centralisée pour calculer le XP/niveau d'un utilisateur
+ * Utilisée par le profil ET le classement pour garantir la cohérence
+ *
+ * Formule XP:
+ *   totalXp = (heures * 10) + (achievements XP) + (days * 1.5)
+ */
+
+const { getTautulliStats } = require("./tautulli");
+const { XP_SYSTEM } = require("./xp-system");
+const { ACHIEVEMENTS } = require("./achievements");
+const { UserAchievementQueries, UserQueries } = require("./database");
+const log = require("./logger");
+
+const logXP = log.create('[XP-Calculator]');
+
+/**
+ * Calcule le XP total pour un utilisateur
+ * @param {string} username - Nom d'utilisateur Plex
+ * @param {number} joinedAtTimestamp - Unix timestamp (secondes) depuis Plex (optionnel)
+ * @returns {Promise<{totalHours, totalXp, level, rank, badgeCount, progressPercent, xpNeeded}>}
+ */
+async function calculateUserXp(username, joinedAtTimestamp = null) {
+  try {
+    const now = Date.now();
+
+    // 1️⃣ Récupérer les heures Tautulli
+    let totalHours = 0;
+    try {
+      const stats = await Promise.race([
+        getTautulliStats(
+          username,
+          process.env.TAUTULLI_URL,
+          process.env.TAUTULLI_API_KEY,
+          null,
+          process.env.PLEX_URL,
+          process.env.PLEX_TOKEN,
+          joinedAtTimestamp
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
+      ]);
+      totalHours = stats?.watchStats?.totalHours || 0;
+    } catch (err) {
+      logXP.debug(`⚠️  Heures pour ${username}: ${err.message}`);
+    }
+
+    // 2️⃣ Récupérer les achievements XP
+    let achievementsXp = 0;
+    let badgeCount = 0;
+    try {
+      const dbUser = UserQueries.getByUsername(username);
+      if (dbUser) {
+        const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
+        const allAchievements = ACHIEVEMENTS.getAll();
+        const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
+
+        badgeCount = Object.keys(unlockedMap).length;
+        achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
+      }
+    } catch (err) {
+      logXP.debug(`⚠️  Achievements pour ${username}: ${err.message}`);
+    }
+
+    // 3️⃣ Calculer daysJoined
+    let daysJoined = 0;
+
+    // Essayer d'abord joinedAtTimestamp passé en paramètre (depuis Plex)
+    if (joinedAtTimestamp) {
+      const ms = joinedAtTimestamp < 1e13 ? joinedAtTimestamp * 1000 : joinedAtTimestamp;
+      daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
+    } else {
+      // Sinon, essayer depuis la DB
+      const dbUser = UserQueries.getByUsername(username);
+      if (dbUser && dbUser.joinedAt) {
+        try {
+          const ts = Number(dbUser.joinedAt);
+          const ms = !isNaN(ts) && ts > 1e8 ? (ts < 1e13 ? ts * 1000 : ts) : new Date(dbUser.joinedAt).getTime();
+          if (!isNaN(ms)) {
+            daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Fallback intelligent si toujours 0
+    if (daysJoined === 0) {
+      daysJoined = 30;  // minimum
+      if (totalHours > 100) daysJoined = 60;
+      if (totalHours > 500) daysJoined = 120;
+    }
+
+    // 4️⃣ Calculer le XP total
+    const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
+    const totalXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS)
+                  + achievementsXp
+                  + Math.round(daysJoined * XP_MULTIPLIERS.ANCIENNETE);
+
+    // 5️⃣ Convertir en niveau et rang
+    const level = XP_SYSTEM.getLevel(totalXp);
+    const rank = XP_SYSTEM.getRankByLevel(level);
+    const progress = XP_SYSTEM.getProgressToNextLevel(totalXp);
+
+    return {
+      totalHours,
+      totalXp,
+      level,
+      rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
+      badgeCount,
+      progressPercent: progress.progressPercent,
+      xpNeeded: progress.xpNeeded,
+      daysJoined  // debug info
+    };
+  } catch (err) {
+    logXP.error(`Erreur calcul XP pour ${username}: ${err.message}`);
+    return {
+      totalHours: 0,
+      totalXp: 0,
+      level: 1,
+      rank: XP_SYSTEM.getRankByLevel(1),
+      badgeCount: 0,
+      progressPercent: 0,
+      xpNeeded: 1000,
+      error: err.message
+    };
+  }
+}
+
+module.exports = { calculateUserXp };

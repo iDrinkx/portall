@@ -1,10 +1,10 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
 const log = require('./logger');
-const { UserAchievementQueries, UserQueries } = require('./database');
-const { ACHIEVEMENTS } = require('./achievements');
+const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
+const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
 
 const logCR = log.create('[Classement-Refresh]');
 
@@ -149,68 +149,50 @@ async function refreshClassementCache() {
 
     logCR.debug(`📸 Fetched ${thumbsFetched} avatars from Plex`);
 
-    // Pré-calculer les données XP pour tous les utilisateurs
-    const XP_M = { HOURS: 10, ANCIENNETE: 1.5 };
-    const now = Date.now();
-    const allAchievements = ACHIEVEMENTS.getAll();
-    const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-
-    const users = statsToUse.map(stats => {
+    // 🎯 Pré-calculer les données XP pour TOUS les utilisateurs
+    // Utilise la MÊME fonction centralisée que le profil pour garantir la cohérence 100%
+    const users = await Promise.all(statsToUse.map(async (stats) => {
       const key = (stats.username || '').toLowerCase();
       const dbUser = UserQueries.getByUsername(stats.username) || null;
+      const thumb = thumbMap[key] || null;
 
-      let badgeCount = 0;
-      let achievementsXp = 0;
-      if (dbUser) {
-        try {
-          const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-          badgeCount = Object.keys(unlockedMap).length;
-          achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-        } catch (err) {
-          logCR.error(`Error getting achievements for ${key}: ${err.message}`);
+      // Récupérer joinedAtTimestamp depuis la DB (passé à calculateUserXp)
+      let joinedAtTs = null;
+      if (dbUser && dbUser.joinedAt) {
+        // Convertir joinedAt en secondes Unix si c'est un timestamp millisecondes
+        const ts = Number(dbUser.joinedAt);
+        if (!isNaN(ts) && ts > 1e8) {
+          joinedAtTs = ts < 1e13 ? ts : Math.floor(ts / 1000);  // Convertir en secondes si nécessaire
         }
       }
 
-      // 🔍 Calcul COHÉRENT de daysJoined (identique au profil pour consistance)
-      let daysJoined = 0;
+      try {
+        // 🎯 Appeler la fonction centralisée (identique au profil)
+        const xpData = await calculateUserXp(stats.username, joinedAtTs);
 
-      // Essayer d'abord joinedAt de la DB (format timestamp ou date)
-      if (dbUser && dbUser.joinedAt) {
-        try {
-          const ts = Number(dbUser.joinedAt);
-          // Si c'est un timestamp Unix en secondes (< 1e13) ou millisecondes (> 1e13)
-          const ms = !isNaN(ts) && ts > 1e8 ? (ts < 1e13 ? ts * 1000 : ts) : new Date(dbUser.joinedAt).getTime();
-          if (!isNaN(ms)) {
-            daysJoined = Math.max(0, Math.floor((now - ms) / 86400000));
-          }
-        } catch (_) {}
+        return {
+          username: stats.username,
+          thumb,
+          totalHours: xpData.totalHours,
+          totalXp: xpData.totalXp,
+          level: xpData.level,
+          rank: xpData.rank,
+          badgeCount: xpData.badgeCount
+        };
+      } catch (err) {
+        logCR.error(`⚠️  Erreur XP pour ${stats.username}: ${err.message}`);
+        // Fallback: user avec données minimales
+        return {
+          username: stats.username,
+          thumb,
+          totalHours: stats.totalHours || 0,
+          totalXp: 0,
+          level: 1,
+          rank: XP_SYSTEM.getRankByLevel(1),
+          badgeCount: 0
+        };
       }
-
-      // ⚠️ Fallback intelligent si daysJoined est toujours 0 (joinedAt manquant ou invalide)
-      if (daysJoined === 0) {
-        // Assumer que l'utilisateur a rejoint récemment, basé sur son activité
-        // Cette formule est une approximation conservative
-        daysJoined = 30; // Minimum: 30 jours
-        if (stats.totalHours > 100) daysJoined = 60;   // Si actif, probable qu'il est plus ancien
-        if (stats.totalHours > 500) daysJoined = 120;  // Si très actif, bien plus ancien
-      }
-
-      const totalHours = stats.totalHours || 0;
-      const totalXp = Math.round(totalHours * XP_M.HOURS) + achievementsXp + Math.round(daysJoined * XP_M.ANCIENNETE);
-      const level = XP_SYSTEM.getLevel(totalXp);
-      const rank = XP_SYSTEM.getRankByLevel(level);
-      const thumb = thumbMap[key] || null;
-
-      return {
-        username: stats.username,
-        thumb,
-        totalHours,
-        totalXp,
-        level,
-        rank: { name: rank.name, icon: rank.icon, color: rank.color, bgColor: rank.bgColor, borderColor: rank.borderColor },
-        badgeCount
-      };
-    });
+    }));
 
     const byHours = [...users].sort((a, b) => b.totalHours - a.totalHours);
     const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
