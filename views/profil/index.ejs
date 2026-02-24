@@ -1144,9 +1144,9 @@
      instantané (sans flash "Bronze / 0 XP") à la prochaine visite.
   =============================== */
 
-  // Clé unique par utilisateur, max 24h de validité
+  // Clé unique par utilisateur, max 5 min de validité (synchro avec le refresh classement)
   const _XP_CACHE_KEY = () => `xp_snapshot_${document.body.getAttribute("data-user-id") || "guest"}`;
-  const _XP_CACHE_TTL  = 24 * 60 * 60 * 1000;
+  const _XP_CACHE_TTL  = 5 * 60 * 1000;
 
   // ─── Applique le rang coloré sur avatar ring + barre XP ──────────────
   function _rankGrad(c) {

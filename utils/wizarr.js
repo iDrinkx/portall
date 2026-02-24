@@ -140,6 +140,48 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
 async function getAllWizarrUsers(wizarrUrl, apiKey) {
   if (!wizarrUrl || !apiKey) return [];
 
+  // Extraire un timestamp Unix (secondes) depuis plusieurs noms de champs possibles
+  function extractTs(u) {
+    const raw = u.joinedAtTimestamp || u.created_at || u.date_created || u.created || u.dateCreated || null;
+    if (!raw) return null;
+    if (typeof raw === 'number') return raw < 1e12 ? raw : Math.floor(raw / 1000);
+    const ms = new Date(raw).getTime();
+    return isNaN(ms) ? null : Math.floor(ms / 1000);
+  }
+
+  function normalizeList(payload) {
+    return Array.isArray(payload)        ? payload :
+           Array.isArray(payload?.data)  ? payload.data :
+           Array.isArray(payload?.users) ? payload.users :
+           [];
+  }
+
+  function mapUser(u) {
+    return {
+      id:                u.id || null,
+      username:          u.username || u.plexUsername || u.plex_username || null,
+      plexUserId:        u.plexUserId || u.plex_user_id || u.plexId || null,
+      email:             u.email || null,
+      joinedAtTimestamp: extractTs(u)
+    };
+  }
+
+  // Essayer d'abord /api/users (endpoint confirmé opérationnel dans cette installation)
+  try {
+    const resp = await fetch(`${wizarrUrl}/api/users`, {
+      headers: { Accept: 'application/json', 'X-API-Key': apiKey },
+      timeout: 8000
+    });
+    if (resp.ok) {
+      const payload = await resp.json();
+      const list = normalizeList(payload);
+      if (list.length > 0) {
+        return list.map(mapUser).filter(u => u.username);
+      }
+    }
+  } catch (_) {}
+
+  // Fallback: /api/v1/user avec pagination (Wizarr v4+)
   const users = [];
   const take = 50;
   let skip = 0;
@@ -151,44 +193,25 @@ async function getAllWizarrUsers(wizarrUrl, apiKey) {
         headers: { Accept: 'application/json', 'X-API-Key': apiKey },
         timeout: 8000
       });
-
       if (!resp.ok) break;
 
       const payload = await resp.json();
-      const page =
-        Array.isArray(payload)        ? payload :
-        Array.isArray(payload?.data)  ? payload.data :
-        Array.isArray(payload?.users) ? payload.users :
-        [];
+      const page = normalizeList(payload);
 
       if (page.length === 0) {
         hasMore = false;
       } else {
-        for (const u of page) {
-          users.push({
-            id:                u.id || null,
-            username:          u.username || u.plexUsername || null,
-            plexUserId:        u.plexUserId || u.plex_user_id || null,
-            email:             u.email || null,
-            joinedAtTimestamp: u.joinedAtTimestamp ||
-              (u.created_at ? Math.floor(new Date(u.created_at).getTime() / 1000) : null)
-          });
-        }
-
+        users.push(...page.map(mapUser));
         skip += take;
-
-        // Si on a tout récupéré (total connu ou page partielle)
         const total = payload?.total ?? payload?.pageInfo?.results ?? null;
-        if ((total !== null && users.length >= total) || page.length < take) {
-          hasMore = false;
-        }
+        if ((total !== null && users.length >= total) || page.length < take) hasMore = false;
       }
     } catch (_) {
       hasMore = false;
     }
   }
 
-  return users.filter(u => u.username); // Exclure les users sans username
+  return users.filter(u => u.username);
 }
 
 module.exports = { computeSubscription, checkWizarrAccess, getAllWizarrUsers };
