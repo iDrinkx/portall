@@ -253,7 +253,16 @@ async function refreshClassementCache() {
 
       try {
         // 🎯 Appeler la fonction centralisée avec heures DB directes (rapide, pas d'appel HTTP)
-        const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null);
+        const statsHint = {
+          totalHours: Number(stats.totalHours ?? 0),
+          sessionCount: Number(stats.sessionCount ?? stats.session_count ?? 0),
+          movieCount: Number(stats.movieCount ?? stats.movie_count ?? 0),
+          episodeCount: Number(stats.episodeCount ?? stats.episode_count ?? 0),
+          monthlyHours: Number(stats.monthlyHours ?? 0),
+          nightCount: Number(stats.nightCount ?? 0),
+          morningCount: Number(stats.morningCount ?? 0)
+        };
+        const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null, statsHint);
         logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);
 
         return {

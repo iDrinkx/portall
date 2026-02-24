@@ -478,9 +478,18 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     // ⚡ Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
     const directStats  = getUserStatsFromTautulli(user.username);
     const hoursHint    = directStats?.totalHours ?? null;
+    const statsHint    = directStats ? {
+      totalHours: directStats.totalHours || 0,
+      sessionCount: directStats.sessionCount || 0,
+      movieCount: directStats.movieCount || 0,
+      episodeCount: directStats.episodeCount || 0,
+      monthlyHours: 0,
+      nightCount: 0,
+      morningCount: 0
+    } : null;
 
     // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
-    const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint);
+    const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint, statsHint);
 
     res.json({
       rank: { color: xpData.rank.color, name: xpData.rank.name, icon: xpData.rank.icon, bgColor: xpData.rank.bgColor, borderColor: xpData.rank.borderColor },

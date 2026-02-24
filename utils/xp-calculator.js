@@ -19,17 +19,20 @@ const logXP = log.create('[XP-Calculator]');
  * @param {string} username - Nom d'utilisateur Plex
  * @param {number} joinedAtTimestamp - Unix timestamp (secondes) depuis Plex (optionnel)
  * @param {number|null} precomputedHours - Heures déjà connues (évite l'appel HTTP lent, optionnel)
+ * @param {object|null} precomputedStats - Stats déjà connues (session/movie/episode/monthly/night/morning)
  * @returns {Promise<{totalHours, totalXp, level, rank, badgeCount, progressPercent, xpNeeded}>}
  */
-async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHours = null) {
+async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHours = null, precomputedStats = null) {
   try {
     const now = Date.now();
+    let statsData = precomputedStats ? { ...precomputedStats } : {};
 
     // 1️⃣ Récupérer les heures Tautulli
     let totalHours = 0;
     if (precomputedHours !== null && precomputedHours !== undefined) {
       // Utiliser la valeur pré-calculée (depuis DB directe) — rapide, pas d'appel HTTP
       totalHours = precomputedHours;
+      if (statsData.totalHours === undefined) statsData.totalHours = precomputedHours;
       logXP.debug(`  ⚡ ${username} heures pré-calculées: ${totalHours}h`);
     } else {
       try {
@@ -43,29 +46,22 @@ async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHo
             process.env.PLEX_TOKEN,
             joinedAtTimestamp
           ),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
         ]);
         totalHours = stats?.watchStats?.totalHours || 0;
+        statsData = {
+          ...statsData,
+          totalHours,
+          sessionCount: stats?.sessionCount || 0,
+          movieCount: stats?.watchStats?.movieCount || 0,
+          episodeCount: stats?.watchStats?.episodeCount || 0,
+          monthlyHours: stats?.monthlyHours || 0,
+          nightCount: stats?.nightCount || 0,
+          morningCount: stats?.morningCount || 0
+        };
       } catch (err) {
         logXP.debug(`⚠️  Heures pour ${username}: ${err.message}`);
       }
-    }
-
-    // 2️⃣ Récupérer les achievements XP
-    let achievementsXp = 0;
-    let badgeCount = 0;
-    try {
-      const dbUser = UserQueries.getByUsername(username);
-      if (dbUser) {
-        const unlockedMap = UserAchievementQueries.getForUser(dbUser.id);
-        const allAchievements = ACHIEVEMENTS.getAll();
-        const achievementXpMap = Object.fromEntries(allAchievements.map(a => [a.id, a.xp || 0]));
-
-        badgeCount = Object.keys(unlockedMap).length;
-        achievementsXp = Object.keys(unlockedMap).reduce((sum, id) => sum + (achievementXpMap[id] || 0), 0);
-      }
-    } catch (err) {
-      logXP.debug(`⚠️  Achievements pour ${username}: ${err.message}`);
     }
 
     // 3️⃣ Calculer daysJoined avec stratégie multi-sources
@@ -129,6 +125,29 @@ async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHo
       if (totalHours > 100) daysJoined = 60;
       if (totalHours > 500) daysJoined = 120;
       logXP.debug(`  ℹ️  ${username} daysJoined=${daysJoined} (fallback basé sur heures)`);
+    }
+
+    // 4️⃣ Calculer les achievements XP (auto + manuels DB), comme le profil
+    let achievementsXp = 0;
+    let badgeCount = 0;
+    try {
+      const dbUser = UserQueries.getByUsername(username);
+      const userUnlockedMap = dbUser ? UserAchievementQueries.getForUser(dbUser.id) : {};
+      const data = {
+        totalHours: Number(totalHours || statsData.totalHours || 0),
+        movieCount: Number(statsData.movieCount || 0),
+        episodeCount: Number(statsData.episodeCount || 0),
+        sessionCount: Number(statsData.sessionCount || 0),
+        monthlyHours: Number(statsData.monthlyHours || 0),
+        nightCount: Number(statsData.nightCount || 0),
+        morningCount: Number(statsData.morningCount || 0),
+        daysSince: daysJoined
+      };
+      const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
+      badgeCount = unlockedAchievements.length;
+      achievementsXp = unlockedAchievements.reduce((sum, ach) => sum + (ach.xp || 0), 0);
+    } catch (err) {
+      logXP.debug(`⚠️  Achievements pour ${username}: ${err.message}`);
     }
 
     // 4️⃣ Calculer le XP total
