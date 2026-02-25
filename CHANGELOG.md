@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.21.2 (2026-02-25)</small>
+
+* Merge pull request #13 from iDrinkx/develop ([d3cd089](https://github.com/iDrinkx/plex-portal/commit/d3cd089)), closes [#13](https://github.com/iDrinkx/plex-portal/issues/13)
+* fix: add MonsterVerse achievement and update collection handling for mixed media ([3c9f4b8](https://github.com/iDrinkx/plex-portal/commit/3c9f4b8))
+* fix: adjust XP values for achievements to improve scoring balance ([99d6407](https://github.com/iDrinkx/plex-portal/commit/99d6407))
+* fix: update achievement progress totals and enhance fallback handling for revocable badges ([6f738ed](https://github.com/iDrinkx/plex-portal/commit/6f738ed))
+* fix: update achievement XP values for balanced scoring in collections ([97cc749](https://github.com/iDrinkx/plex-portal/commit/97cc749))
+
 ## <small>1.21.1 (2026-02-25)</small>
 
 * Merge pull request #12 from iDrinkx/develop ([0d9e733](https://github.com/iDrinkx/plex-portal/commit/0d9e733)), closes [#12](https://github.com/iDrinkx/plex-portal/issues/12)
