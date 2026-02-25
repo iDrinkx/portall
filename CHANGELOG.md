@@ -2,6 +2,15 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.21.1 (2026-02-25)</small>
+
+* Merge pull request #12 from iDrinkx/develop ([0d9e733](https://github.com/iDrinkx/plex-portal/commit/0d9e733)), closes [#12](https://github.com/iDrinkx/plex-portal/issues/12)
+* fix: enhance Wizarr user retrieval and fallback logic for active subscriptions ([6e494ef](https://github.com/iDrinkx/plex-portal/commit/6e494ef))
+* fix: implement post-login data prefetching for improved user experience ([5f17d44](https://github.com/iDrinkx/plex-portal/commit/5f17d44))
+* fix: optimize user stats retrieval and caching for improved performance ([65e994f](https://github.com/iDrinkx/plex-portal/commit/65e994f))
+* fix: update achievement names and descriptions for consistency with collections ([00ef24d](https://github.com/iDrinkx/plex-portal/commit/00ef24d))
+* fix: update cron job log message for clarity ([56999ec](https://github.com/iDrinkx/plex-portal/commit/56999ec))
+
 ## 1.21.0 (2026-02-24)
 
 * Merge pull request #11 from iDrinkx/develop ([62c34d6](https://github.com/iDrinkx/plex-portal/commit/62c34d6)), closes [#11](https://github.com/iDrinkx/plex-portal/issues/11)
