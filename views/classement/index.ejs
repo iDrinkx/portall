@@ -578,7 +578,7 @@
   function _grad(c) {
     return 'conic-gradient(from -90deg, ' + c + '2e 0deg, ' + c + ' 90deg, ' + c + 'cc 180deg, ' + c + ' 270deg, ' + c + '2e 360deg)';
   }
-  function hrs(h) { return Math.round(h) + 'h'; }
+  function hrs(h) { return Math.round(h); }
 
   function podiumCard(user, rank) {
     var isMe     = user.username === ME;
@@ -683,7 +683,7 @@
     var level = user.level || 1;
     var totalXp = Number(user.totalXp || 0).toLocaleString('fr-FR');
     var badgeCount = Number(user.badgeCount || 0).toLocaleString('fr-FR');
-    var totalHours = hrs(user.totalHours || 0);
+    var totalHours = Math.round(user.totalHours || 0).toLocaleString('fr-FR');
     var effectiveThumb = user.thumb || (user.username === ME ? ME_THUMB : '');
     var avatarHtml = effectiveThumb
       ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<span class=&quot;lb-preview-value lb-preview-value--muted&quot;>?</span>\'">'
@@ -695,7 +695,7 @@
         + '<div class="lb-preview-main">'
           + '<div class="lb-preview-meta-row">'
             + '<span class="lb-preview-chip lb-preview-chip--rank" style="color:' + escHtml(rank.color || '#fff') + ';border-color:' + escHtml((rank.borderColor || '#fff')) + '66;background:' + escHtml((rank.bgColor || 'rgba(255,255,255,0.08)')) + '"><span>Niv. ' + level + '</span><span class="lb-preview-rank-sep">•</span><span>' + escHtml((rank.icon || '🏅') + ' ' + (rank.name || 'Rang')) + '</span></span>'
-            + '<span class="lb-preview-chip lb-preview-chip--hours">' + totalHours + '</span>'
+            + '<span class="lb-preview-chip lb-preview-chip--hours">' + totalHours + ' H</span>'
             + '<span class="lb-preview-chip lb-preview-chip--succes">🏆 ' + badgeCount + '</span>'
             + '<span class="lb-preview-chip lb-preview-chip--xp">' + totalXp + ' XP</span>'
           + '</div>'
