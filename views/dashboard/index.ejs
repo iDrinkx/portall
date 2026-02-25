@@ -228,6 +228,56 @@
 })();
 </script>
 
+<script>
+// ─── Prefetch post-login (safe, non bloquant, une fois par session) ───
+(function () {
+  const bp = window.APP_BASE_PATH || '';
+  const userId = document.body.getAttribute('data-user-id') || 'guest';
+  if (!userId || userId === 'guest') return;
+
+  const PREFETCH_KEY = 'post_login_prefetch_v1:' + userId;
+  if (sessionStorage.getItem(PREFETCH_KEY) === 'done') return;
+
+  const endpoints = [
+    '/api/subscription',
+    '/api/seerr',
+    '/api/xp-snapshot',
+    '/api/stats'
+  ];
+
+  function prefetchOne(path, timeoutMs) {
+    return new Promise((resolve) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+      fetch(bp + path, {
+        method: 'GET',
+        credentials: 'same-origin',
+        signal: ctrl.signal
+      })
+        .then(() => resolve())
+        .catch(() => resolve())
+        .finally(() => clearTimeout(timer));
+    });
+  }
+
+  async function runPrefetch() {
+    // Marquer immédiatement pour éviter les doubles runs en cas de scripts multiples
+    sessionStorage.setItem(PREFETCH_KEY, 'done');
+
+    // Timeout court pour rester transparent côté UX
+    const timeoutMs = 4500;
+    await Promise.allSettled(endpoints.map((ep) => prefetchOne(ep, timeoutMs)));
+  }
+
+  const schedule = window.requestIdleCallback
+    ? (fn) => window.requestIdleCallback(fn, { timeout: 1200 })
+    : (fn) => setTimeout(fn, 250);
+
+  schedule(runPrefetch);
+})();
+</script>
+
 <!-- Version Footer & Changelog Modal (Dashboard only) -->
 <footer class="version-footer" id="versionFooter">
   <span class="version-number" id="versionNumber">v--</span>

@@ -140,9 +140,19 @@ async function refreshClassementCache() {
     // ══════════════════════════════════════════════════════════════════
     // ÉTAPE 2: Récupérer les users Wizarr, puis persister en DB
     // ══════════════════════════════════════════════════════════════════
+    const wizarrConfigured = !!(process.env.WIZARR_URL && process.env.WIZARR_API_KEY);
     let wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
 
     if (wizarrUsers.length > 0) {
+      // Garder uniquement les utilisateurs actifs (abonnement illimité ou non expiré)
+      const now = Date.now();
+      wizarrUsers = wizarrUsers.filter(u => {
+        if (!u) return false;
+        if (!u.expires) return true;
+        const ts = new Date(u.expires).getTime();
+        return Number.isFinite(ts) && ts > now;
+      });
+
       // 🔧 Dédupliquer par email avant tout traitement (garder 1 entrée par email)
       const seenWizarrEmails = new Set();
       wizarrUsers = wizarrUsers.filter(u => {
@@ -162,8 +172,8 @@ async function refreshClassementCache() {
           UserQueries.upsert(plexName, wUser.plexUserId, wUser.email, wUser.joinedAtTimestamp);
         } catch (_) {}
       }
-    } else {
-      // Fallback: DB locale si Wizarr non configuré ou inaccessible
+    } else if (!wizarrConfigured) {
+      // Fallback: DB locale uniquement si Wizarr n'est pas configuré
       const dbUsers = UserQueries.getAll() || [];
       wizarrUsers = dbUsers.map(u => ({
         username: u.username,
@@ -172,6 +182,10 @@ async function refreshClassementCache() {
         joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
       }));
       logCR.debug(`📋 Fallback DB: ${wizarrUsers.length} users`);
+    } else {
+      // Wizarr est la source de vérité : pas de fallback DB pour éviter les ex-utilisateurs
+      wizarrUsers = [];
+      logCR.warn('⚠️ Aucun utilisateur Wizarr actif trouvé (fallback DB désactivé)');
     }
 
     if (wizarrUsers.length === 0) {

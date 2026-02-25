@@ -9,7 +9,7 @@ const SessionStatsCache = require('./session-stats-cache-db');  // 🗄️ Utili
 function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKEN, userList = []) {
   // Job cron: toutes les 60 minutes
   const cronJob = cron.schedule('0 * * * *', async () => {
-    console.log("\n========== [CRON-JOB] 🕐 DEBUT MISE A JOUR CACHE (2h du matin) ==========");
+    console.log("\n========== [CRON-JOB] 🕐 DEBUT MISE A JOUR CACHE (tâche horaire) ==========");
     console.log("[CRON-JOB] Timestamp:", new Date().toISOString());
 
     if (!TAUTULLI_URL || !TAUTULLI_API_KEY) {

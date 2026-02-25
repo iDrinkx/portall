@@ -96,33 +96,9 @@ router.get("/dashboard", requireAuth, (req, res) => {
 
 router.get("/profil", requireAuth, async (req, res) => {
   try {
-    // Récupérer les stats de l'utilisateur
-    const stats = await getTautulliStats(
-      req.session.user.username,
-      process.env.TAUTULLI_URL,
-      process.env.TAUTULLI_API_KEY,
-      req.session.user.id,
-      process.env.PLEX_URL,
-      process.env.PLEX_TOKEN,
-      req.session.user.joinedAtTimestamp
-    );
-
-    // Préparer les données pour les achievements
-    const data = {
-      totalHours: stats.watchStats?.totalHours || 0,
-      movieCount: stats.watchStats?.movieCount || 0,
-      episodeCount: stats.watchStats?.episodeCount || 0,
-      sessionCount: stats.sessionCount || 0,
-      monthlyHours: stats.monthlyHours || 0,
-      nightCount: stats.nightCount || 0,
-      morningCount: stats.morningCount || 0,
-      daysSince: Math.floor((Date.now() - (req.session.user.joinedAtTimestamp * 1000)) / (1000 * 60 * 60 * 24))
-    };
-
-      // Sauvegarder les stats recalculées en DB pour garantir la cohérence classement/profil
-      const SessionStatsCacheDB = require("../utils/session-stats-cache-db");
-      SessionStatsCacheDB.set(req.session.user.username, stats);
-    // Compter les badges débloqués (avec succ\u00e8s manuels depuis la DB)
+    // ⚡ Rendu ultra-rapide: on ne bloque plus la page profil sur les appels stats.
+    // Les données dynamiques sont hydratées côté client via /api/stats, /api/xp-snapshot, etc.
+    // Pour l'entête profil, on utilise uniquement l'état DB des succès déjà débloqués.
     const dbUser = UserQueries.upsert(
       req.session.user.username,
       req.session.user.id || null,
@@ -130,10 +106,9 @@ router.get("/profil", requireAuth, async (req, res) => {
       req.session.user.joinedAt || req.session.user.joinedAtTimestamp || null
     );
     const userUnlockedMap = dbUser ? UserAchievementQueries.getForUser(dbUser.id) : {};
-    const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
     const allAchievements = ACHIEVEMENTS.getAll();
-
-    // Calculer le total XP des succès débloqués
+    const unlockedAchievementIds = new Set(Object.keys(userUnlockedMap || {}));
+    const unlockedAchievements = allAchievements.filter(a => unlockedAchievementIds.has(a.id));
     const totalAchievementsXp = unlockedAchievements.reduce((sum, ach) => sum + (ach.xp || 0), 0);
 
     res.render("profil/index", {
@@ -382,26 +357,28 @@ router.get("/api/subscription", requireAuth, async (req, res) => {
 
 router.get("/api/stats", requireAuth, async (req, res) => {
   try {
-    log.create('[Stats]').debug('Requête pour:', req.session.user.username);
-    
-    // Wrapper pour ajouter un timeout
-    const statsWithTimeout = await Promise.race([
-      getTautulliStats(
-        req.session.user.username,
-        process.env.TAUTULLI_URL,
-        process.env.TAUTULLI_API_KEY,
-        req.session.user.id,
-        process.env.PLEX_URL,
-        process.env.PLEX_TOKEN,
-        req.session.user.joinedAtTimestamp
-      ),
-      // Timeout après 10 secondes (au lieu de 30s)
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("TIMEOUT_10S")), 10000)
-      )
-    ]);
+    const userId = req.session.user.id;
+    const cacheKey = `stats:${userId}`;
+    const statsWithTimeout = await cache.getOrSet(
+      cacheKey,
+      () => Promise.race([
+        getTautulliStats(
+          req.session.user.username,
+          process.env.TAUTULLI_URL,
+          process.env.TAUTULLI_API_KEY,
+          req.session.user.id,
+          process.env.PLEX_URL,
+          process.env.PLEX_TOKEN,
+          req.session.user.joinedAtTimestamp
+        ),
+        // Timeout après 10 secondes (au lieu de 30s)
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT_10S")), 10000)
+        )
+      ]),
+      30 * 1000 // cache court: 30 secondes
+    );
 
-    log.create('[Stats]').debug('Résultat:', JSON.stringify(statsWithTimeout));
     res.json(statsWithTimeout);
     
   } catch (err) {
