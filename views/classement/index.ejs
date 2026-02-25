@@ -342,20 +342,32 @@
   align-items: center;
   justify-content: center;
   padding: 18px;
-  background: rgba(6, 8, 12, 0.72);
-  backdrop-filter: blur(4px);
+  background:
+    radial-gradient(900px 420px at 50% 50%, rgba(59,130,246,0.14), transparent 65%),
+    rgba(6, 8, 12, 0.76);
+  backdrop-filter: blur(8px);
 }
 .lb-preview-modal--open {
   display: flex;
 }
 .lb-preview {
-  width: min(920px, calc(100vw - 24px));
-  max-height: calc(100vh - 24px);
+  width: min(940px, calc(100vw - 24px));
+  max-height: calc(100vh - 30px);
   overflow: auto;
-  background: #111318;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 16px;
-  padding: 16px;
+  background: linear-gradient(180deg, #111826, #0d1320 58%, #0b101a);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 18px 18px 16px;
+  box-shadow:
+    0 26px 80px rgba(0,0,0,0.62),
+    0 0 0 1px rgba(59,130,246,0.16) inset;
+  transform: translateY(8px) scale(0.98);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.lb-preview-modal--open .lb-preview {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 .lb-preview-head {
   display: flex;
@@ -366,76 +378,132 @@
 }
 .lb-preview-close {
   border: none;
-  background: rgba(255,255,255,0.08);
-  color: #c8c8c8;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  background: rgba(255,255,255,0.10);
+  color: #d8deea;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
+  transition: background 0.16s ease, transform 0.16s ease;
 }
 .lb-preview-close:hover {
-  background: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
 }
 .lb-preview-title {
   margin: 0;
-  font-size: 14px;
-  color: #fff;
+  font-size: 18px;
+  color: #f6f8ff;
   font-weight: 800;
+  letter-spacing: 0.2px;
 }
 .lb-preview-sub {
-  margin: 0 0 12px;
-  font-size: 11px;
-  color: #555;
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: #8d97ac;
+}
+
+.lb-preview-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(16,185,129,0.07));
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.lb-preview-avatar-wrap {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255,255,255,0.12);
+  background: #0a0f18;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .lb-preview-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .lb-preview-card {
-  background: #0e1014;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 10px;
-  min-height: 72px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 13px;
+  padding: 11px;
+  min-height: 76px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.24);
 }
 .lb-preview-label {
   font-size: 10px;
-  color: #666;
+  color: #8e97a9;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 1.1px;
 }
 .lb-preview-value {
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: #f5f8ff;
+  line-height: 1.1;
 }
 .lb-preview-value--muted {
-  color: #777;
+  color: #95a0b7;
   font-weight: 600;
 }
 .lb-preview-name {
   filter: blur(7px);
   user-select: none;
+  font-size: 17px;
 }
 .lb-preview-avatar {
-  width: 36px;
-  height: 36px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+.lb-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.lb-preview-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lb-preview-meta-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c3cde2;
+  background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
+  padding: 4px 8px;
+  border-radius: 9px;
 }
 @media (max-width: 960px) {
-  .lb-preview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lb-preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
-  .lb-preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lb-preview { padding: 14px; }
+  .lb-preview-grid { grid-template-columns: 1fr; }
+  .lb-preview-title { font-size: 16px; }
+  .lb-preview-value { font-size: 20px; }
+  .lb-preview-avatar-wrap { width: 58px; height: 58px; }
 }
 </style>
 
@@ -611,18 +679,36 @@
   function renderPreview(user) {
     if (!previewModal || !previewBody || !user) return;
 
+    var rank = user.rank || {};
+    var level = user.level || 1;
+    var totalXp = Number(user.totalXp || 0).toLocaleString('fr-FR');
+    var badgeCount = Number(user.badgeCount || 0).toLocaleString('fr-FR');
     var effectiveThumb = user.thumb || (user.username === ME ? ME_THUMB : '');
     var avatarHtml = effectiveThumb
-      ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy" onerror="this.remove()">'
-      : '<span class="lb-preview-value lb-preview-value--muted">Sans image</span>';
+      ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<span class=&quot;lb-preview-value lb-preview-value--muted&quot;>?</span>\'">'
+      : '<span class="lb-preview-value lb-preview-value--muted">' + escHtml((user.username || '?').charAt(0).toUpperCase()) + '</span>';
 
     previewBody.innerHTML =
-      '<div class="lb-preview-card"><span class="lb-preview-label">Image</span><span class="lb-preview-value">' + avatarHtml + '</span></div>'
-      + '<div class="lb-preview-card"><span class="lb-preview-label">Pseudo</span><span class="lb-preview-value lb-preview-name">' + escHtml(user.username) + '</span></div>'
-      + '<div class="lb-preview-card"><span class="lb-preview-label">Niveau</span><span class="lb-preview-value">Nv. ' + (user.level || 1) + '</span></div>'
-      + '<div class="lb-preview-card"><span class="lb-preview-label">Total XP</span><span class="lb-preview-value">' + (user.totalXp || 0) + ' XP</span></div>'
-      + '<div class="lb-preview-card"><span class="lb-preview-label">Badge</span><span class="lb-preview-value" style="color:' + user.rank.color + '">' + escHtml(user.rank.icon + ' ' + user.rank.name) + '</span></div>'
-      + '<div class="lb-preview-card"><span class="lb-preview-label">Succes</span><span class="lb-preview-value">' + (user.badgeCount || 0) + '</span></div>';
+      '<div class="lb-preview-hero">'
+        + '<div class="lb-preview-avatar-wrap">' + avatarHtml + '</div>'
+        + '<div style="min-width:0;flex:1">'
+          + '<div class="lb-preview-label">Pseudo</div>'
+          + '<div class="lb-preview-value lb-preview-name" style="font-size:20px">' + escHtml(user.username) + '</div>'
+          + '<div class="lb-preview-meta">'
+            + '<span class="lb-preview-badge" style="color:' + escHtml(rank.color || '#fff') + ';background:' + escHtml((rank.bgColor || 'rgba(255,255,255,0.08)')) + ';border-color:' + escHtml((rank.borderColor || '#fff')) + '66">' + escHtml((rank.icon || '🏅') + ' ' + (rank.name || 'Rang')) + '</span>'
+            + '<span class="lb-preview-meta-pill">Niveau ' + level + '</span>'
+            + '<span class="lb-preview-meta-pill">' + totalXp + ' XP</span>'
+          + '</div>'
+        + '</div>'
+      + '</div>'
+      + '<div class="lb-preview-grid">'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Image</span><span class="lb-preview-value">' + (effectiveThumb ? 'Disponible' : 'Aucune') + '</span></div>'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Pseudo</span><span class="lb-preview-value lb-preview-name">' + escHtml(user.username) + '</span></div>'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Niveau</span><span class="lb-preview-value">Nv. ' + level + '</span></div>'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Total XP</span><span class="lb-preview-value">' + totalXp + '<span style="font-size:12px;font-weight:700;color:#9ca8c0"> XP</span></span></div>'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Badge</span><span class="lb-preview-value" style="font-size:18px;color:' + escHtml(rank.color || '#fff') + '">' + escHtml((rank.icon || '🏅') + ' ' + (rank.name || 'Rang')) + '</span></div>'
+        + '<div class="lb-preview-card"><span class="lb-preview-label">Succes</span><span class="lb-preview-value">' + badgeCount + '</span></div>'
+      + '</div>';
 
     previewModal.classList.add('lb-preview-modal--open');
     previewModal.setAttribute('aria-hidden', 'false');
