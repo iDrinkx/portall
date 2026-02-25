@@ -164,7 +164,6 @@
         <div class="stat-content">
           <p class="stat-label">Lectures Totales</p>
           <div class="stat-value counter skel" id="counterSessions" data-target="0"></div>
-          <p class="stat-unit">lectures</p>
           <p class="stat-sub skel" id="statTotalHours"></p>
         </div>
       </div>
@@ -175,7 +174,6 @@
         <div class="stat-content">
           <p class="stat-label">Films Regardés</p>
           <div class="stat-value counter skel" id="counterMovies" data-target="0"></div>
-          <p class="stat-unit">films</p>
           <p class="stat-sub skel" id="statMovieHours"></p>
         </div>
       </div>
@@ -186,7 +184,6 @@
         <div class="stat-content">
           <p class="stat-label">Épisodes Regardés</p>
           <div class="stat-value counter skel" id="counterEpisodes" data-target="0"></div>
-          <p class="stat-unit">épisodes</p>
           <p class="stat-sub skel" id="statEpisodeHours"></p>
         </div>
       </div>
@@ -197,7 +194,6 @@
         <div class="stat-content">
           <p class="stat-label">Musique & Livres audio</p>
           <div class="stat-value counter skel" id="counterMusic" data-target="0"></div>
-          <p class="stat-unit">pistes</p>
           <p class="stat-sub skel" id="statMusicHours"></p>
         </div>
       </div>
@@ -1801,7 +1797,7 @@
         const totalHoursEl = document.getElementById('statTotalHours');
         if (totalHoursEl) {
           const totalH = Math.round((watchStats.totalHours || 0) * 10) / 10;
-          totalHoursEl.textContent = totalH + 'h visionnées';
+          totalHoursEl.textContent = totalH + ' heures';
         }
         
         // Films
@@ -1815,7 +1811,7 @@
         const movieHoursEl = document.getElementById('statMovieHours');
         if (movieHoursEl) {
           const movieH = Math.round((watchStats.movieHours || 0) * 10) / 10;
-          movieHoursEl.textContent = movieH + 'h de films';
+          movieHoursEl.textContent = movieH + ' heures';
         }
         
         // Épisodes
@@ -1829,7 +1825,7 @@
         const episodeHoursEl = document.getElementById('statEpisodeHours');
         if (episodeHoursEl) {
           const episodeH = Math.round((watchStats.episodeHours || 0) * 10) / 10;
-          episodeHoursEl.textContent = episodeH + 'h de séries';
+          episodeHoursEl.textContent = episodeH + ' heures';
         }
 
         // Musique & Livres audio
@@ -1841,7 +1837,7 @@
         const musicHoursEl = document.getElementById('statMusicHours');
         if (musicHoursEl) {
           const musicH = Math.round((watchStats.musicHours || 0) * 10) / 10;
-          musicHoursEl.textContent = musicH + "h d'écoute";
+          musicHoursEl.textContent = musicH + " heures";
         }
         
         console.log("[WATCH-STATS] 🎉 Compteurs mis à jour");
@@ -2275,11 +2271,11 @@
 
       // Compteurs visionnage
       if (el("counterSessions"))    { el("counterSessions").textContent   = stats.sessionCount || 0; el("counterSessions").setAttribute("data-target", stats.sessionCount || 0); }
-      if (el("statTotalHours"))       el("statTotalHours").textContent     = Math.round(totalHours * 10) / 10 + "h visionnées";
+      if (el("statTotalHours"))       el("statTotalHours").textContent     = Math.round(totalHours * 10) / 10 + " heures";
       if (el("counterMovies"))      { el("counterMovies").textContent      = watchStats.movieCount   || 0; el("counterMovies").setAttribute("data-target", watchStats.movieCount || 0); }
-      if (el("statMovieHours"))       el("statMovieHours").textContent     = Math.round((watchStats.movieHours   || 0) * 10) / 10 + "h de films";
+      if (el("statMovieHours"))       el("statMovieHours").textContent     = Math.round((watchStats.movieHours   || 0) * 10) / 10 + " heures";
       if (el("counterEpisodes"))    { el("counterEpisodes").textContent    = watchStats.episodeCount || 0; el("counterEpisodes").setAttribute("data-target", watchStats.episodeCount || 0); }
-      if (el("statEpisodeHours"))     el("statEpisodeHours").textContent   = Math.round((watchStats.episodeHours || 0) * 10) / 10 + "h de séries";
+      if (el("statEpisodeHours"))     el("statEpisodeHours").textContent   = Math.round((watchStats.episodeHours || 0) * 10) / 10 + " heures";
 
       // Calcul XP — formule identique au chargement initial
       const hoursXp       = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
@@ -2423,3 +2419,4 @@
     if (e.key === 'Escape') { closeXpModal(); closeSuccesModal(); }
   });
 </script>
+
