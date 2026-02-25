@@ -620,6 +620,12 @@
             dateText = '🔒 Badge secret';
           } else if (isRevocable) {
             descText = achievement.description || '';
+            // Fallback pour revocable: afficher une progression de base
+            // seulement si le total est informatif (>1).
+            const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };
+            const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { total: 0 };
+            const fallbackTotal = progInfo.total || 0;
+            if (fallbackTotal > 1) progressTotal = fallbackTotal;
           } else {
             descText = achievement.conditionText || achievement.description || '';
             const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };

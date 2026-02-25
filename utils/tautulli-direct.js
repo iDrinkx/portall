@@ -649,7 +649,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🐵 Évolutionniste — Trilogie Planète des Singes
         case 'evolutionist': {
-          const r = await checkCollection(id, ['%planet of the apes%', '%planète des singes%'], 3);
+          const r = await checkCollection(id, ['%planet of the apes%', '%planète des singes%'], 4);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
