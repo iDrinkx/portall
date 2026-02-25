@@ -5,6 +5,9 @@ const logPlex = log.create('[Plex]');
 // ─── Cache permanent (ne change jamais tant que la config ne change pas) ────
 let _cachedOwnerId   = null;      // ID Plex de l'admin — chargé une seule fois
 let _cachedMachineId = undefined; // undefined = pas encore chargé, null = échec
+let _cachedAuthorizedUsers = null;
+let _cachedAuthorizedUsersAt = 0;
+const AUTH_USERS_CACHE_TTL_MS = 60 * 1000; // 60s: accélère le login sans dérive longue
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -62,6 +65,11 @@ async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
  * @param {string|null} machineId  machineIdentifier du PMS (optionnel, pour filter précis)
  */
 async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
+  const now = Date.now();
+  if (_cachedAuthorizedUsers && (now - _cachedAuthorizedUsersAt) < AUTH_USERS_CACHE_TTL_MS) {
+    return _cachedAuthorizedUsers;
+  }
+
   const res = await fetch("https://plex.tv/api/users", {
     headers: {
       "X-Plex-Token": PLEX_TOKEN,
@@ -106,6 +114,8 @@ async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
   }
 
   logPlex.info(`${authorizedUsers.length} utilisateurs avec accès serveur${machineId ? ` (${machineId.slice(0, 8)}…)` : ''}`);
+  _cachedAuthorizedUsers = authorizedUsers;
+  _cachedAuthorizedUsersAt = now;
   return authorizedUsers;
 }
 
