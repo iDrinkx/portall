@@ -19,11 +19,11 @@ const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
  * rating_key = identifiant Tautulli de la collection (visible dans l'URL /info?rating_key=...)
  */
 const COLLECTION_KEYS = {
-  'potter-head':  { ratingKey: 10292 },  // Harry Potter - Saga
+  'potter-head':  { ratingKey: 325490 }, // Wizarding World
   'jurassic-survivor': { ratingKey: 12634 },  // Jurassic Park - Saga
   'marvel-fan':   { ratingKey: 306781 }, // Marvel Cinematic Universe
   'black-knight': { ratingKey: 14715 },  // Star Wars (7 films min)
-  'tolkiendil':   { ratingKey: 17699 },  // Le Seigneur des Anneaux
+  'tolkiendil':   { ratingKey: 325498 }, // Middle Earth
   'evolutionist': { ratingKey: 15344 },  // La Planète des Singes
 };
 
@@ -540,9 +540,9 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           break;
         }
 
-        // ⚡ Potterhead — Les 8 films Harry Potter
+        // ⚡ Wizarding World — Collection Wizarding World
         case 'potter-head': {
-          const r = await checkCollection(id, ['harry potter%'], 8);
+          const r = await checkCollection(id, ['%wizarding world%', 'harry potter%', '%fantastic beasts%'], 11);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -564,9 +564,9 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           break;
         }
 
-        // 👑 Tolkiendil — Trilogie Seigneur des Anneaux
+        // 👑 Middle Earth — Collection Middle Earth
         case 'tolkiendil': {
-          const r = await checkCollection(id, ['%lord of the rings%', '%seigneur des anneaux%'], 3);
+          const r = await checkCollection(id, ['%middle earth%', '%lord of the rings%', '%seigneur des anneaux%', '%hobbit%'], 6);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
