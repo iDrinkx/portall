@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.21.3 (2026-02-25)</small>
+
+* Merge pull request #14 from iDrinkx/develop ([408d5bc](https://github.com/iDrinkx/plex-portal/commit/408d5bc)), closes [#14](https://github.com/iDrinkx/plex-portal/issues/14)
+* fix: update Dockerfile to copy only package.json and adjust npm install command ([f4ea33a](https://github.com/iDrinkx/plex-portal/commit/f4ea33a))
+* fix: update Dockerfile to use npm ci for consistent dependency installation ([ace191e](https://github.com/iDrinkx/plex-portal/commit/ace191e))
+* fix: update Dockerfile to use npm install for improved dependency management ([8c61665](https://github.com/iDrinkx/plex-portal/commit/8c61665))
+
 ## <small>1.21.2 (2026-02-25)</small>
 
 * Merge pull request #13 from iDrinkx/develop ([d3cd089](https://github.com/iDrinkx/plex-portal/commit/d3cd089)), closes [#13](https://github.com/iDrinkx/plex-portal/issues/13)
