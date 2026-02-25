@@ -479,6 +479,21 @@ const ACHIEVEMENTS = {
       revocable: true,
       // Barème équilibré collections: 250 XP/film
       xp: 750
+    },
+    {
+      id: "monsterverse",
+      name: "MonsterVerse",
+      icon: "🦖",
+      description: "A regardé les films et séries de la collection MonsterVerse",
+      condition: (data) => false,
+      conditionText: "A regardé les films et séries de la collection MonsterVerse",
+      getProgress: (data) => ({ current: 0, total: 1, percent: 0 }),
+      unlockedDate: null,
+      category: "collections",
+      isSecret: false,
+      revocable: true,
+      // Barème équilibré collections: valeur mixte films+séries
+      xp: 2000
     }
   ],
 
