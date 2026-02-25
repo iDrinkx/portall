@@ -162,7 +162,8 @@ async function getAllWizarrUsers(wizarrUrl, apiKey) {
       username:          u.username || u.plexUsername || u.plex_username || null,
       plexUserId:        u.plexUserId || u.plex_user_id || u.plexId || null,
       email:             u.email || null,
-      joinedAtTimestamp: extractTs(u)
+      joinedAtTimestamp: extractTs(u),
+      expires:           u.expires || null
     };
   }
 

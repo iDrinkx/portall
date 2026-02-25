@@ -377,6 +377,7 @@
 <script>
 (function () {
   const ME = '<%= user.username %>';
+  const ME_THUMB = <%- JSON.stringify((user && user.thumb) ? user.thumb : '') %>;
 
   function _grad(c) {
     return 'conic-gradient(from -90deg, ' + c + '2e 0deg, ' + c + ' 90deg, ' + c + 'cc 180deg, ' + c + ' 270deg, ' + c + '2e 360deg)';
@@ -393,8 +394,9 @@
     var glow = isMobile
       ? 'drop-shadow(0 0 16px ' + user.rank.color + 'ff) drop-shadow(0 0 32px ' + user.rank.color + '88) drop-shadow(0 0 48px ' + user.rank.color + '44)'
       : 'drop-shadow(0 0 9px ' + user.rank.color + 'cc) drop-shadow(0 0 22px ' + user.rank.color + '55)';
-    var imgPart  = user.thumb
-      ? '<img src="' + user.thumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+    var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
+    var imgPart  = effectiveThumb
+      ? '<img src="' + effectiveThumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
         + '<div class="lb-pod-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
       : '<div class="lb-pod-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
@@ -432,8 +434,9 @@
       ? '<div class="lb-row-stat"><div class="lb-row-stat-main">' + hrs(user.totalHours) + '</div><div class="lb-row-stat-sub">heures</div></div>'
       : '<div class="lb-row-stat"><div class="lb-row-level" style="background:' + user.rank.bgColor + ';color:' + user.rank.color + '">Nv.\u00a0' + user.level + '</div></div>';
 
-    var imgPart = user.thumb
-      ? '<img src="' + user.thumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+    var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
+    var imgPart = effectiveThumb
+      ? '<img src="' + effectiveThumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
         + '<div class="lb-row-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
       : '<div class="lb-row-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
