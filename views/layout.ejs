@@ -113,10 +113,10 @@
         p.style.setProperty("--y-end", `${startY + driftY}vh`);
 
         const duration = tier === "far"
-          ? (75 + Math.random() * 100)
+          ? (62 + Math.random() * 86)
           : tier === "mid"
-            ? (78 + Math.random() * 110)
-            : (42 + Math.random() * 58);
+            ? (64 + Math.random() * 92)
+            : (34 + Math.random() * 46);
         p.style.setProperty("--duration", `${duration.toFixed(1)}s`);
         p.style.setProperty("--delay", `${(-Math.random() * 300).toFixed(1)}s`);
         p.style.setProperty("--twinkle", bright ? `${2.8 + Math.random() * 3.4}s` : `${4.8 + Math.random() * 7.6}s`);
