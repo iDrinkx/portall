@@ -52,7 +52,7 @@ function startSessionCronJob(TAUTULLI_URL, TAUTULLI_API_KEY, PLEX_URL, PLEX_TOKE
     console.log("========== [CRON-JOB] FIN ==========\n");
   });
 
-  console.log("[CRON] 🕐 Job cron schedule: 0 2 * * * (tous les jours à 2h)");
+  console.log("[CRON] 🕐 Job cron schedule: 0 * * * * (toutes les heures)");
   console.log("[CRON] 💾 Cache au démarrage:", SessionStatsCache.getKeys().length, 'utilisateurs');
   console.log("[CRON] 📊 Utilisateurs détectés (Seerr):", userList.length);
   console.log("[CRON] ⚙️  Mode: Scan intelligent avec delta sync (arrêt automatique au cache)");

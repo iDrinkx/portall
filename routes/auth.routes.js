@@ -29,6 +29,7 @@ function getSeerrCookieDomain() {
 async function grabSeerrCookie(authToken, res) {
   const seerrUrl = (process.env.SEERR_URL || "").replace(/\/$/, "");
   if (!seerrUrl || !authToken) return;
+  if (res.headersSent) return;
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
@@ -188,10 +189,12 @@ router.get("/auth-complete", async (req, res) => {
     logAuth.warn(`⚠️  Erreur sauvegarde DB: ${err.message}`);
   }
 
-  // Set le cookie Seerr ET redirect (avant les vérifications en arrière-plan)
-  grabSeerrCookie(authToken, res).catch(err => {
+  // Poser le cookie Seerr avant le redirect pour éviter "headers already sent"
+  try {
+    await grabSeerrCookie(authToken, res);
+  } catch (err) {
     logAuth.warn(`Seerr SSO — ${err.message}`);
-  });
+  }
 
   res.redirect(req.basePath + "/dashboard");
 

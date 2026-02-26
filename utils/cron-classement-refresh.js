@@ -173,7 +173,6 @@ async function refreshClassementCache() {
         } catch (_) {}
       }
     } else if (!wizarrConfigured) {
-      // Fallback: DB locale uniquement si Wizarr n'est pas configuré
       const dbUsers = UserQueries.getAll() || [];
       wizarrUsers = dbUsers.map(u => ({
         username: u.username,
@@ -181,15 +180,25 @@ async function refreshClassementCache() {
         email: u.email || null,
         joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
       }));
-      logCR.debug(`📋 Fallback DB: ${wizarrUsers.length} users`);
+      logCR.debug(`[Classement-Refresh] Fallback DB: ${wizarrUsers.length} users`);
     } else {
-      // Wizarr est la source de vérité : pas de fallback DB pour éviter les ex-utilisateurs
-      wizarrUsers = [];
-      logCR.warn('⚠️ Aucun utilisateur Wizarr actif trouvé (fallback DB désactivé)');
+      const dbUsers = UserQueries.getAll() || [];
+      if (dbUsers.length > 0) {
+        wizarrUsers = dbUsers.map(u => ({
+          username: u.username,
+          plexUserId: null,
+          email: u.email || null,
+          joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
+        }));
+        logCR.warn(`Wizarr vide, fallback DB de secours (${wizarrUsers.length} users)`);
+      } else {
+        wizarrUsers = [];
+        logCR.warn('Wizarr vide et DB locale vide');
+      }
     }
 
     if (wizarrUsers.length === 0) {
-      logCR.warn('⚠️ Aucun user trouvé (Wizarr non configuré et DB vide)');
+      logCR.warn('Aucun user trouve pour le refresh classement');
       return;
     }
 
