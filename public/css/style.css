@@ -100,12 +100,9 @@ body {
   left: 0;
   top: 0;
   border-radius: 50%;
-  mix-blend-mode: screen;
-  background:
-    radial-gradient(circle, var(--particle-color) 0%, rgba(200, 236, 255, 0.22) 28%, rgba(130, 190, 255, 0) 72%);
-  box-shadow:
-    0 0 7px var(--particle-color),
-    0 0 18px rgba(72, 176, 255, 0.52);
+  mix-blend-mode: normal;
+  background: var(--particle-color);
+  box-shadow: 0 0 3px rgba(120, 200, 255, 0.45);
   transform: translate3d(var(--x-start), var(--y-start), 0);
   animation:
     site-float var(--duration) linear infinite,
@@ -116,26 +113,22 @@ body {
 
 .site-particle--bright {
   box-shadow:
-    0 0 10px var(--particle-color),
-    0 0 26px rgba(118, 218, 255, 0.66);
+    0 0 5px var(--particle-color),
+    0 0 10px rgba(118, 218, 255, 0.48);
 }
 
 .site-particle--far {
-  box-shadow:
-    0 0 4px var(--particle-color),
-    0 0 8px rgba(68, 150, 255, 0.28);
+  box-shadow: 0 0 2px rgba(90, 165, 255, 0.32);
 }
 
 .site-particle--mid {
-  box-shadow:
-    0 0 6px var(--particle-color),
-    0 0 14px rgba(82, 184, 255, 0.38);
+  box-shadow: 0 0 3px rgba(95, 182, 255, 0.38);
 }
 
 .site-particle--near {
   box-shadow:
-    0 0 8px var(--particle-color),
-    0 0 20px rgba(102, 206, 255, 0.50);
+    0 0 4px rgba(110, 205, 255, 0.55),
+    0 0 8px rgba(110, 205, 255, 0.34);
 }
 
 @keyframes site-float {
