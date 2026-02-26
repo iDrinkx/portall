@@ -430,7 +430,7 @@
   .ach-modal {
     position: relative;
     isolation: isolate;
-    background: rgba(14, 22, 34, 0.012);
+    background: linear-gradient(140deg, rgba(28, 34, 46, 0.32), rgba(22, 28, 39, 0.22));
     border: 1px solid rgba(226, 246, 255, 0.42);
     border-radius: 20px;
     padding: 28px 28px 24px;
@@ -441,8 +441,8 @@
       0 14px 34px rgba(0,0,0,.18),
       0 0 0 1px rgba(232, 248, 255, 0.20) inset,
       0 4px 10px rgba(98, 178, 255, 0.04);
-    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
-    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    backdrop-filter: blur(8px) saturate(116%) contrast(1.02) brightness(1.03);
+    -webkit-backdrop-filter: blur(8px) saturate(116%) contrast(1.02) brightness(1.03);
     animation: ach-modal-in 0.2s ease;
   }
 
@@ -451,7 +451,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+    background: linear-gradient(150deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 26%, rgba(255,255,255,0.00) 64%);
     z-index: 0;
   }
 
@@ -758,8 +758,14 @@
     const overlay  = document.getElementById('achModalOverlay');
     const modal    = document.getElementById('achModal');
     const btnClose = document.getElementById('achModalClose');
+    const hostScrollEl = document.getElementById('succesModalContent') || document.scrollingElement || document.documentElement;
+    let savedScrollTop = 0;
+    let savedScrollLeft = 0;
 
     function openModal(card) {
+      savedScrollTop = hostScrollEl ? hostScrollEl.scrollTop : 0;
+      savedScrollLeft = hostScrollEl ? hostScrollEl.scrollLeft : 0;
+
       const icon     = card.dataset.icon     || '';
       const name     = card.dataset.name     || '';
       const desc     = card.dataset.desc     || '';
@@ -800,11 +806,20 @@
       modal.className = 'ach-modal' + (cat ? ' ach-modal-border--' + cat : '');
 
       overlay.classList.add('open');
-      btnClose.focus();
+      try {
+        btnClose.focus({ preventScroll: true });
+      } catch (_) {
+        btnClose.focus();
+      }
     }
 
     function closeModal() {
       overlay.classList.remove('open');
+      requestAnimationFrame(function() {
+        if (!hostScrollEl) return;
+        hostScrollEl.scrollTop = savedScrollTop;
+        hostScrollEl.scrollLeft = savedScrollLeft;
+      });
     }
 
     btnClose.addEventListener('click', closeModal);
