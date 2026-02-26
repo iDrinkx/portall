@@ -650,6 +650,7 @@
                data-name="<%- achievement.name.replace(/"/g,'&quot;') %>"
                data-icon="<%= achievement.icon %>"
                data-desc="<%- descText.replace(/"/g,'&quot;') %>"
+               data-desc-unlocked="<%- (achievement.description || '').replace(/"/g,'&quot;') %>"
                data-date="<%- dateText.replace(/"/g,'&quot;') %>"
                data-secret="<%= isSecret && !isRevocable ? 'true' : 'false' %>"
                data-category="<%= achievement.category %>"
@@ -932,6 +933,8 @@
           card.classList.add('unlocked');
           // Mettre à jour les data attributes pour le modal
           const dateLabel = '✓ Débloqué le ' + date;
+          const unlockedDesc = card.dataset.descUnlocked || card.dataset.desc || '';
+          card.dataset.desc = unlockedDesc;
           card.dataset.date = dateLabel;
           card.dataset.hasProgress = 'false';
           unlockedDelta++;
