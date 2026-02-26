@@ -538,6 +538,19 @@ const ACHIEVEMENTS = {
       category: "secrets",
       isSecret: false,
       xp: 900
+    },
+    {
+      id: "direct-play-master",
+      name: "Maître de la Lecture Directe",
+      icon: "⚡",
+      description: "Effectuer 1000 lectures sans Transcoder",
+      condition: (data) => false,
+      conditionText: "Effectuer 1000 lectures sans Transcoder",
+      getProgress: (data) => ({ current: 0, total: 1000, percent: 0 }),
+      unlockedDate: null,
+      category: "secrets",
+      isSecret: false,
+      xp: 1200
     }
   ],
 
