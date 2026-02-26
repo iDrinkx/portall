@@ -671,6 +671,7 @@
   .profil-card,
   .xp-left-card,
   .xp-progress-section,
+  .watch-stats-section,
   .badges-section,
   .detail-card,
   .watch-stats-section .stat-card {
@@ -690,6 +691,7 @@
   .profil-card::before,
   .xp-left-card::before,
   .xp-progress-section::before,
+  .watch-stats-section::before,
   .badges-section::before,
   .detail-card::before,
   .watch-stats-section .stat-card::before {
@@ -705,6 +707,7 @@
   .profil-card::after,
   .xp-left-card::after,
   .xp-progress-section::after,
+  .watch-stats-section::after,
   .badges-section::after,
   .detail-card::after,
   .watch-stats-section .stat-card::after {
@@ -723,6 +726,7 @@
   .profil-card > *,
   .xp-left-card > *,
   .xp-progress-section > *,
+  .watch-stats-section > *,
   .badges-section > *,
   .detail-card > *,
   .watch-stats-section .stat-card > * {
@@ -820,6 +824,17 @@
     border-radius: 12px;
     padding: 24px;
     transition: all 0.3s ease;
+  }
+
+  .watch-stats-section {
+    margin: 30px 0;
+    padding: 22px 18px 18px;
+    border-radius: 16px;
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  .watch-stats-section .stats-header {
+    margin-bottom: 18px;
   }
 
   .profil-card:hover {
