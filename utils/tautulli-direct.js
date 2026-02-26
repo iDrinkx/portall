@@ -702,6 +702,63 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
           break;
         }
 
+        // ⚡ Maître du Direct Play — 1000 lectures en direct play
+        case 'direct-play-master': {
+          try {
+            const decisionSql = `
+              CASE
+                WHEN LOWER(COALESCE(shm.transcode_decision, '')) IN ('direct play', 'directplay', 'copy', 'transcode')
+                  THEN LOWER(shm.transcode_decision)
+                WHEN shm.stream_video_decision = 'transcode' OR shm.stream_audio_decision = 'transcode'
+                  THEN 'transcode'
+                WHEN shm.stream_video_decision = 'copy' OR shm.stream_audio_decision = 'copy'
+                  THEN 'copy'
+                ELSE 'direct play'
+              END
+            `;
+
+            const countRow = tautulliDb.prepare(`
+              SELECT COUNT(*) as cnt
+              FROM (
+                SELECT sh.started as started, ${decisionSql} as decision
+                FROM session_history sh
+                LEFT JOIN session_history_media_info shm ON sh.id = shm.id
+                WHERE ${userFilter.clause}
+                  AND sh.stopped > sh.started
+                  AND sh.media_type IN ('movie', 'episode')
+              ) x
+              WHERE x.decision IN ('direct play', 'directplay')
+            `).get(userFilter.param);
+
+            const current = countRow?.cnt || 0;
+            progress[id] = { current: Math.min(current, 1000), total: 1000 };
+
+            if (current >= 1000) {
+              const unlockRow = tautulliDb.prepare(`
+                SELECT x.started
+                FROM (
+                  SELECT sh.started as started, ${decisionSql} as decision
+                  FROM session_history sh
+                  LEFT JOIN session_history_media_info shm ON sh.id = shm.id
+                  WHERE ${userFilter.clause}
+                    AND sh.stopped > sh.started
+                    AND sh.media_type IN ('movie', 'episode')
+                ) x
+                WHERE x.decision IN ('direct play', 'directplay')
+                ORDER BY x.started ASC
+                LIMIT 1 OFFSET 999
+              `).get(userFilter.param);
+
+              if (unlockRow?.started) {
+                results[id] = fmt(unlockRow.started) || today;
+              } else {
+                results[id] = today;
+              }
+            }
+          } catch(e) { log.warn('direct-play-master:', e.message); }
+          break;
+        }
+
         // 🛌 Countdown en Pyjama — Regarder quelque chose le 31 décembre
         case 'countdown-pajama': {
           try {
