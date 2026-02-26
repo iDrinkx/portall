@@ -948,8 +948,8 @@
     padding: 28px;
     width: 100%;
     max-width: 720px;
-    max-height: 85vh;
-    overflow-y: auto;
+    max-height: none;
+    overflow: hidden;
     animation: modalIn 0.22s ease;
     box-shadow:
       0 14px 34px rgba(0,0,0,.18),
@@ -1067,12 +1067,14 @@
   /* XP BREAKDOWN (inside modal) */
   .xp-breakdown {
     padding: 0;
+    overflow: hidden;
   }
 
   .xp-breakdown-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 24px;
+    align-items: start;
   }
 
   /* SOURCES D'XP */
