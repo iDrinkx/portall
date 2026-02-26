@@ -246,20 +246,65 @@ body {
   white-space: nowrap;
 }
 
-.logout-btn{
-  background: var(--plex);
-  color: #000;
-  padding: 8px 18px;
-  border-radius: 6px;
+.logout-btn,
+.plex-btn,
+.logout-mobile {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 12px;
   text-decoration: none;
-  font-weight: 700;
-  transition: .2s ease;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #101318;
+  background:
+    linear-gradient(180deg, #ffd268 0%, #f6b52b 52%, #df980a 100%);
+  border: 1px solid rgba(255, 233, 170, 0.62);
+  box-shadow:
+    0 10px 22px rgba(229,160,13,.30),
+    0 1px 0 rgba(255,255,255,.34) inset,
+    0 -1px 0 rgba(0,0,0,.16) inset;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.logout-btn:hover{
-  background: var(--plex2);
-  transform: translateY(-1px);
-  box-shadow: 0 5px 20px rgba(229,160,13,.35);
+.logout-btn::before,
+.plex-btn::before,
+.logout-mobile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255,255,255,.46), rgba(255,255,255,.12) 34%, rgba(255,255,255,0) 56%);
+  z-index: 0;
+}
+
+.logout-btn > *,
+.plex-btn > *,
+.logout-mobile > * {
+  position: relative;
+  z-index: 1;
+}
+
+.logout-btn:hover,
+.plex-btn:hover,
+.logout-mobile:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+  box-shadow:
+    0 14px 28px rgba(229,160,13,.36),
+    0 1px 0 rgba(255,255,255,.42) inset,
+    0 -1px 0 rgba(0,0,0,.18) inset;
+}
+
+.logout-btn:active,
+.plex-btn:active,
+.logout-mobile:active {
+  transform: translateY(0);
 }
 
 /* =========================
@@ -358,20 +403,8 @@ body {
 }
 
 .plex-btn{
-  display: inline-block;
-  background: var(--plex);
-  color: #000;
   padding: 14px 30px;
-  border-radius: 10px;
-  font-weight: 800;
-  text-decoration: none;
-  transition: .2s ease;
-}
-
-.plex-btn:hover{
-  background: var(--plex2);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 25px rgba(229,160,13,.35);
+  min-width: 240px;
 }
 
 /* =========================
@@ -1217,12 +1250,9 @@ body {
 }
 
 .logout-mobile {
-  background: var(--plex);
-  color: black !important;
-  padding: 10px;
-  border-radius: 8px;
+  width: 100%;
+  color: #101318 !important;
   text-align: center;
-  font-weight: 700;
 }
 
 /* ======================================================
