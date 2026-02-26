@@ -2,6 +2,11 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.25.0 (2026-02-26)
+
+* Merge pull request #19 from iDrinkx/develop ([0052a50](https://github.com/iDrinkx/plex-portal/commit/0052a50)), closes [#19](https://github.com/iDrinkx/plex-portal/issues/19)
+* feat: add main card styling for improved layout and visual effects ([9b787d5](https://github.com/iDrinkx/plex-portal/commit/9b787d5))
+
 ## 1.24.0 (2026-02-26)
 
 * Merge pull request #18 from iDrinkx/develop ([2d65929](https://github.com/iDrinkx/plex-portal/commit/2d65929)), closes [#18](https://github.com/iDrinkx/plex-portal/issues/18)
