@@ -1401,16 +1401,47 @@ body {
   align-items: stretch;
   justify-content: center;
   gap: 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  background: rgba(14, 22, 34, 0.03);
+  border: 1px solid rgba(226, 246, 255, 0.36);
+  border-radius: 20px;
   padding: 18px 28px;
   margin-bottom: 28px;
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.24),
+    0 0 0 1px rgba(232, 248, 255, 0.18) inset;
+  backdrop-filter: blur(7px) saturate(130%) contrast(1.01) brightness(1.03);
+  -webkit-backdrop-filter: blur(7px) saturate(130%) contrast(1.01) brightness(1.03);
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 0.35s ease, transform 0.35s ease;
   flex-wrap: wrap;
   row-gap: 16px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.server-stats-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04) 28%, rgba(255,255,255,0.00) 64%);
+  z-index: 0;
+}
+
+.server-stats-bar::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.24), rgba(255,255,255,0.04) 24%, rgba(255,255,255,0) 50%),
+    radial-gradient(circle at 82% 78%, rgba(86, 186, 255, 0.08), rgba(86, 186, 255, 0) 48%);
+  filter: blur(6px);
+  transform: rotate(-8deg);
+  z-index: 0;
 }
 
 .server-stats-bar.loaded {
@@ -1426,15 +1457,21 @@ body {
   gap: 3px;
   flex: 1;
   min-width: 90px;
-  padding: 0 12px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  z-index: 1;
 }
 
 .ssb-divider {
   width: 1px;
   height: 40px;
-  background: var(--line);
+  background: rgba(226, 246, 255, 0.18);
   flex-shrink: 0;
   align-self: center;
+  position: relative;
+  z-index: 1;
 }
 
 .ssb-icon {
@@ -1454,7 +1491,7 @@ body {
 .ssb-label {
   font-size: 11px;
   font-weight: 600;
-  color: #666;
+  color: #a5afbe;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   text-align: center;
@@ -1462,7 +1499,7 @@ body {
 
 .ssb-sub {
   font-size: 10px;
-  color: #555;
+  color: #8c96a6;
   margin-top: 1px;
   text-align: center;
 }
