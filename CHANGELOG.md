@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.26.2 (2026-02-26)</small>
+
+* Merge pull request #22 from iDrinkx/develop ([d343723](https://github.com/iDrinkx/plex-portal/commit/d343723)), closes [#22](https://github.com/iDrinkx/plex-portal/issues/22)
+* fix: add overflow hidden to modal for improved layout stability ([7e4ebf4](https://github.com/iDrinkx/plex-portal/commit/7e4ebf4))
+* fix: enhance modal overlay management for improved accessibility and restoration ([88b888f](https://github.com/iDrinkx/plex-portal/commit/88b888f))
+
 ## <small>1.26.1 (2026-02-26)</small>
 
 * Merge pull request #21 from iDrinkx/develop ([1548a37](https://github.com/iDrinkx/plex-portal/commit/1548a37)), closes [#21](https://github.com/iDrinkx/plex-portal/issues/21)
