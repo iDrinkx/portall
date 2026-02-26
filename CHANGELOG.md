@@ -2,6 +2,12 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.23.0 (2026-02-26)
+
+* Merge pull request #16 from iDrinkx/develop ([ee36ff8](https://github.com/iDrinkx/plex-portal/commit/ee36ff8)), closes [#16](https://github.com/iDrinkx/plex-portal/issues/16)
+* fix: add unlocked description data attribute for achievements ([7982556](https://github.com/iDrinkx/plex-portal/commit/7982556))
+* feat: ajout d'un nouveau succès directplay ([d789850](https://github.com/iDrinkx/plex-portal/commit/d789850))
+
 ## 1.22.0 (2026-02-25)
 
 * Merge pull request #15 from iDrinkx/develop ([6cf9b01](https://github.com/iDrinkx/plex-portal/commit/6cf9b01)), closes [#15](https://github.com/iDrinkx/plex-portal/issues/15)
