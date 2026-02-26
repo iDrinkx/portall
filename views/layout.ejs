@@ -12,6 +12,11 @@
   </script>
 </head>
 <body <% if (user) { %>data-user-id="<%= user.id %>"<% } %>>
+<div class="site-bg" aria-hidden="true">
+  <div class="site-bg-gradient"></div>
+  <div class="site-bg-vignette"></div>
+  <div class="site-particles" id="siteParticles"></div>
+</div>
 
 <% if (user) { %>
   <nav class="navbar">
@@ -66,6 +71,108 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    const particlesLayer = document.getElementById("siteParticles");
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (particlesLayer && !reduceMotion) {
+      const particleCount = window.innerWidth <= 768 ? 46 : 92;
+      const colors = [
+        "rgba(46,136,255,0.96)",
+        "rgba(78,182,255,0.96)",
+        "rgba(25,220,255,0.98)",
+        "rgba(186,230,255,0.98)"
+      ];
+
+      const fragment = document.createDocumentFragment();
+      const particles = [];
+      let viewportW = window.innerWidth;
+      let viewportH = window.innerHeight;
+
+      const randomSpeed = (tier) => (
+        tier === "far"
+          ? (7 + Math.random() * 6)
+          : tier === "mid"
+            ? (12 + Math.random() * 10)
+            : (20 + Math.random() * 12)
+      );
+
+      for (let i = 0; i < particleCount; i++) {
+        const p = document.createElement("span");
+        p.className = "site-particle";
+
+        // 3 couches pour des vitesses vraiment différentes
+        const r = Math.random();
+        const tier = r < 0.48 ? "far" : r < 0.84 ? "mid" : "near";
+        if (tier === "far") p.classList.add("site-particle--far");
+        if (tier === "mid") p.classList.add("site-particle--mid");
+        if (tier === "near") p.classList.add("site-particle--near");
+
+        const bright = Math.random() < (tier === "near" ? 0.34 : tier === "mid" ? 0.20 : 0.10);
+
+        const size = tier === "far"
+          ? (4.7 + Math.random() * 1.26)
+          : tier === "mid"
+            ? (5.94 + Math.random() * 1.62)
+            : (7.56 + Math.random() * 1.98);
+        const alpha = bright ? "1" : (tier === "far" ? "0.82" : tier === "mid" ? "0.9" : "0.96");
+        const angle = Math.random() * Math.PI * 2;
+        const speed = randomSpeed(tier);
+        const particle = {
+          el: p,
+          size,
+          x: Math.random() * viewportW,
+          y: Math.random() * viewportH,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed
+        };
+
+        p.style.setProperty("--size", `${size.toFixed(2)}px`);
+        p.style.setProperty("--alpha", alpha);
+        p.style.setProperty("--particle-color", colors[Math.floor(Math.random() * colors.length)]);
+        if (bright) p.classList.add("site-particle--bright");
+        p.style.transform = `translate3d(${particle.x.toFixed(2)}px, ${particle.y.toFixed(2)}px, 0)`;
+
+        particles.push(particle);
+        fragment.appendChild(p);
+      }
+      particlesLayer.appendChild(fragment);
+
+      let lastTs = performance.now();
+      const tick = (ts) => {
+        const dt = Math.min(0.05, (ts - lastTs) / 1000);
+        lastTs = ts;
+
+        for (let i = 0; i < particles.length; i++) {
+          const s = particles[i];
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+
+          if (s.x < -s.size) {
+            s.x = viewportW + s.size;
+            s.y = Math.random() * viewportH;
+          } else if (s.x > viewportW + s.size) {
+            s.x = -s.size;
+            s.y = Math.random() * viewportH;
+          }
+
+          if (s.y < -s.size) {
+            s.y = viewportH + s.size;
+            s.x = Math.random() * viewportW;
+          } else if (s.y > viewportH + s.size) {
+            s.y = -s.size;
+            s.x = Math.random() * viewportW;
+          }
+
+          s.el.style.transform = `translate3d(${s.x.toFixed(2)}px, ${s.y.toFixed(2)}px, 0)`;
+        }
+        window.requestAnimationFrame(tick);
+      };
+      window.requestAnimationFrame(tick);
+
+      window.addEventListener("resize", () => {
+        viewportW = window.innerWidth;
+        viewportH = window.innerHeight;
+      });
+    }
 
     const burger = document.getElementById("burger");
     const mobileMenu = document.getElementById("mobileMenu");

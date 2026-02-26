@@ -157,12 +157,17 @@
     }
 
     .cal-day-col {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+      background: rgba(14, 22, 34, 0.012);
+      border: 1px solid rgba(226, 246, 255, 0.42);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+      backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+      -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
       border-radius: 12px;
       padding: 8px;
       min-height: 420px;
-      overflow-y: auto;
+      overflow-y: hidden;
     }
 
     .cal-day-header {
@@ -272,8 +277,13 @@
     }
 
     .cal-month-cell {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
-      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+      background: rgba(14, 22, 34, 0.012);
+      border: 1px solid rgba(226, 246, 255, 0.42);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+      backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+      -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
       border-radius: 12px;
       padding: 12px;
       min-height: 100px;
@@ -283,7 +293,6 @@
     }
 
     .cal-month-cell:hover {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
       border-color: rgba(255, 255, 255, 0.25);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -295,8 +304,7 @@
     }
 
     .cal-month-cell.other-month:hover {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
-      border-color: var(--line);
+      border-color: rgba(226, 246, 255, 0.42);
       transform: none;
       box-shadow: none;
     }
@@ -360,8 +368,13 @@
     }
 
     .cal-week-block {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+      background: rgba(14, 22, 34, 0.012);
+      border: 1px solid rgba(226, 246, 255, 0.42);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+      backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+      -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
       border-radius: 12px;
       padding: 12px;
     }
@@ -428,8 +441,13 @@
     }
 
     .cal-event-card {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+      background: rgba(14, 22, 34, 0.012);
+      border: 1px solid rgba(226, 246, 255, 0.42);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+      backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+      -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
       border-radius: 10px;
       padding: 12px;
       margin-bottom: 12px;
@@ -439,8 +457,45 @@
     }
 
     .cal-event-card:hover {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
       border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .cal-day-col::before,
+    .cal-month-cell::before,
+    .cal-week-block::before,
+    .cal-event-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(118deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0.01) 58%, rgba(255, 255, 255, 0.03) 100%);
+      mix-blend-mode: screen;
+    }
+
+    .cal-day-col::after,
+    .cal-month-cell::after,
+    .cal-week-block::after,
+    .cal-event-card::after {
+      content: "";
+      position: absolute;
+      width: 38%;
+      height: 170%;
+      left: -20%;
+      top: -45%;
+      transform: rotate(-15deg);
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 34%, rgba(255, 255, 255, 0) 72%);
+      opacity: 0.2;
+    }
+
+    .cal-day-col > *,
+    .cal-month-cell > *,
+    .cal-week-block > *,
+    .cal-event-card > * {
+      position: relative;
+      z-index: 2;
     }
 
     .cal-event-card-thumb {
@@ -1046,15 +1101,22 @@
 
   function todayISO() {
     const d = new Date();
-    return d.toISOString().slice(0, 10);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   function dateToISO(d) {
-    return d.toISOString().slice(0, 10);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   function isoToDate(iso) {
-    return new Date(iso + 'T00:00:00Z');
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
   }
 
   function getWeekStart(d) {

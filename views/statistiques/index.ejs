@@ -1,5 +1,45 @@
 <h1 class="dashboard-title">Statistiques</h1>
 
+<style>
+  .cards-grid .card {
+    position: relative;
+    overflow: hidden;
+    background: rgba(14, 22, 34, 0.012);
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  }
+
+  .cards-grid .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0.01) 58%, rgba(255, 255, 255, 0.03) 100%);
+    mix-blend-mode: screen;
+  }
+
+  .cards-grid .card::after {
+    content: "";
+    position: absolute;
+    width: 38%;
+    height: 170%;
+    left: -20%;
+    top: -45%;
+    transform: rotate(-15deg);
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 34%, rgba(255, 255, 255, 0) 72%);
+    opacity: 0.2;
+  }
+
+  .cards-grid .card > * {
+    position: relative;
+    z-index: 2;
+  }
+</style>
+
 <div class="cards-grid">
   <div class="card">
     <h3>📊 Informations de profil</h3>

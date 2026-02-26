@@ -30,10 +30,49 @@
   }
 
   .activity-info-card {
-    background: rgba(102, 126, 234, 0.1);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+    background: rgba(14, 22, 34, 0.012);
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
     padding: 30px;
     border-radius: 12px;
+  }
+
+  .activity-info-card::before,
+  .activity-stat::before,
+  .activity-message::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0.01) 58%, rgba(255, 255, 255, 0.03) 100%);
+    mix-blend-mode: screen;
+  }
+
+  .activity-info-card::after,
+  .activity-stat::after,
+  .activity-message::after {
+    content: "";
+    position: absolute;
+    width: 38%;
+    height: 170%;
+    left: -20%;
+    top: -45%;
+    transform: rotate(-15deg);
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 34%, rgba(255, 255, 255, 0) 72%);
+    opacity: 0.2;
+  }
+
+  .activity-info-card > *,
+  .activity-stat > *,
+  .activity-message > * {
+    position: relative;
+    z-index: 2;
   }
 
   .activity-info-card h2 {
@@ -49,10 +88,15 @@
   }
 
   .activity-stat {
-    background: rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+    background: rgba(14, 22, 34, 0.012);
     padding: 20px;
     border-radius: 8px;
-    border-left: 3px solid #667eea;
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
   }
 
   .stat-label {
@@ -70,8 +114,13 @@
   }
 
   .activity-message {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    background: rgba(14, 22, 34, 0.012);
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
     padding: 30px;
     border-radius: 12px;
     text-align: center;
