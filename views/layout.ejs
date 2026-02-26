@@ -74,11 +74,12 @@
     const particlesLayer = document.getElementById("siteParticles");
     const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (particlesLayer && !reduceMotion) {
-      const particleCount = window.innerWidth <= 768 ? 120 : 240;
+      const particleCount = window.innerWidth <= 768 ? 110 : 220;
       const colors = [
-        "rgba(88,180,255,0.92)",
-        "rgba(30,222,255,0.96)",
-        "rgba(202,236,255,0.98)"
+        "rgba(46,136,255,0.96)",
+        "rgba(78,182,255,0.96)",
+        "rgba(25,220,255,0.98)",
+        "rgba(186,230,255,0.98)"
       ];
 
       const fragment = document.createDocumentFragment();
@@ -87,20 +88,41 @@
         p.className = "site-particle";
         const startX = (Math.random() * 130) - 15;
         const startY = (Math.random() * 130) - 15;
-        const driftX = (Math.random() * 90) - 45;
-        const driftY = (Math.random() * 90) - 45;
-        const bright = Math.random() < 0.22;
-        p.style.setProperty("--size", bright ? `${2.2 + Math.random() * 3.2}px` : `${0.9 + Math.random() * 2.1}px`);
+
+        // 3 couches pour des vitesses vraiment différentes
+        const r = Math.random();
+        const tier = r < 0.58 ? "far" : r < 0.88 ? "mid" : "near";
+        if (tier === "far") p.classList.add("site-particle--far");
+        if (tier === "mid") p.classList.add("site-particle--mid");
+        if (tier === "near") p.classList.add("site-particle--near");
+
+        const driftRange = tier === "far" ? 18 : tier === "mid" ? 40 : 70;
+        const driftX = (Math.random() * (driftRange * 2)) - driftRange;
+        const driftY = (Math.random() * (driftRange * 2)) - driftRange;
+        const bright = Math.random() < (tier === "near" ? 0.42 : tier === "mid" ? 0.26 : 0.12);
+
+        const size = tier === "far"
+          ? (0.8 + Math.random() * 1.2)
+          : tier === "mid"
+            ? (1.1 + Math.random() * 1.9)
+            : (1.8 + Math.random() * 2.8);
+        p.style.setProperty("--size", `${size.toFixed(2)}px`);
         p.style.setProperty("--x-start", `${startX}vw`);
         p.style.setProperty("--y-start", `${startY}vh`);
         p.style.setProperty("--x-end", `${startX + driftX}vw`);
         p.style.setProperty("--y-end", `${startY + driftY}vh`);
-        p.style.setProperty("--duration", `${70 + Math.random() * 140}s`);
-        p.style.setProperty("--delay", `${-Math.random() * 180}s`);
-        p.style.setProperty("--twinkle", bright ? `${3.2 + Math.random() * 4}s` : `${5.5 + Math.random() * 8}s`);
-        p.style.setProperty("--alpha-min", bright ? "0.38" : "0.22");
-        p.style.setProperty("--alpha-max", bright ? "1" : "0.68");
-        p.style.setProperty("--blur", bright ? `${0.4 + Math.random() * 0.8}px` : `${Math.random() * 0.3}px`);
+
+        const duration = tier === "far"
+          ? (160 + Math.random() * 220)
+          : tier === "mid"
+            ? (95 + Math.random() * 150)
+            : (45 + Math.random() * 80);
+        p.style.setProperty("--duration", `${duration.toFixed(1)}s`);
+        p.style.setProperty("--delay", `${(-Math.random() * 300).toFixed(1)}s`);
+        p.style.setProperty("--twinkle", bright ? `${2.8 + Math.random() * 3.4}s` : `${4.8 + Math.random() * 7.6}s`);
+        p.style.setProperty("--alpha-min", bright ? "0.42" : (tier === "far" ? "0.24" : "0.28"));
+        p.style.setProperty("--alpha-max", bright ? "1" : (tier === "far" ? "0.72" : tier === "mid" ? "0.82" : "0.92"));
+        p.style.setProperty("--blur", tier === "far" ? `${0.2 + Math.random() * 0.45}px` : bright ? `${0.25 + Math.random() * 0.55}px` : `${Math.random() * 0.2}px`);
         p.style.setProperty("--particle-color", colors[Math.floor(Math.random() * colors.length)]);
         if (bright) p.classList.add("site-particle--bright");
         fragment.appendChild(p);

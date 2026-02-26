@@ -37,7 +37,7 @@ html, body { height: 100%; }
 
 body {
   font-family: "Segoe UI", Roboto, Arial, sans-serif;
-  background: #030405;
+  background: #010204;
   background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
@@ -67,9 +67,9 @@ body {
 
 .site-bg-gradient {
   background:
-    radial-gradient(1000px 600px at 45% -16%, rgba(72, 142, 255, 0.07), rgba(72, 142, 255, 0) 64%),
-    radial-gradient(900px 540px at 120% 60%, rgba(0, 196, 255, 0.04), rgba(0, 196, 255, 0) 65%),
-    linear-gradient(180deg, #040506 0%, #020304 42%, #000102 100%);
+    radial-gradient(880px 520px at 50% -24%, rgba(54, 124, 255, 0.06), rgba(54, 124, 255, 0) 66%),
+    radial-gradient(960px 560px at 108% 72%, rgba(16, 198, 255, 0.035), rgba(16, 198, 255, 0) 68%),
+    linear-gradient(180deg, #020305 0%, #010204 45%, #000102 100%);
 }
 
 .site-bg-vignette {
@@ -78,7 +78,7 @@ body {
 }
 
 .site-particles {
-  opacity: 1;
+  opacity: 0.98;
 }
 
 .site-particle {
@@ -93,7 +93,7 @@ body {
   --alpha-min: 0.22;
   --alpha-max: 0.72;
   --blur: 0px;
-  --particle-color: rgba(130, 190, 255, 0.75);
+  --particle-color: rgba(88, 176, 255, 0.92);
 
   position: absolute;
   width: var(--size);
@@ -105,8 +105,8 @@ body {
   background:
     radial-gradient(circle, var(--particle-color) 0%, rgba(200, 236, 255, 0.22) 28%, rgba(130, 190, 255, 0) 72%);
   box-shadow:
-    0 0 5px var(--particle-color),
-    0 0 12px rgba(95, 190, 255, 0.34);
+    0 0 6px var(--particle-color),
+    0 0 14px rgba(72, 176, 255, 0.40);
   filter: blur(var(--blur));
   transform: translate3d(var(--x-start), var(--y-start), 0);
   animation:
@@ -118,8 +118,26 @@ body {
 
 .site-particle--bright {
   box-shadow:
+    0 0 9px var(--particle-color),
+    0 0 22px rgba(118, 218, 255, 0.56);
+}
+
+.site-particle--far {
+  box-shadow:
+    0 0 4px var(--particle-color),
+    0 0 8px rgba(68, 150, 255, 0.28);
+}
+
+.site-particle--mid {
+  box-shadow:
+    0 0 6px var(--particle-color),
+    0 0 14px rgba(82, 184, 255, 0.38);
+}
+
+.site-particle--near {
+  box-shadow:
     0 0 8px var(--particle-color),
-    0 0 20px rgba(120, 220, 255, 0.52);
+    0 0 20px rgba(102, 206, 255, 0.50);
 }
 
 @keyframes site-float {
@@ -151,7 +169,7 @@ body {
 
 @media (max-width: 768px) {
   .site-particles {
-    opacity: 0.88;
+    opacity: 0.94;
   }
 }
 
