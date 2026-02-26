@@ -8,6 +8,7 @@ on:
     paths:
       - 'Dockerfile'
       - '.github/workflows/docker.yml'
+      - 'public/**'
       - 'src/**'
       - 'views/**'
       - 'utils/**'
