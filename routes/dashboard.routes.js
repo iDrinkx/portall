@@ -1,6 +1,7 @@
 ﻿const express = require("express");
 const router = express.Router();
 const fetch = require("node-fetch");
+const crypto = require("crypto");
 const log = require("../utils/logger");
 
 const { computeSubscription } = require("../utils/wizarr");
@@ -20,11 +21,11 @@ const {
 } = require("../utils/database");
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
-const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
-const { calculateUserXp } = require("../utils/xp-calculator");  // 🎯 Fonction centralisée XP
+const TautulliEvents = require("../utils/tautulli-events");  // ?? Import EventEmitter
+const { calculateUserXp } = require("../utils/xp-calculator");  // ?? Fonction centralisée XP
 
 /* ===============================
-   🔐 AUTH
+   ?? AUTH
 =============================== */
 
 async function ensureAdminFlag(req) {
@@ -244,61 +245,75 @@ async function grabKomgaCookie(res) {
   if (!apiKey && (!username || !password)) return false;
 
   try {
-    const endpoints = ["/api/v1/users/me", "/api/v2/users/me"];
-
-    for (const ep of endpoints) {
-      const headers = { "Accept": "application/json" };
-      if (apiKey) {
-        headers["X-API-Key"] = apiKey;
-      } else {
-        const basic = Buffer.from(`${username}:${password}`).toString("base64");
-        headers["Authorization"] = `Basic ${basic}`;
-      }
-
-      const r = await fetch(`${komgaUrl}${ep}`, {
-        method: "GET",
-        headers
-      });
-      if (!r.ok) continue;
-
-      const setCookies = r.headers.raw()["set-cookie"] || [];
-      const sessionCookie = setCookies.find(c => c.startsWith("KOMGA-SESSION="));
-      if (!sessionCookie) continue;
-
-      const rememberCookie = setCookies.find(c => c.startsWith("komga-remember-me="));
-      const parentDomain = getCookieParentDomain(komgaPublicUrl);
-
-      const applyCookie = (cookieStr, cookieName) => {
-        const value = cookieStr.split(";")[0].replace(`${cookieName}=`, "");
-        const opts = {
-          path: "/",
-          httpOnly: true,
-          sameSite: "lax",
-          secure: true
-        };
-        if (parentDomain) opts.domain = parentDomain;
-        res.cookie(cookieName, decodeURIComponent(value), opts);
-      };
-
-      if (sessionCookie) {
-        applyCookie(sessionCookie, "KOMGA-SESSION");
-        if (rememberCookie) applyCookie(rememberCookie, "komga-remember-me");
-        return true;
-      }
+    const authHeaders = { "Accept": "application/json" };
+    if (apiKey) {
+      authHeaders["X-API-Key"] = apiKey;
+    } else {
+      const basic = Buffer.from(`${username}:${password}`).toString("base64");
+      authHeaders["Authorization"] = `Basic ${basic}`;
     }
+
+    const parentDomain = getCookieParentDomain(komgaPublicUrl);
+    const applyCookie = (cookieStr, cookieName) => {
+      const value = cookieStr.split(";")[0].replace(`${cookieName}=`, "");
+      const opts = { path: "/", httpOnly: true, sameSite: "lax", secure: true };
+      if (parentDomain) opts.domain = parentDomain;
+      res.cookie(cookieName, decodeURIComponent(value), opts);
+    };
+
+    // 1) Auth + session token via X-Auth-Token seed
+    const xAuthSeed = crypto.randomUUID();
+    const meResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
+      method: "GET",
+      headers: {
+        ...authHeaders,
+        "X-Auth-Token": xAuthSeed
+      }
+    });
+    if (!meResp.ok) return false;
+
+    // 2) Si Komga renvoie déjà un cookie session, l'utiliser directement
+    const meCookies = meResp.headers.raw()["set-cookie"] || [];
+    const meSessionCookie = meCookies.find(c => c.startsWith("KOMGA-SESSION="));
+    const meRememberCookie = meCookies.find(c => c.startsWith("komga-remember-me="));
+    if (meSessionCookie) {
+      applyCookie(meSessionCookie, "KOMGA-SESSION");
+      if (meRememberCookie) applyCookie(meRememberCookie, "komga-remember-me");
+      return true;
+    }
+
+    // 3) Sinon forcer la pose du cookie via endpoint dédié
+    const xAuthToken = meResp.headers.get("x-auth-token") || xAuthSeed;
+    const setCookieResp = await fetch(`${komgaUrl}/api/v1/login/set-cookie`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "X-Auth-Token": xAuthToken
+      }
+    });
+    if (!setCookieResp.ok) return false;
+
+    const forcedCookies = setCookieResp.headers.raw()["set-cookie"] || [];
+    const forcedSession = forcedCookies.find(c => c.startsWith("KOMGA-SESSION="));
+    const forcedRemember = forcedCookies.find(c => c.startsWith("komga-remember-me="));
+    if (!forcedSession) return false;
+
+    applyCookie(forcedSession, "KOMGA-SESSION");
+    if (forcedRemember) applyCookie(forcedRemember, "komga-remember-me");
+    return true;
   } catch (_) {}
   return false;
 }
 
 /* ===============================
-   💾 CACHE MANAGER
+   ?? CACHE MANAGER
 =============================== */
 
 // Instance centralisée de cache (60 secondes par défaut)
 const cache = new CacheManager(60 * 1000);
 
 /* ===============================
-   🔎 WIZARR
+   ?? WIZARR
 =============================== */
 
 const logWizarr = log.create('[Wizarr]');
@@ -351,7 +366,7 @@ async function getWizarrSubscription(user) {
 }
 
 /* ===============================
-   📄 PAGES
+   ?? PAGES
 =============================== */
 
 router.get("/dashboard", requireAuth, (req, res) => {
@@ -379,7 +394,7 @@ router.get("/dashboard", requireAuth, (req, res) => {
 
 router.get("/profil", requireAuth, async (req, res) => {
   try {
-    // ⚡ Rendu ultra-rapide: on ne bloque plus la page profil sur les appels stats.
+    // ? Rendu ultra-rapide: on ne bloque plus la page profil sur les appels stats.
     // Les données dynamiques sont hydratées côté client via /api/stats, /api/xp-snapshot, etc.
     // Pour l'entête profil, on utilise uniquement l'état DB des succès déjà débloqués.
     const dbUser = UserQueries.upsert(
@@ -436,16 +451,16 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 
 router.get("/succes", requireAuth, async (req, res) => {
   try {
-    // ⚡ Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
+    // ? Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
     //    se fait en arrière-plan via /api/badges-eval (appelé par le client)
     const achievementsByCategory = {
-      temporels:   { icon: "🎁", name: "Temporels",   achievements: ACHIEVEMENTS.temporels },
-      activites:   { icon: "🔥", name: "Activité",    achievements: ACHIEVEMENTS.activites },
-      films:       { icon: "🎬", name: "Films",        achievements: ACHIEVEMENTS.films },
-      series:      { icon: "📺", name: "Séries",       achievements: ACHIEVEMENTS.series },
-      mensuels:    { icon: "📅", name: "Mensuels",     achievements: ACHIEVEMENTS.mensuels },
-      collections: { icon: "🎥", name: "Collections", achievements: ACHIEVEMENTS.collections },
-      secrets:     { icon: "🔒", name: "Secrets",     achievements: ACHIEVEMENTS.secrets }
+      temporels:   { icon: "??", name: "Temporels",   achievements: ACHIEVEMENTS.temporels },
+      activites:   { icon: "??", name: "Activité",    achievements: ACHIEVEMENTS.activites },
+      films:       { icon: "??", name: "Films",        achievements: ACHIEVEMENTS.films },
+      series:      { icon: "??", name: "Séries",       achievements: ACHIEVEMENTS.series },
+      mensuels:    { icon: "??", name: "Mensuels",     achievements: ACHIEVEMENTS.mensuels },
+      collections: { icon: "??", name: "Collections", achievements: ACHIEVEMENTS.collections },
+      secrets:     { icon: "??", name: "Secrets",     achievements: ACHIEVEMENTS.secrets }
     };
 
     const username   = req.session.user.username;
@@ -509,7 +524,7 @@ router.get("/succes", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📅 CALENDRIER
+   ?? CALENDRIER
 =============================== */
 
 router.get("/calendrier", requireAuth, (req, res) => {
@@ -548,7 +563,7 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
 });
 
 /* ===============================
-   🏆 API BADGES EVAL (arrière-plan)
+   ?? API BADGES EVAL (arrière-plan)
    Appellé par le browser après rendu de /succes.
    Fait le vrai calcul Tautulli + retourne les mises à jour.
 =============================== */
@@ -651,7 +666,7 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🔄 API SUBSCRIPTION
+   ?? API SUBSCRIPTION
 =============================== */
 
 router.get("/api/subscription", requireAuth, async (req, res) => {
@@ -671,7 +686,7 @@ router.get("/api/subscription", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🔄 API STATS
+   ?? API STATS
 =============================== */
 
 router.get("/api/stats", requireAuth, async (req, res) => {
@@ -719,7 +734,7 @@ router.get("/api/stats", requireAuth, async (req, res) => {
 });
 
 /**
- * 📢 ENDPOINT SMART WAIT - Long-polling: Attendre que les données soient prêtes
+ * ?? ENDPOINT SMART WAIT - Long-polling: Attendre que les données soient prêtes
  * Au lieu de faire 30 polls avec 5 sec chacun, on attend l'événement du serveur
  * TIMEOUT: 5 minutes max (longue requête HTTP)
  */
@@ -760,7 +775,7 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   ⭐ API XP-SNAPSHOT (prefetch glow)
+   ? API XP-SNAPSHOT (prefetch glow)
    Retourne le rang/niveau calculé de l'user courant.
    Utilisé par layout.ejs pour alimenter le localStorage
    dès la connexion — sans attendre la page Profil.
@@ -771,7 +786,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     const user         = req.session.user;
     const joinedAtTs   = user.joinedAtTimestamp || 0;
 
-    // ⚡ Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
+    // ? Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
     const directStats  = getUserStatsFromTautulli(user.username);
     const hoursHint    = directStats?.totalHours ?? null;
     const statsHint    = directStats ? {
@@ -784,7 +799,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
       morningCount: 0
     } : null;
 
-    // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
+    // ?? Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
     const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint, statsHint);
 
     res.json({
@@ -802,7 +817,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🎬 API SEERR
+   ?? API SEERR
 =============================== */
 
 router.get("/api/seerr", requireAuth, async (req, res) => {
@@ -838,7 +853,7 @@ router.get("/api/seerr", requireAuth, async (req, res) => {
 
 
 /* ===============================
-   ️ CACHE INVALIDATION
+   ? CACHE INVALIDATION
 =============================== */
 
 router.post("/api/cache/invalidate", requireAuth, (req, res) => {
@@ -860,7 +875,7 @@ router.post("/api/cache/invalidate", requireAuth, (req, res) => {
 });
 
 /* ===============================
-   🔄 API GET ALL USERS (pour cron job)
+   ?? API GET ALL USERS (pour cron job)
 =============================== */
 
 // Endpoint pour récupérer tous les utilisateurs (utilisé par cron job au démarrage)
@@ -966,7 +981,7 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
   const integrationKey = String(payload.integrationKey || "custom").trim();
-  const icon = String(payload.icon || "✨").trim();
+  const icon = String(payload.icon || "?").trim();
 
   const requiresUrl = integrationKey === "custom";
   if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
@@ -1013,7 +1028,7 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
   const integrationKey = String(payload.integrationKey || "custom").trim();
-  const icon = String(payload.icon || "✨").trim();
+  const icon = String(payload.icon || "?").trim();
 
   const requiresUrl = integrationKey === "custom";
   if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
@@ -1096,7 +1111,7 @@ router.delete("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req,
 });
 
 /* ===============================
-   🎵 NOW PLAYING
+   ?? NOW PLAYING
 =============================== */
 router.get("/api/now-playing", requireAuth, async (req, res) => {
   const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
@@ -1170,7 +1185,7 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🖼️ PROXY MINIATURE PLEX
+   ??? PROXY MINIATURE PLEX
    Le browser ne peut pas accéder à l'URL interne plex:32400.
    On proxifie l'image côté serveur et on la renvoie au browser.
 =============================== */
@@ -1205,7 +1220,7 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📚 STATS SERVEUR (librairies Tautulli)
+   ?? STATS SERVEUR (librairies Tautulli)
 =============================== */
 const logSrv = log.create('[ServerStats]');
 
@@ -1266,7 +1281,7 @@ router.get('/api/server-stats', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📊 MES STATISTIQUES
+   ?? MES STATISTIQUES
 =============================== */
 const logStats = log.create('[MesStats]');
 
@@ -1316,13 +1331,13 @@ router.get('/api/mes-stats-global', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🏆 CLASSEMENT (Leaderboard)
+   ?? CLASSEMENT (Leaderboard)
 =============================== */
 const logLB = log.create('[Classement]');
 
 router.get('/api/classement', requireAuth, (req, res) => {
   try {
-    // ✅ Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
+    // ? Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
     const { getClassementCache } = require('../utils/cron-classement-refresh');
     const cacheData = getClassementCache();
 
@@ -1339,7 +1354,7 @@ router.get('/api/classement', requireAuth, (req, res) => {
 });
 
 /* ===============================
-   📅 API CALENDRIER (Radarr + Sonarr)
+   ?? API CALENDRIER (Radarr + Sonarr)
 =============================== */
 
 function todayISO() {
@@ -1374,7 +1389,7 @@ router.get("/api/calendar", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📦 VERSION & CHANGELOG
+   ?? VERSION & CHANGELOG
 =============================== */
 
 router.get('/api/version', (req, res) => {
@@ -1435,7 +1450,7 @@ router.get('/api/version-badge.svg', (_, res) => {
 });
 
 /* ===============================
-   🧹 DATABASE MAINTENANCE
+   ?? DATABASE MAINTENANCE
 =============================== */
 
 /**
@@ -1465,3 +1480,4 @@ router.post('/api/maintenance/database', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+
