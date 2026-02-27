@@ -160,51 +160,15 @@ Pour plus de détails, consultez la page `/succes` ou le dashboard.
 
 ##  Configuration
 
-### Variables d'environnement
+### Fichier d'environnement Docker
 
-#### Obligatoire
+Toutes les URLs et clés API du `docker-compose.yml` sont externalisées dans `config/.env`.
 
-```yaml
-SESSION_SECRET: "votre-cle-secrete"     # Clé de session (obligatoire)
-COOKIE_SECURE: "true"                   # true en production (HTTPS), false en local
+1. Copier l'exemple:
+```bash
+cp config/.env.example config/.env
 ```
-
-#### Intégrations
-
-```yaml
-# Wizarr  affichage abonnement
-WIZARR_URL: "http://Wizarr:5690"
-WIZARR_API_KEY: "votre-cle"
-
-# Tautulli  statistiques de visionnage
-TAUTULLI_URL: "http://tautulli:8181"
-TAUTULLI_API_KEY: "votre-cle"
-TAUTULLI_DB_PATH: "/tautulli-data/tautulli.db"   # Lecture DB directe (optimal)
-
-# Seerr (ex-Overseerr/Jellyseerr)  SSO iframe
-SEERR_URL: "http://Seerr:5055"                   # URL interne (API auth au login)
-SEERR_PUBLIC_URL: "https://seerr.votredomaine.com" # URL publique (src iframe)
-SEERR_API_KEY: "votre-cle"                        # Clé API (stats profil)
-
-# Radarr & Sonarr  calendrier des sorties
-RADARR_URL: "http://radarr:7878"
-RADARR_API_KEY: "votre-cle"
-SONARR_URL: "http://sonarr:8989"
-SONARR_API_KEY: "votre-cle"
-
-# Sécurité  restriction aux utilisateurs du serveur Plex
-PLEX_URL: "http://plex:32400"
-PLEX_TOKEN: "votre-token"
-```
-
-#### Overrides manuels (auto-détectés si omis)
-
-```yaml
-APP_URL: "https://plex-portal.votredomaine.com"
-BASE_PATH: "/plex-portal"
-PORT: "3000"
-DEBUG: "true"
-```
+2. Éditer `config/.env` et renseigner vos valeurs (`SESSION_SECRET`, URLs, API keys...).
 
 ### docker-compose.yml complet (exemple production)
 
@@ -215,26 +179,13 @@ services:
     container_name: plex-portal
     ports:
       - "4000:3000"
+    env_file:
+      - ./config/.env
+    environment:
+      - NODE_ENV=production
     restart: unless-stopped
     networks:
       - proxy
-    environment:
-      - SESSION_SECRET=votre-cle-secrete
-      - COOKIE_SECURE=true
-      - WIZARR_URL=http://Wizarr:5690
-      - WIZARR_API_KEY=votre-cle
-      - TAUTULLI_URL=http://tautulli:8181
-      - TAUTULLI_API_KEY=votre-cle
-      - TAUTULLI_DB_PATH=/tautulli-data/tautulli.db
-      - SEERR_URL=http://Seerr:5055
-      - SEERR_PUBLIC_URL=https://seerr.votredomaine.com
-      - SEERR_API_KEY=votre-cle
-      - RADARR_URL=http://radarr:7878
-      - RADARR_API_KEY=votre-cle
-      - SONARR_URL=http://sonarr:8989
-      - SONARR_API_KEY=votre-cle
-      - PLEX_URL=http://plex:32400
-      - PLEX_TOKEN=votre-token
     volumes:
       - /chemin/appdata/plex-portal/config:/config
       - /chemin/appdata/tautulli:/tautulli-data

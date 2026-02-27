@@ -1,4 +1,4 @@
-﻿version: '3.8'
+version: '3.8'
 
 services:
   plex-portal:
@@ -6,70 +6,19 @@ services:
     container_name: plex-portal
     ports:
       - "3000:3000"
-    
+    env_file:
+      - ./config/.env
     environment:
-      # ⚠️ OBLIGATOIRE — Remplacez par une clé aléatoire forte (ex: openssl rand -hex 32)
-      SESSION_SECRET: "change-me-to-a-secure-key"
-      # Activer les cookies sécurisés HTTPS (mettre true si derrière un reverse proxy HTTPS)
-      COOKIE_SECURE: "true"
-      NODE_ENV: "production"
-
-      # ===Optionnel ===
-      # L'app détecte automatiquement si elle est derrière un reverse proxy
-      # via les headers X-Forwarded-* (envoyés par ngx proxy manager, Traefik, etc)
-      
-      # Vous pouvez override manuellement si nécessaire:
-      # APP_URL: "https://example.com"        # Auto-détecté via X-Forwarded-*
-      # BASE_PATH: "/plex-portal"             # Auto-détecté via X-Forwarded-Prefix
-      # PORT: "3000"
-      # DEBUG: "true"                         # Affiche les logs de détection
-      
-      # Intégrations optionnelles:
-      # WIZARR_URL: "http://wizarr.local"
-      # WIZARR_API_KEY: "your-key"
-      
-      # ⭐ TAUTULLI - Lecture directe de la DB (optimal)
-      # Chemin vers la DB Tautulli pour lectures optimisées
-      TAUTULLI_DB_PATH: "/tautulli-data/tautulli.db"
-      
-      # ⭐ TAUTULLI API - Nécessaire pour la détection des collections (succès franchise)
-      # Active la résolution dynamique des films dans chaque collection (Jurassic, HP, etc.)
-      # TAUTULLI_URL: "http://tautulli.local:8181"
-      # TAUTULLI_API_KEY: "your-api-key"
-      
-      # ⭐ OVERSEERR / SEERR - Requis pour l'intégration SSO dans plex-portal
-      # SEERR_URL      → URL INTERNE pour grab le cookie au login (API auth)
-      # SEERR_PUBLIC_URL → URL PUBLIQUE affichée dans l'iframe (même domaine parent que le portail)
-      # Exemples :
-      #   SEERR_URL: "http://192.168.1.x:5055"           ← IP Unraid + port
-      #   SEERR_URL: "http://overseerr:5055"            ← réseau Docker custom
-      #   SEERR_PUBLIC_URL: "https://seerr.votredomaine.com"  ← URL publique HTTPS
-      # SEERR_URL: "http://192.168.1.x:5055"
-      # SEERR_PUBLIC_URL: "https://seerr.votredomaine.com"
-      # SEERR_API_KEY: "your-key"
-      
-      # ⚠️ SÉCURITÉ - Whitelist utilisateurs Plex (FORTEMENT RECOMMANDÉ)
-      # Permet de restreindre l'accès aux utilisateurs du serveur Plex
-      # PLEX_URL: "http://192.168.10.104:32400"
-      # PLEX_TOKEN: "your-plex-token"
-
-      # 📅 CALENDRIER (Radarr + Sonarr)
-      # Affiche un calendrier des sorties films/séries à venir
-      # RADARR_URL: "http://192.168.1.x:7878"
-      # RADARR_API_KEY: "your-radarr-api-key"
-      # SONARR_URL: "http://192.168.1.x:8989"
-      # SONARR_API_KEY: "your-sonarr-api-key"
-    
+      NODE_ENV: "${NODE_ENV:-production}"
     volumes:
       # Logo et fichiers de config
       - ./config:/config
-      
-      # 🗄️ DB Tautulli (lecture seule)
+
+      # DB Tautulli (lecture seule)
       - /mnt/user/appdata/tautulli:/tautulli-data
-    
     restart: unless-stopped
-    
-    # Optionnel: réseau custom
+
+    # Optionnel: reseau custom
     # networks:
     #   - plex-network
 
