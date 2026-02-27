@@ -11,7 +11,7 @@ const { startSessionCronJob } = require("./utils/cron-session-job");
 const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
 const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
-const { initDatabase } = require("./utils/database");  // 🗄️  Database initialization
+const { initDatabase, DashboardCardQueries } = require("./utils/database");  // 🗄️  Database initialization
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
 
 const app = express();
@@ -82,6 +82,47 @@ app.use(express.static("/config"));
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.basePath = req.basePath || "";
+  res.locals.customNavCards = [];
+
+  if (req.session.user) {
+    try {
+      const cards = DashboardCardQueries.list();
+      const basePath = req.basePath || "";
+      const navColorMap = {
+        teal:   { base: "rgba(45, 212, 191, 0.9)", hover: "#5eead4", accent: "#2dd4bf" },
+        indigo: { base: "rgba(165, 180, 252, 0.9)", hover: "#c7d2fe", accent: "#818cf8" },
+        pink:   { base: "rgba(249, 168, 212, 0.9)", hover: "#fbcfe8", accent: "#f472b6" },
+        cyan:   { base: "rgba(103, 232, 249, 0.9)", hover: "#a5f3fc", accent: "#22d3ee" },
+        lime:   { base: "rgba(190, 242, 100, 0.9)", hover: "#d9f99d", accent: "#a3e635" },
+        orange: { base: "rgba(253, 186, 116, 0.9)", hover: "#fed7aa", accent: "#fb923c" }
+      };
+
+      res.locals.customNavCards = cards.map(card => {
+        const openInIframe = !!card.openInIframe;
+        const integrationKey = String(card.integrationKey || "custom");
+        const rawUrl = String(card.url || "");
+        const navColors = navColorMap[card.colorKey] || { base: "rgba(226, 246, 255, 0.9)", hover: "#e8f6ff", accent: "#62b2ff" };
+        let href = "";
+        if (integrationKey !== "custom" || openInIframe) {
+          href = `${basePath}/app-card/${card.id}`;
+        } else {
+          href = rawUrl.startsWith("/") ? `${basePath}${rawUrl}` : rawUrl;
+        }
+        return {
+          id: card.id,
+          label: card.label || card.title || `App ${card.id}`,
+          icon: card.icon || "✨",
+          href,
+          external: integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl),
+          navColorBase: navColors.base,
+          navColorHover: navColors.hover,
+          navColorAccent: navColors.accent
+        };
+      });
+    } catch (_) {
+      res.locals.customNavCards = [];
+    }
+  }
   next();
 });
 

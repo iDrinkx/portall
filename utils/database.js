@@ -59,6 +59,8 @@ function runMigrations() {
     attemptAddColumn('tautulli_sessions', 'watched_status', 'REAL DEFAULT 0');
     attemptAddColumn('tautulli_sessions', 'rating_key', 'INTEGER');
     attemptAddColumn('tautulli_sessions', 'session_hash', 'TEXT');
+    attemptAddColumn('dashboard_custom_cards', 'open_in_iframe', 'INTEGER NOT NULL DEFAULT 1');
+    attemptAddColumn('dashboard_custom_cards', 'integration_key', "TEXT NOT NULL DEFAULT 'custom'");
     
     // Table: users
     db.exec(`
@@ -193,6 +195,37 @@ function runMigrations() {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);  // achievement_progress
+
+    // Table: app_settings - Réglages globaux administrateur
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);  // app_settings
+
+    // Table: dashboard_custom_cards - Cartes supplémentaires configurées par l'admin
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS dashboard_custom_cards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        url TEXT NOT NULL,
+        color_key TEXT NOT NULL,
+        open_in_iframe INTEGER NOT NULL DEFAULT 1,
+        integration_key TEXT NOT NULL DEFAULT 'custom',
+        icon TEXT DEFAULT '✨',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);  // dashboard_custom_cards
+
+    // Valeur par défaut: blur des pseudos activé
+    db.prepare(`
+      INSERT OR IGNORE INTO app_settings (key, value)
+      VALUES ('leaderboard_blur_enabled', '1')
+    `).run();
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
@@ -645,6 +678,123 @@ const AchievementProgressQueries = {
 };
 
 /**
+ * App settings queries (réglages globaux admin)
+ */
+const AppSettingQueries = {
+  get(key, defaultValue = null) {
+    const db = getDb();
+    const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(key);
+    return row ? row.value : defaultValue;
+  },
+
+  set(key, value) {
+    const db = getDb();
+    return db.prepare(`
+      INSERT INTO app_settings (key, value, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(key, String(value));
+  },
+
+  getBool(key, defaultValue = false) {
+    const value = this.get(key, defaultValue ? "1" : "0");
+    return value === "1" || value === "true";
+  },
+
+  setBool(key, enabled) {
+    return this.set(key, enabled ? "1" : "0");
+  }
+};
+
+/**
+ * Dashboard custom cards queries (admin configurable)
+ */
+const DashboardCardQueries = {
+  list() {
+    const db = getDb();
+    return db.prepare(`
+      SELECT
+        id, label, title, description, url,
+        color_key as colorKey,
+        open_in_iframe as openInIframe,
+        integration_key as integrationKey,
+        icon,
+        created_at as createdAt
+      FROM dashboard_custom_cards
+      ORDER BY id ASC
+    `).all();
+  },
+
+  getById(id) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT
+        id, label, title, description, url,
+        color_key as colorKey,
+        open_in_iframe as openInIframe,
+        integration_key as integrationKey,
+        icon,
+        created_at as createdAt
+      FROM dashboard_custom_cards
+      WHERE id = ?
+    `).get(id);
+  },
+
+  create({ label, title, description, url, colorKey, openInIframe, integrationKey, icon }) {
+    const db = getDb();
+    const stmt = db.prepare(`
+      INSERT INTO dashboard_custom_cards (label, title, description, url, color_key, open_in_iframe, integration_key, icon)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      String(label || "").trim(),
+      String(title || "").trim(),
+      String(description || "").trim(),
+      String(url || "").trim(),
+      String(colorKey || "").trim(),
+      openInIframe ? 1 : 0,
+      String(integrationKey || "custom").trim(),
+      String(icon || "✨").trim()
+    );
+    return result.lastInsertRowid;
+  },
+
+  update(id, { label, title, description, url, colorKey, openInIframe, integrationKey, icon }) {
+    const db = getDb();
+    return db.prepare(`
+      UPDATE dashboard_custom_cards
+      SET
+        label = ?,
+        title = ?,
+        description = ?,
+        url = ?,
+        color_key = ?,
+        open_in_iframe = ?,
+        integration_key = ?,
+        icon = ?
+      WHERE id = ?
+    `).run(
+      String(label || "").trim(),
+      String(title || "").trim(),
+      String(description || "").trim(),
+      String(url || "").trim(),
+      String(colorKey || "").trim(),
+      openInIframe ? 1 : 0,
+      String(integrationKey || "custom").trim(),
+      String(icon || "✨").trim(),
+      id
+    );
+  },
+
+  remove(id) {
+    const db = getDb();
+    return db.prepare(`DELETE FROM dashboard_custom_cards WHERE id = ?`).run(id);
+  }
+};
+
+/**
  * Transactions helper
  */
 function transaction(callback) {
@@ -664,5 +814,7 @@ module.exports = {
   DatabaseMaintenance,
   UserAchievementQueries,
   AchievementProgressQueries,
+  AppSettingQueries,
+  DashboardCardQueries,
   DB_PATH
 };

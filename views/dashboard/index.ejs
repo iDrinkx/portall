@@ -92,6 +92,38 @@
     </div>
   </a>
 
+  <% (dashboardCustomCards || []).forEach(function(card) { %>
+    <a
+      href="<%= card.href %>"
+      class="hero-card hero-card-custom"
+      style="
+        --custom-bg-start: <%= card.color.bgStart %>;
+        --custom-bg-end: <%= card.color.bgEnd %>;
+        --custom-border: <%= card.color.border %>;
+        --custom-border-hover: <%= card.color.borderHover %>;
+        --custom-glow: <%= card.color.glow %>;
+        --custom-accent-a: <%= card.color.accentA %>;
+        --custom-accent-b: <%= card.color.accentB %>;
+        --custom-label: <%= card.color.label %>;
+        --custom-arrow: <%= card.color.arrow %>;
+        --custom-icon-border: <%= card.color.iconBorder %>;
+        --custom-icon-glow: <%= card.color.iconGlow %>;
+      "
+    >
+      <div class="hero-card-content">
+        <div class="hero-card-icon-wrap">
+          <div class="hero-icon hero-icon--custom"><span class="hero-icon-custom-char"><%= card.icon || "✨" %></span></div>
+        </div>
+        <div class="hero-card-info">
+          <p class="hero-card-label"><%= card.label %></p>
+          <h2 class="hero-card-title"><%= card.title %></h2>
+          <p class="hero-card-desc"><%= card.description %></p>
+        </div>
+        <div class="hero-card-arrow">→</div>
+      </div>
+    </a>
+  <% }); %>
+
 </div>
 
 <!-- SERVER STATS BAR -->

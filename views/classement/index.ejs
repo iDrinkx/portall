@@ -11,6 +11,11 @@
   --lb-bronze:    #CD7F32;
 }
 
+.lb-page--blur-off .lb-pod-username,
+.lb-page--blur-off .lb-row-name {
+  filter: none;
+}
+
 .lb-page {
   max-width: 1140px;
   margin: 0 auto;
@@ -395,19 +400,48 @@
   display: flex;
 }
 .lb-preview {
+  position: relative;
+  isolation: isolate;
   width: min(720px, calc(100vw - 24px));
   max-height: calc(100vh - 30px);
-  overflow: auto;
-  background: linear-gradient(180deg, #111826, #0d1320 58%, #0b101a);
-  border: 1px solid rgba(255,255,255,0.12);
+  overflow: hidden;
+  background: rgba(14, 22, 34, 0.012);
+  border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 20px;
   padding: 18px 18px 16px;
   box-shadow:
-    0 26px 80px rgba(0,0,0,0.62),
-    0 0 0 1px rgba(59,130,246,0.16) inset;
+    0 14px 34px rgba(0,0,0,.18),
+    0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+    0 4px 10px rgba(98, 178, 255, 0.04);
+  backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
   transform: translateY(8px) scale(0.98);
   opacity: 0;
   transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.lb-preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+  z-index: 0;
+}
+.lb-preview::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08), rgba(255,255,255,0.014) 24%, rgba(255,255,255,0) 50%),
+    radial-gradient(circle at 82% 78%, rgba(86, 186, 255, 0.05), rgba(86, 186, 255, 0) 48%);
+  filter: blur(3px);
+  transform: rotate(-8deg);
+  z-index: 0;
+}
+.lb-preview > * {
+  position: relative;
+  z-index: 1;
 }
 .lb-preview-modal--open .lb-preview {
   transform: translateY(0) scale(1);
@@ -444,19 +478,23 @@
   letter-spacing: 0.2px;
 }
 .lb-preview-body {
-  display: flex;
-  justify-content: flex-start;
+  display: block;
 }
 .lb-preview-profile-card {
-  background: linear-gradient(115deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(14, 22, 34, 0.012);
+  border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 16px;
   padding: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(232, 248, 255, 0.12) inset;
+  backdrop-filter: blur(2px) saturate(110%);
+  -webkit-backdrop-filter: blur(2px) saturate(110%);
 }
 .lb-preview-avatar-col {
   width: 84px;
@@ -473,7 +511,7 @@
 }
 .lb-preview-main {
   min-width: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -551,7 +589,7 @@
 }
 </style>
 
-<div class="lb-page">
+<div class="lb-page <%= leaderboardBlurEnabled === false ? 'lb-page--blur-off' : '' %>">
 
   <div class="lb-header">
     <h1 class="lb-title">&#x1F3C6; Classement</h1>

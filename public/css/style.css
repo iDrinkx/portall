@@ -715,6 +715,70 @@ body {
   transform: translateX(5px);
 }
 
+.hero-card-custom {
+  background: linear-gradient(135deg, var(--custom-bg-start) 0%, var(--custom-bg-end) 100%);
+  border-color: var(--custom-border);
+}
+
+.hero-card-custom::before {
+  background: linear-gradient(180deg, var(--custom-accent-a), var(--custom-accent-b));
+}
+
+.hero-card-custom:hover {
+  transform: translateY(-5px);
+  border-color: var(--custom-border-hover);
+  box-shadow: 0 20px 60px var(--custom-glow);
+}
+
+.hero-card-custom .hero-card-label {
+  color: var(--custom-label);
+}
+
+.hero-card-custom:hover .hero-card-arrow {
+  color: var(--custom-arrow);
+  transform: translateX(5px);
+}
+
+.hero-icon--custom {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 2px solid var(--custom-icon-border);
+  border-radius: 50%;
+  box-shadow: 0 4px 14px var(--custom-icon-glow);
+  font-size: 0;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.hero-icon-custom-char {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-block;
+  font-size: 28px;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  transform: translate(-50%, -54%);
+}
+
+.hero-icon--calendrier {
+  background: transparent;
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
+  font-size: 28px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.hero-icon--calendrier > * {
+  transform: translateY(1px);
+  line-height: 1;
+}
+
 /* Logo Seerr dans la navbar */
 .nav-seerr-logo {
   width: 16px;
@@ -804,6 +868,34 @@ body {
 }
 .nav-link-calendrier::after {
   background: #ef4444;
+}
+
+.nav-link-custom {
+  color: var(--custom-nav-base, rgba(226, 246, 255, 0.9));
+}
+
+.nav-link-custom:hover {
+  color: var(--custom-nav-hover, #e8f6ff);
+}
+
+.nav-link-custom::after {
+  background: var(--custom-nav-accent, #62b2ff);
+}
+
+.nav-custom-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  margin-right: 4px;
+}
+
+.nav-link-custom-mobile {
+  color: var(--custom-nav-base, rgba(226, 246, 255, 0.9)) !important;
+}
+
+.nav-link-custom-mobile:hover {
+  color: var(--custom-nav-hover, #e8f6ff) !important;
 }
 
 /* =========================

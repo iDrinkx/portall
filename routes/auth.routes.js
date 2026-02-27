@@ -142,6 +142,7 @@ router.get("/auth-complete", async (req, res) => {
   // ── Vérification accès serveur (Plex) ──────────────────────────────────────────────
   // Plex est BLOQUANT (obligatoire pour le login)
   let authorizedByPlex = true;
+  let isAdmin = false;
   if (process.env.PLEX_URL && process.env.PLEX_TOKEN) {
     try {
       const userId = parseInt(user.id);
@@ -151,6 +152,7 @@ router.get("/auth-complete", async (req, res) => {
       ]);
 
       if (ownerId && ownerId === userId) {
+        isAdmin = true;
         logAuth.info(`User ${userId} — propriétaire du serveur`);
       } else {
         const authorizedUsers = await getAuthorizedServerUsers(process.env.PLEX_TOKEN, machineId);
@@ -172,6 +174,7 @@ router.get("/auth-complete", async (req, res) => {
 
   req.session.user = user;
   req.session.user.joinedAtTimestamp = user.joinedAt;
+  req.session.user.isAdmin = isAdmin;
   req.session.plexToken = authToken;
   delete req.session.pinId;
 

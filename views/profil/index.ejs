@@ -1189,18 +1189,18 @@
   }
 
   .detail-card {
-    padding: 16px;
+    padding: 13px 14px;
     border-radius: 10px;
     border-left: 4px solid;
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 10px;
     background: rgba(14, 22, 34, 0.012);
   }
 
   .detail-icon {
-    font-size: 24px;
+    font-size: 21px;
     flex-shrink: 0;
   }
 
@@ -1209,15 +1209,15 @@
   }
 
   .detail-label {
-    font-size: 11px;
+    font-size: 10px;
     color: #a0a0a0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .detail-value {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: #fff;
   }
@@ -1253,6 +1253,35 @@
     .xp-breakdown-grid {
       grid-template-columns: 1fr;
       gap: 30px;
+    }
+
+    /* Mobile: modal XP scrollable sans impacter desktop */
+    #xpModal .xp-modal-content {
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* Mobile: cartes "Détails par catégorie" plus compactes */
+    #xpModal .detail-card {
+      padding: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
+      border-left-width: 3px;
+    }
+
+    #xpModal .detail-icon {
+      font-size: 19px;
+    }
+
+    #xpModal .detail-label {
+      font-size: 10px;
+      margin-bottom: 2px;
+    }
+
+    #xpModal .detail-value {
+      font-size: 14px;
     }
   }
 

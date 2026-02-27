@@ -1,0 +1,720 @@
+<style>
+  .settings-page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 18px 0 40px;
+  }
+
+  .settings-header h1 {
+    margin: 0 0 6px;
+    color: #fff;
+    font-size: 28px;
+    font-weight: 800;
+  }
+
+  .settings-header p {
+    margin: 0 0 22px;
+    color: #a9b3c8;
+    font-size: 13px;
+  }
+
+  .settings-shell {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: rgba(14, 22, 34, 0.012);
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow:
+      0 14px 34px rgba(0,0,0,.18),
+      0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+      0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  }
+
+  .settings-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+    z-index: 0;
+  }
+
+  .settings-shell::after {
+    content: "";
+    position: absolute;
+    inset: -35%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08), rgba(255,255,255,0.014) 24%, rgba(255,255,255,0) 50%),
+      radial-gradient(circle at 82% 78%, rgba(86, 186, 255, 0.05), rgba(86, 186, 255, 0) 48%);
+    filter: blur(3px);
+    transform: rotate(-8deg);
+    z-index: 0;
+  }
+
+  .settings-shell > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .settings-card {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: rgba(14, 22, 34, 0.012);
+    border: 1px solid rgba(226, 246, 255, 0.42);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow:
+      0 14px 34px rgba(0,0,0,.18),
+      0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+      0 4px 10px rgba(98, 178, 255, 0.04);
+    backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+    -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  }
+
+  .settings-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+    z-index: 0;
+  }
+
+  .settings-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: #f2f6ff;
+  }
+
+  .settings-row p {
+    margin: 0;
+    color: #a9b3c8;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.18);
+    transition: .2s;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 24px;
+    width: 24px;
+    left: 3px;
+    top: 3px;
+    background-color: #fff;
+    transition: .2s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  }
+
+  input:checked + .slider {
+    background-color: #34c759;
+    border-color: rgba(52, 199, 89, 0.9);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+
+  .settings-state {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #9fb0cd;
+  }
+
+  .settings-stack {
+    display: grid;
+    gap: 14px;
+  }
+
+  .settings-card-title {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: #f2f6ff;
+  }
+
+  .settings-card-sub {
+    margin: 0 0 12px;
+    color: #a9b3c8;
+    font-size: 13px;
+  }
+
+  .settings-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .settings-field--full {
+    grid-column: 1 / -1;
+  }
+
+  .settings-field label {
+    font-size: 12px;
+    color: #c6d1e7;
+  }
+
+  .settings-field input,
+  .settings-field select {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(8, 12, 18, 0.36);
+    color: #eef3ff;
+    padding: 9px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .settings-field input:focus,
+  .settings-field select:focus {
+    border-color: rgba(86, 186, 255, 0.9);
+    box-shadow: 0 0 0 2px rgba(86, 186, 255, 0.18);
+  }
+
+  .settings-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .settings-btn {
+    border: 1px solid rgba(86, 186, 255, 0.4);
+    background: rgba(86, 186, 255, 0.15);
+    color: #cfeeff;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .settings-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .settings-inline-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #9fb0cd;
+  }
+
+  .dash-cards-list {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .dash-card-row {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    background: rgba(8, 12, 18, 0.28);
+    padding: 9px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dash-card-meta {
+    min-width: 0;
+  }
+
+  .dash-card-main {
+    color: #eef3ff;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-card-sub {
+    color: #9fb0cd;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-card-delete {
+    border: 1px solid rgba(248, 113, 113, 0.42);
+    background: rgba(248, 113, 113, 0.14);
+    color: #fecaca;
+    border-radius: 8px;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .dash-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .dash-card-edit {
+    border: 1px solid rgba(86, 186, 255, 0.42);
+    background: rgba(86, 186, 255, 0.14);
+    color: #cfeeff;
+    border-radius: 8px;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 640px) {
+    .settings-shell {
+      padding: 16px;
+    }
+
+    .settings-row {
+      align-items: flex-start;
+    }
+
+    .settings-form {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<section class="settings-page">
+  <div class="settings-shell">
+    <div class="settings-header">
+      <h1>Parametres Admin</h1>
+      <p>Reglages globaux visibles sur tout le portail.</p>
+    </div>
+
+    <div class="settings-stack">
+      <div class="settings-card">
+        <div class="settings-row">
+          <div>
+            <h3>Blur des pseudos dans le classement</h3>
+            <p>Active ou desactive le flou sur les pseudos utilisateurs dans la page classement.</p>
+          </div>
+          <label class="switch" aria-label="Activer ou desactiver le blur des pseudos">
+            <input id="leaderboardBlurToggle" type="checkbox" <%= leaderboardBlurEnabled ? "checked" : "" %>>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="settings-state" id="settingsState">
+          Etat actuel: <strong><%= leaderboardBlurEnabled ? "Active" : "Desactive" %></strong>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h3 class="settings-card-title">Cartes supplementaires du dashboard</h3>
+        <p class="settings-card-sub">Ajoute une carte perso (texte, couleur, lien interne ou externe).</p>
+
+        <form id="dashboardCardForm" class="settings-form">
+          <div class="settings-field">
+            <label for="cardLabel">Label</label>
+            <input id="cardLabel" name="label" maxlength="40" placeholder="Ex: Services">
+          </div>
+          <div class="settings-field">
+            <label for="cardTitle">Titre</label>
+            <input id="cardTitle" name="title" maxlength="60" placeholder="Ex: Radarr">
+          </div>
+          <div class="settings-field settings-field--full">
+            <label for="cardDescription">Description</label>
+            <input id="cardDescription" name="description" maxlength="120" placeholder="Ex: Gestion films et sorties">
+          </div>
+          <div class="settings-field">
+            <label for="cardIcon">Icone (emoji)</label>
+            <input id="cardIcon" name="icon" maxlength="4" placeholder="✨" value="✨">
+          </div>
+          <div class="settings-field">
+            <label for="cardColorKey">Couleur (uniquement libre)</label>
+            <select id="cardColorKey" name="colorKey">
+              <% (availableDashboardColors || []).forEach(function(color) { %>
+                <option value="<%= color.key %>"><%= color.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="settings-field settings-field--full">
+            <label for="cardIntegrationKey">Schema preconfigure</label>
+            <select id="cardIntegrationKey" name="integrationKey">
+              <% (dashboardIntegrationOptions || []).forEach(function(item) { %>
+                <option value="<%= item.key %>" <%= item.available ? "" : "disabled" %>>
+                  <%= item.label %><%= item.available ? "" : " (non configure)" %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="settings-field settings-field--full" id="cardUrlField">
+            <label for="cardUrl">Lien (requis en mode custom)</label>
+            <input id="cardUrl" name="url" maxlength="220" placeholder="/seerr">
+          </div>
+          <div class="settings-field settings-field--full">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input id="cardOpenInIframe" name="openInIframe" type="checkbox" checked>
+              Ouvrir dans une page iframe avec bandeau retour (comme Seerr)
+            </label>
+          </div>
+        </form>
+        <div class="settings-actions">
+          <button class="settings-btn" id="cancelDashboardCardEditBtn" type="button" style="display:none;">Annuler</button>
+          <button class="settings-btn" id="addDashboardCardBtn" type="button">Ajouter la carte</button>
+        </div>
+        <div class="settings-inline-note" id="dashCardState">Choisis une couleur disponible et remplis tous les champs.</div>
+
+        <div class="dash-cards-list" id="dashboardCardsList">
+          <% (dashboardCustomCards || []).forEach(function(card) { %>
+            <div class="dash-card-row" data-card-id="<%= card.id %>">
+              <div class="dash-card-meta">
+                <div class="dash-card-main"><%= card.icon || "✨" %> <%= card.title %> · <%= card.colorName %></div>
+                <div class="dash-card-sub">
+                  <%= card.label %> · <%= card.description %><%= (card.integrationKey || "custom") === "custom" && card.url ? " · " + card.url : "" %>
+                </div>
+              </div>
+              <div class="dash-card-actions">
+                <button
+                  class="dash-card-edit"
+                  data-edit-card-id="<%= card.id %>"
+                  data-edit-label="<%= card.label %>"
+                  data-edit-title="<%= card.title %>"
+                  data-edit-description="<%= card.description %>"
+                  data-edit-url="<%= card.url %>"
+                  data-edit-color-key="<%= card.colorKey %>"
+                  data-edit-integration-key="<%= card.integrationKey || 'custom' %>"
+                  data-edit-open-in-iframe="<%= card.openInIframe ? '1' : '0' %>"
+                  data-edit-icon="<%= card.icon || '✨' %>"
+                  type="button"
+                >Modifier</button>
+                <button class="dash-card-delete" data-delete-card-id="<%= card.id %>" type="button">Supprimer</button>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    const bp = window.APP_BASE_PATH || "";
+    const toggle = document.getElementById("leaderboardBlurToggle");
+    const state = document.getElementById("settingsState");
+    const addBtn = document.getElementById("addDashboardCardBtn");
+    const dashCardState = document.getElementById("dashCardState");
+    const dashCardsList = document.getElementById("dashboardCardsList");
+    const form = document.getElementById("dashboardCardForm");
+    const colorSelect = document.getElementById("cardColorKey");
+    const cancelEditBtn = document.getElementById("cancelDashboardCardEditBtn");
+    const cardLabelInput = document.getElementById("cardLabel");
+    const cardTitleInput = document.getElementById("cardTitle");
+    const cardDescriptionInput = document.getElementById("cardDescription");
+    const cardIconInput = document.getElementById("cardIcon");
+    const cardUrlInput = document.getElementById("cardUrl");
+    const cardUrlField = document.getElementById("cardUrlField");
+    const cardIntegrationKeyInput = document.getElementById("cardIntegrationKey");
+    const cardOpenInIframeInput = document.getElementById("cardOpenInIframe");
+    if (!toggle || !state || !addBtn || !dashCardState || !dashCardsList || !form || !colorSelect || !cancelEditBtn) return;
+
+    let cardBusy = false;
+    let editingCardId = null;
+    let canCreate = true;
+
+    function escHtml(v) {
+      return String(v == null ? "" : v)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function updateActionAvailability() {
+      const lockCreate = !editingCardId && !canCreate;
+      addBtn.disabled = lockCreate;
+      colorSelect.disabled = lockCreate;
+    }
+
+    function setFormModeCreate() {
+      editingCardId = null;
+      addBtn.textContent = "Ajouter la carte";
+      cancelEditBtn.style.display = "none";
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
+      updateActionAvailability();
+    }
+
+    function setFormModeEdit(card) {
+      editingCardId = Number(card.id);
+      addBtn.textContent = "Enregistrer la modification";
+      cancelEditBtn.style.display = "inline-flex";
+      cardLabelInput.value = card.label || "";
+      cardTitleInput.value = card.title || "";
+      cardDescriptionInput.value = card.description || "";
+      cardUrlInput.value = card.url || "";
+      cardIconInput.value = card.icon || "✨";
+      cardIntegrationKeyInput.value = card.integrationKey || "custom";
+      cardOpenInIframeInput.checked = !!card.openInIframe;
+      if (!Array.from(colorSelect.options).some(opt => opt.value === (card.colorKey || ""))) {
+        const opt = document.createElement("option");
+        opt.value = card.colorKey || "";
+        opt.textContent = (card.colorKey || "").toUpperCase();
+        colorSelect.appendChild(opt);
+      }
+      colorSelect.value = card.colorKey || "";
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
+      updateActionAvailability();
+    }
+
+    function applyIntegrationUi(integrationKey) {
+      const isCustom = integrationKey === "custom";
+      if (cardUrlField) {
+        cardUrlField.style.display = isCustom ? "" : "none";
+      }
+      if (isCustom) {
+        cardOpenInIframeInput.disabled = false;
+      } else {
+        cardOpenInIframeInput.checked = true;
+        cardOpenInIframeInput.disabled = true;
+      }
+    }
+
+    async function refreshCardData() {
+      const resp = await fetch(bp + "/api/admin/dashboard-cards");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      colorSelect.innerHTML = (data.availableColors || [])
+        .map(c => `<option value="${c.key}">${c.name}</option>`)
+        .join("");
+
+      const currentIntegration = cardIntegrationKeyInput.value || "custom";
+      cardIntegrationKeyInput.innerHTML = (data.integrations || [])
+        .map(i => `<option value="${escHtml(i.key)}" ${i.available === false ? "disabled" : ""}>${escHtml(i.label)}${i.available === false ? " (non configure)" : ""}</option>`)
+        .join("");
+      if (Array.from(cardIntegrationKeyInput.options).some(opt => opt.value === currentIntegration)) {
+        cardIntegrationKeyInput.value = currentIntegration;
+      }
+
+      const colorsByKey = Object.fromEntries((data.allColors || []).map(c => [c.key, c.name]));
+      canCreate = (data.availableColors || []).length > 0;
+      updateActionAvailability();
+
+      dashCardsList.innerHTML = (data.cards || []).map(card => {
+        const colorName = colorsByKey[card.colorKey] || card.colorKey;
+        return `<div class="dash-card-row" data-card-id="${card.id}">
+          <div class="dash-card-meta">
+            <div class="dash-card-main">${escHtml(card.icon || "✨")} ${escHtml(card.title)} · ${escHtml(colorName)}</div>
+            <div class="dash-card-sub">${escHtml(card.label)} · ${escHtml(card.description)}${(card.integrationKey || "custom") === "custom" && card.url ? " · " + escHtml(card.url) : ""}</div>
+          </div>
+          <div class="dash-card-actions">
+            <button
+              class="dash-card-edit"
+              data-edit-card-id="${card.id}"
+              data-edit-label="${escHtml(card.label)}"
+              data-edit-title="${escHtml(card.title)}"
+              data-edit-description="${escHtml(card.description)}"
+              data-edit-url="${escHtml(card.url)}"
+              data-edit-color-key="${escHtml(card.colorKey)}"
+              data-edit-integration-key="${escHtml(card.integrationKey || "custom")}"
+              data-edit-open-in-iframe="${card.openInIframe ? "1" : "0"}"
+              data-edit-icon="${escHtml(card.icon || "✨")}"
+              type="button"
+            >Modifier</button>
+            <button class="dash-card-delete" data-delete-card-id="${card.id}" type="button">Supprimer</button>
+          </div>
+        </div>`;
+      }).join("");
+
+      if ((data.availableColors || []).length === 0) {
+        dashCardState.textContent = "Toutes les couleurs disponibles sont déjà utilisées.";
+      }
+    }
+
+    let inFlight = false;
+    toggle.addEventListener("change", async function () {
+      if (inFlight) return;
+      inFlight = true;
+      toggle.disabled = true;
+      const enabled = !!toggle.checked;
+
+      try {
+        const resp = await fetch(bp + "/api/admin/settings/leaderboard-blur", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled })
+        });
+
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        state.innerHTML = "Etat actuel: <strong>" + (data.enabled ? "Active" : "Desactive") + "</strong>";
+      } catch (_) {
+        toggle.checked = !enabled;
+      } finally {
+        toggle.disabled = false;
+        inFlight = false;
+      }
+    });
+
+    addBtn.addEventListener("click", async function () {
+      if (cardBusy) return;
+
+      const payload = {
+        label: cardLabelInput.value.trim(),
+        title: cardTitleInput.value.trim(),
+        description: cardDescriptionInput.value.trim(),
+        url: cardUrlInput.value.trim(),
+        colorKey: colorSelect.value,
+        integrationKey: cardIntegrationKeyInput.value || "custom",
+        openInIframe: !!cardOpenInIframeInput.checked,
+        icon: cardIconInput.value.trim() || "✨"
+      };
+
+      const requiresUrl = payload.integrationKey === "custom";
+      if (!payload.label || !payload.title || !payload.description || !payload.colorKey || (requiresUrl && !payload.url)) {
+        dashCardState.textContent = "Tous les champs sont obligatoires.";
+        return;
+      }
+
+      cardBusy = true;
+      addBtn.disabled = true;
+      cancelEditBtn.disabled = true;
+      const wasEditing = !!editingCardId;
+      try {
+        const endpoint = editingCardId
+          ? (bp + "/api/admin/dashboard-cards/" + editingCardId)
+          : (bp + "/api/admin/dashboard-cards");
+        const method = editingCardId ? "PUT" : "POST";
+
+        const resp = await fetch(endpoint, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
+
+        form.reset();
+        cardIconInput.value = "✨";
+        setFormModeCreate();
+        dashCardState.textContent = wasEditing ? "Carte modifiée avec succès." : "Carte ajoutée avec succès.";
+        await refreshCardData();
+      } catch (err) {
+        dashCardState.textContent = err.message || "Impossible d'ajouter la carte.";
+      } finally {
+        addBtn.disabled = false;
+        cancelEditBtn.disabled = false;
+        cardBusy = false;
+      }
+    });
+
+    cancelEditBtn.addEventListener("click", function () {
+      form.reset();
+      cardIconInput.value = "✨";
+      cardIntegrationKeyInput.value = "custom";
+      applyIntegrationUi("custom");
+      setFormModeCreate();
+      dashCardState.textContent = "Mode création réactivé.";
+    });
+
+    cardIntegrationKeyInput.addEventListener("change", function () {
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
+    });
+
+    dashCardsList.addEventListener("click", async function (e) {
+      const editBtn = e.target.closest("[data-edit-card-id]");
+      if (editBtn && !cardBusy) {
+        setFormModeEdit({
+          id: editBtn.getAttribute("data-edit-card-id"),
+          label: editBtn.getAttribute("data-edit-label"),
+          title: editBtn.getAttribute("data-edit-title"),
+          description: editBtn.getAttribute("data-edit-description"),
+          url: editBtn.getAttribute("data-edit-url"),
+          colorKey: editBtn.getAttribute("data-edit-color-key"),
+          integrationKey: editBtn.getAttribute("data-edit-integration-key") || "custom",
+          openInIframe: editBtn.getAttribute("data-edit-open-in-iframe") === "1",
+          icon: editBtn.getAttribute("data-edit-icon")
+        });
+        dashCardState.textContent = "Edition de la carte en cours.";
+        return;
+      }
+
+      const btn = e.target.closest("[data-delete-card-id]");
+      if (!btn || cardBusy) return;
+
+      const id = btn.getAttribute("data-delete-card-id");
+      if (!id) return;
+
+      cardBusy = true;
+      try {
+        const resp = await fetch(bp + "/api/admin/dashboard-cards/" + id, { method: "DELETE" });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.error || ("HTTP " + resp.status));
+        }
+        dashCardState.textContent = "Carte supprimée.";
+        if (editingCardId && Number(editingCardId) === Number(id)) {
+          form.reset();
+          cardIconInput.value = "✨";
+          setFormModeCreate();
+        }
+        await refreshCardData();
+      } catch (err) {
+        dashCardState.textContent = err.message || "Impossible de supprimer la carte.";
+      } finally {
+        cardBusy = false;
+      }
+    });
+
+    setFormModeCreate();
+    applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
+    refreshCardData().catch(() => {});
+  })();
+</script>

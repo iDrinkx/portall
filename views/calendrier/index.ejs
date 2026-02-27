@@ -805,8 +805,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(2px);
+      background: rgba(0, 0, 0, 0.58);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       z-index: 1000;
       animation: fadeIn 0.2s ease;
     }
@@ -829,24 +830,60 @@
 
     .cal-modal {
       position: relative;
-      background: var(--bg2);
-      border: 1px solid var(--line);
+      isolation: isolate;
+      background: rgba(14, 22, 34, 0.22);
+      border: 1px solid rgba(226, 246, 255, 0.42);
       border-radius: 16px;
       max-width: 500px;
       width: 90%;
       max-height: 80vh;
-      overflow-y: auto;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
       animation: slideUp 0.3s ease;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+        0 4px 10px rgba(98, 178, 255, 0.05);
+      backdrop-filter: blur(7px) saturate(115%) contrast(1.03) brightness(1.04);
+      -webkit-backdrop-filter: blur(7px) saturate(115%) contrast(1.03) brightness(1.04);
+    }
+
+    .cal-modal::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 30%, rgba(255, 255, 255, 0) 64%);
+      z-index: 0;
+    }
+
+    .cal-modal::after {
+      content: "";
+      position: absolute;
+      inset: -35%;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 14%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01) 24%, rgba(255, 255, 255, 0) 50%),
+        radial-gradient(circle at 82% 80%, rgba(86, 186, 255, 0.05), rgba(86, 186, 255, 0) 48%);
+      filter: blur(4px);
+      transform: rotate(-7deg);
+      z-index: 0;
+    }
+
+    .cal-modal > * {
+      position: relative;
+      z-index: 1;
     }
 
     .cal-modal-header {
       position: relative;
       height: 200px;
-      background: linear-gradient(180deg, rgba(229, 160, 13, 0.1), rgba(229, 160, 13, 0.05));
-      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(229, 160, 13, 0.18), rgba(229, 160, 13, 0.08));
+      border-bottom: 1px solid rgba(226, 246, 255, 0.24);
       display: flex;
       align-items: flex-end;
+      flex-shrink: 0;
       padding: 20px;
       gap: 16px;
     }
@@ -863,6 +900,10 @@
 
     .cal-modal-header-info {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
     }
 
     .cal-modal-header-info .title {
@@ -888,6 +929,39 @@
 
     .cal-modal-body {
       padding: 20px;
+      background: linear-gradient(180deg, rgba(8, 12, 18, 0.28), rgba(8, 12, 18, 0.44));
+      overflow-y: auto;
+      max-height: calc(80vh - 200px);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(74, 169, 255, 0.72) rgba(255, 255, 255, 0.05);
+    }
+
+    .cal-modal-body::-webkit-scrollbar,
+    #calDayOverlayContent::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .cal-modal-body::-webkit-scrollbar-track,
+    #calDayOverlayContent::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+    }
+
+    .cal-modal-body::-webkit-scrollbar-thumb,
+    #calDayOverlayContent::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(74, 169, 255, 0.72), rgba(41, 118, 191, 0.72));
+      border-radius: 999px;
+      border: 2px solid rgba(8, 12, 18, 0.92);
+    }
+
+    .cal-modal-body::-webkit-scrollbar-thumb:hover,
+    #calDayOverlayContent::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(104, 189, 255, 0.86), rgba(53, 134, 214, 0.86));
+    }
+
+    #calDayOverlayContent {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(74, 169, 255, 0.72) rgba(255, 255, 255, 0.05);
     }
 
     .cal-modal-section {
@@ -985,21 +1059,49 @@
       }
 
       .cal-modal-header {
+        height: auto;
+        min-height: 132px;
+        align-items: center;
         padding: 16px;
         gap: 12px;
       }
 
       .cal-modal-thumb {
-        width: 60px;
-        height: 90px;
+        width: 72px;
+        height: 108px;
+      }
+
+      .cal-modal-header-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        min-height: 108px;
+      }
+
+      .cal-modal-badge {
+        padding: 3px 9px;
+        font-size: 10px;
+        margin-bottom: 8px;
       }
 
       .cal-modal-header-info .title {
         font-size: 14px;
+        margin-bottom: 3px;
+      }
+
+      .cal-modal-header-info .subtitle {
+        margin-bottom: 6px;
+      }
+
+      .cal-modal-header-info .meta {
+        flex-wrap: wrap;
+        gap: 8px;
       }
 
       .cal-modal-body {
         padding: 16px;
+        max-height: calc(90vh - 132px);
       }
     }
   </style>

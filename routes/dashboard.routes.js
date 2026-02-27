@@ -1,40 +1,319 @@
 ﻿const express = require("express");
 const router = express.Router();
 const fetch = require("node-fetch");
+const crypto = require("crypto");
 const log = require("../utils/logger");
 
 const { computeSubscription } = require("../utils/wizarr");
 const { getTautulliStats } = require("../utils/tautulli");
 const { getSeerrStats } = require("../utils/seerr");
-const { getPlexJoinDate } = require("../utils/plex");
+const { getPlexJoinDate, getServerOwnerId } = require("../utils/plex");
 const { getRadarrCalendar, getSonarrCalendar } = require("../utils/radarr-sonarr");
 const { XP_SYSTEM } = require("../utils/xp-system");
 const { ACHIEVEMENTS } = require("../utils/achievements");
-const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("../utils/database");
+const {
+  UserAchievementQueries,
+  UserQueries,
+  AchievementProgressQueries,
+  DatabaseMaintenance,
+  AppSettingQueries,
+  DashboardCardQueries
+} = require("../utils/database");
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
-const TautulliEvents = require("../utils/tautulli-events");  // 📢 Import EventEmitter
-const { DatabaseMaintenance } = require("../utils/database");  // 🧹 Database maintenance
-const { calculateUserXp } = require("../utils/xp-calculator");  // 🎯 Fonction centralisée XP
+const TautulliEvents = require("../utils/tautulli-events");  // ?? Import EventEmitter
+const { calculateUserXp } = require("../utils/xp-calculator");  // ?? Fonction centralisée XP
 
 /* ===============================
-   🔐 AUTH
+   ?? AUTH
 =============================== */
 
-function requireAuth(req, res, next) {
+async function ensureAdminFlag(req) {
+  if (!req.session?.user) return;
+  if (typeof req.session.user.isAdmin === "boolean") return;
+
+  let isAdmin = false;
+  try {
+    const ownerId = await getServerOwnerId(process.env.PLEX_TOKEN);
+    isAdmin = !!ownerId && Number(ownerId) === Number(req.session.user.id);
+  } catch (_) {
+    isAdmin = false;
+  }
+  req.session.user.isAdmin = isAdmin;
+}
+
+async function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect(req.basePath + "/");
+  await ensureAdminFlag(req);
   next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.session?.user?.isAdmin) {
+    if (req.path.startsWith("/api/")) {
+      return res.status(403).json({ error: "Admin requis" });
+    }
+    return res.redirect(req.basePath + "/dashboard");
+  }
+  next();
+}
+
+const DEFAULT_DASHBOARD_COLOR_KEYS = new Set(["gold", "blue", "green", "purple", "red"]);
+const DASHBOARD_CARD_PALETTE = [
+  {
+    key: "teal",
+    name: "Teal",
+    bgStart: "rgba(12, 34, 35, 0.72)",
+    bgEnd: "rgba(12, 42, 42, 0.68)",
+    border: "rgba(45, 212, 191, 0.2)",
+    borderHover: "rgba(45, 212, 191, 0.55)",
+    glow: "rgba(45, 212, 191, 0.14)",
+    accentA: "#2dd4bf",
+    accentB: "#5eead4",
+    label: "rgba(45, 212, 191, 0.85)",
+    arrow: "#5eead4",
+    iconBorder: "rgba(45, 212, 191, 0.5)",
+    iconGlow: "rgba(45, 212, 191, 0.2)"
+  },
+  {
+    key: "indigo",
+    name: "Indigo",
+    bgStart: "rgba(20, 22, 43, 0.72)",
+    bgEnd: "rgba(24, 24, 53, 0.68)",
+    border: "rgba(129, 140, 248, 0.2)",
+    borderHover: "rgba(129, 140, 248, 0.55)",
+    glow: "rgba(129, 140, 248, 0.14)",
+    accentA: "#818cf8",
+    accentB: "#a5b4fc",
+    label: "rgba(165, 180, 252, 0.85)",
+    arrow: "#a5b4fc",
+    iconBorder: "rgba(129, 140, 248, 0.5)",
+    iconGlow: "rgba(129, 140, 248, 0.2)"
+  },
+  {
+    key: "pink",
+    name: "Rose",
+    bgStart: "rgba(40, 18, 30, 0.72)",
+    bgEnd: "rgba(48, 18, 35, 0.68)",
+    border: "rgba(244, 114, 182, 0.2)",
+    borderHover: "rgba(244, 114, 182, 0.55)",
+    glow: "rgba(244, 114, 182, 0.14)",
+    accentA: "#f472b6",
+    accentB: "#f9a8d4",
+    label: "rgba(249, 168, 212, 0.85)",
+    arrow: "#f9a8d4",
+    iconBorder: "rgba(244, 114, 182, 0.5)",
+    iconGlow: "rgba(244, 114, 182, 0.2)"
+  },
+  {
+    key: "cyan",
+    name: "Cyan",
+    bgStart: "rgba(12, 28, 40, 0.72)",
+    bgEnd: "rgba(12, 32, 46, 0.68)",
+    border: "rgba(34, 211, 238, 0.2)",
+    borderHover: "rgba(34, 211, 238, 0.55)",
+    glow: "rgba(34, 211, 238, 0.14)",
+    accentA: "#22d3ee",
+    accentB: "#67e8f9",
+    label: "rgba(103, 232, 249, 0.85)",
+    arrow: "#67e8f9",
+    iconBorder: "rgba(34, 211, 238, 0.5)",
+    iconGlow: "rgba(34, 211, 238, 0.2)"
+  },
+  {
+    key: "lime",
+    name: "Lime",
+    bgStart: "rgba(26, 34, 16, 0.72)",
+    bgEnd: "rgba(32, 40, 18, 0.68)",
+    border: "rgba(163, 230, 53, 0.2)",
+    borderHover: "rgba(163, 230, 53, 0.55)",
+    glow: "rgba(163, 230, 53, 0.14)",
+    accentA: "#a3e635",
+    accentB: "#bef264",
+    label: "rgba(190, 242, 100, 0.85)",
+    arrow: "#bef264",
+    iconBorder: "rgba(163, 230, 53, 0.5)",
+    iconGlow: "rgba(163, 230, 53, 0.2)"
+  },
+  {
+    key: "orange",
+    name: "Orange",
+    bgStart: "rgba(40, 24, 14, 0.72)",
+    bgEnd: "rgba(45, 24, 12, 0.68)",
+    border: "rgba(251, 146, 60, 0.2)",
+    borderHover: "rgba(251, 146, 60, 0.55)",
+    glow: "rgba(251, 146, 60, 0.14)",
+    accentA: "#fb923c",
+    accentB: "#fdba74",
+    label: "rgba(253, 186, 116, 0.85)",
+    arrow: "#fdba74",
+    iconBorder: "rgba(251, 146, 60, 0.5)",
+    iconGlow: "rgba(251, 146, 60, 0.2)"
+  }
+];
+
+function getColorMap() {
+  return new Map(DASHBOARD_CARD_PALETTE.map(c => [c.key, c]));
+}
+
+function getAvailableColorKeys(existingCards = []) {
+  const used = new Set([...DEFAULT_DASHBOARD_COLOR_KEYS]);
+  existingCards.forEach(c => used.add(c.colorKey));
+  return DASHBOARD_CARD_PALETTE.filter(c => !used.has(c.key)).map(c => c.key);
+}
+
+const DASHBOARD_INTEGRATIONS = [
+  { key: "custom", label: "Iframe simple (URL libre)" },
+  { key: "komga_auto", label: "Komga auto-auth (session cookie)" },
+  { key: "jellyfin_iframe", label: "Jellyfin preconfig (iframe)" }
+];
+
+function resolveIntegrationSrc(card, basePath = "") {
+  const integrationKey = String(card.integrationKey || "custom");
+  const rawUrl = String(card.url || "");
+
+  if (integrationKey === "komga_auto") {
+    return (process.env.KOMGA_PUBLIC_URL || rawUrl || "").trim();
+  }
+  if (integrationKey === "jellyfin_iframe") {
+    return (process.env.JELLYFIN_PUBLIC_URL || rawUrl || "").trim();
+  }
+
+  if (rawUrl.startsWith("/")) return `${basePath}${rawUrl}`;
+  return rawUrl;
+}
+
+function toCardHref(card, basePath = "") {
+  const integrationKey = String(card.integrationKey || "custom");
+  if (integrationKey !== "custom" || card.openInIframe) {
+    return `${basePath}/app-card/${card.id}`;
+  }
+  const rawUrl = String(card.url || "");
+  return rawUrl.startsWith("/") ? `${basePath}${rawUrl}` : rawUrl;
+}
+
+function getIntegrationAvailability() {
+  const hasKomgaApiKey = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY);
+  const hasKomgaBasic = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD);
+  return {
+    komgaConfigured: hasKomgaApiKey || hasKomgaBasic,
+    jellyfinConfigured: !!process.env.JELLYFIN_PUBLIC_URL
+  };
+}
+
+function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
+  const allowed = new Set(DASHBOARD_INTEGRATIONS.map(i => i.key));
+  if (!allowed.has(integrationKey)) {
+    return { ok: false, error: "Schéma d'intégration invalide" };
+  }
+
+  if (integrationKey === "komga_auto") {
+    const ok = !!(
+      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY) ||
+      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD)
+    );
+    if (!ok) return { ok: false, error: "Komga non configuré côté serveur (.env)" };
+    return { ok: true };
+  }
+
+  if (integrationKey === "jellyfin_iframe") {
+    const ok = !!(process.env.JELLYFIN_PUBLIC_URL || srcUrl);
+    if (!ok) return { ok: false, error: "Jellyfin non configuré (JELLYFIN_PUBLIC_URL manquant)" };
+    return { ok: true };
+  }
+
+  return { ok: true };
+}
+
+function getCookieParentDomain(publicUrl) {
+  if (!publicUrl) return null;
+  try {
+    const hostname = new URL(publicUrl).hostname;
+    const parts = hostname.split(".");
+    if (parts.length >= 2) return "." + parts.slice(-2).join(".");
+  } catch (_) {}
+  return null;
+}
+
+async function grabKomgaCookie(res) {
+  const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+  const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
+  const apiKey = (process.env.KOMGA_API_KEY || "").trim();
+  const username = process.env.KOMGA_USERNAME || "";
+  const password = process.env.KOMGA_PASSWORD || "";
+  if (!komgaUrl || !komgaPublicUrl) return false;
+  if (!apiKey && (!username || !password)) return false;
+
+  try {
+    const authHeaders = { "Accept": "application/json" };
+    if (apiKey) {
+      authHeaders["X-API-Key"] = apiKey;
+    } else {
+      const basic = Buffer.from(`${username}:${password}`).toString("base64");
+      authHeaders["Authorization"] = `Basic ${basic}`;
+    }
+
+    const parentDomain = getCookieParentDomain(komgaPublicUrl);
+    const applyCookie = (cookieStr, cookieName) => {
+      const value = cookieStr.split(";")[0].replace(`${cookieName}=`, "");
+      const opts = { path: "/", httpOnly: true, sameSite: "none", secure: true };
+      if (parentDomain) opts.domain = parentDomain;
+      res.cookie(cookieName, value, opts);
+    };
+
+    // 1) Auth + session token via X-Auth-Token seed
+    const xAuthSeed = crypto.randomUUID();
+    const meResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
+      method: "GET",
+      headers: {
+        ...authHeaders,
+        "X-Auth-Token": xAuthSeed
+      }
+    });
+    if (!meResp.ok) return false;
+
+    // 2) Si Komga renvoie déjà un cookie session, l'utiliser directement
+    const meCookies = meResp.headers.raw()["set-cookie"] || [];
+    const meSessionCookie = meCookies.find(c => c.startsWith("KOMGA-SESSION="));
+    const meRememberCookie = meCookies.find(c => c.startsWith("komga-remember-me="));
+    if (meSessionCookie) {
+      applyCookie(meSessionCookie, "KOMGA-SESSION");
+      if (meRememberCookie) applyCookie(meRememberCookie, "komga-remember-me");
+      return true;
+    }
+
+    // 3) Sinon forcer la pose du cookie via endpoint dédié
+    const xAuthToken = meResp.headers.get("x-auth-token") || xAuthSeed;
+    const setCookieResp = await fetch(`${komgaUrl}/api/v1/login/set-cookie`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "X-Auth-Token": xAuthToken
+      }
+    });
+    if (!setCookieResp.ok) return false;
+
+    const forcedCookies = setCookieResp.headers.raw()["set-cookie"] || [];
+    const forcedSession = forcedCookies.find(c => c.startsWith("KOMGA-SESSION="));
+    const forcedRemember = forcedCookies.find(c => c.startsWith("komga-remember-me="));
+    if (!forcedSession) return false;
+
+    applyCookie(forcedSession, "KOMGA-SESSION");
+    if (forcedRemember) applyCookie(forcedRemember, "komga-remember-me");
+    return true;
+  } catch (_) {}
+  return false;
+}
+
 /* ===============================
-   💾 CACHE MANAGER
+   ?? CACHE MANAGER
 =============================== */
 
 // Instance centralisée de cache (60 secondes par défaut)
 const cache = new CacheManager(60 * 1000);
 
 /* ===============================
-   🔎 WIZARR
+   ?? WIZARR
 =============================== */
 
 const logWizarr = log.create('[Wizarr]');
@@ -87,16 +366,35 @@ async function getWizarrSubscription(user) {
 }
 
 /* ===============================
-   📄 PAGES
+   ?? PAGES
 =============================== */
 
 router.get("/dashboard", requireAuth, (req, res) => {
-  res.render("dashboard/index", { user: req.session.user, basePath: req.basePath });
+  const colorMap = getColorMap();
+  const dashboardCustomCards = DashboardCardQueries.list()
+    .map(card => {
+      const color = colorMap.get(card.colorKey);
+      if (!color) return null;
+      return {
+        ...card,
+        color,
+        openInIframe: !!card.openInIframe,
+        integrationKey: card.integrationKey || "custom",
+        href: toCardHref(card, req.basePath || "")
+      };
+    })
+    .filter(Boolean);
+
+  res.render("dashboard/index", {
+    user: req.session.user,
+    basePath: req.basePath,
+    dashboardCustomCards
+  });
 });
 
 router.get("/profil", requireAuth, async (req, res) => {
   try {
-    // ⚡ Rendu ultra-rapide: on ne bloque plus la page profil sur les appels stats.
+    // ? Rendu ultra-rapide: on ne bloque plus la page profil sur les appels stats.
     // Les données dynamiques sont hydratées côté client via /api/stats, /api/xp-snapshot, etc.
     // Pour l'entête profil, on utilise uniquement l'état DB des succès déjà débloqués.
     const dbUser = UserQueries.upsert(
@@ -135,7 +433,12 @@ router.get("/profil", requireAuth, async (req, res) => {
 // Route /abonnement supprimée — infos intégrées dans /profil
 
 router.get("/classement", requireAuth, (req, res) => {
-  res.render("classement/index", { user: req.session.user, basePath: req.basePath });
+  const leaderboardBlurEnabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
+  res.render("classement/index", {
+    user: req.session.user,
+    basePath: req.basePath,
+    leaderboardBlurEnabled
+  });
 });
 
 router.get("/statistiques", requireAuth, (req, res) => {
@@ -148,16 +451,16 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 
 router.get("/succes", requireAuth, async (req, res) => {
   try {
-    // ⚡ Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
+    // ? Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
     //    se fait en arrière-plan via /api/badges-eval (appelé par le client)
     const achievementsByCategory = {
-      temporels:   { icon: "🎁", name: "Temporels",   achievements: ACHIEVEMENTS.temporels },
-      activites:   { icon: "🔥", name: "Activité",    achievements: ACHIEVEMENTS.activites },
-      films:       { icon: "🎬", name: "Films",        achievements: ACHIEVEMENTS.films },
-      series:      { icon: "📺", name: "Séries",       achievements: ACHIEVEMENTS.series },
-      mensuels:    { icon: "📅", name: "Mensuels",     achievements: ACHIEVEMENTS.mensuels },
-      collections: { icon: "🎥", name: "Collections", achievements: ACHIEVEMENTS.collections },
-      secrets:     { icon: "🔒", name: "Secrets",     achievements: ACHIEVEMENTS.secrets }
+      temporels:   { icon: "??", name: "Temporels",   achievements: ACHIEVEMENTS.temporels },
+      activites:   { icon: "??", name: "Activité",    achievements: ACHIEVEMENTS.activites },
+      films:       { icon: "??", name: "Films",        achievements: ACHIEVEMENTS.films },
+      series:      { icon: "??", name: "Séries",       achievements: ACHIEVEMENTS.series },
+      mensuels:    { icon: "??", name: "Mensuels",     achievements: ACHIEVEMENTS.mensuels },
+      collections: { icon: "??", name: "Collections", achievements: ACHIEVEMENTS.collections },
+      secrets:     { icon: "??", name: "Secrets",     achievements: ACHIEVEMENTS.secrets }
     };
 
     const username   = req.session.user.username;
@@ -221,15 +524,46 @@ router.get("/succes", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📅 CALENDRIER
+   ?? CALENDRIER
 =============================== */
 
 router.get("/calendrier", requireAuth, (req, res) => {
   res.render("calendrier/index", { user: req.session.user, basePath: req.basePath });
 });
 
+router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
+  const leaderboardBlurEnabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
+  const customCards = DashboardCardQueries.list();
+  const availableColorKeys = getAvailableColorKeys(customCards);
+  const availableColors = DASHBOARD_CARD_PALETTE.filter(c => availableColorKeys.includes(c.key));
+  const colorMap = getColorMap();
+  const integrationAvailability = getIntegrationAvailability();
+  const integrations = DASHBOARD_INTEGRATIONS.map(i => ({
+    ...i,
+    available:
+      i.key === "komga_auto" ? integrationAvailability.komgaConfigured :
+      i.key === "jellyfin_iframe" ? integrationAvailability.jellyfinConfigured :
+      true
+  }));
+  const customCardsResolved = customCards.map(card => ({
+    ...card,
+    openInIframe: !!card.openInIframe,
+    integrationKey: card.integrationKey || "custom",
+    colorName: colorMap.get(card.colorKey)?.name || card.colorKey
+  }));
+
+  res.render("parametres/index", {
+    user: req.session.user,
+    basePath: req.basePath,
+    leaderboardBlurEnabled,
+    dashboardCustomCards: customCardsResolved,
+    availableDashboardColors: availableColors,
+    dashboardIntegrationOptions: integrations
+  });
+});
+
 /* ===============================
-   🏆 API BADGES EVAL (arrière-plan)
+   ?? API BADGES EVAL (arrière-plan)
    Appellé par le browser après rendu de /succes.
    Fait le vrai calcul Tautulli + retourne les mises à jour.
 =============================== */
@@ -332,7 +666,7 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🔄 API SUBSCRIPTION
+   ?? API SUBSCRIPTION
 =============================== */
 
 router.get("/api/subscription", requireAuth, async (req, res) => {
@@ -352,7 +686,7 @@ router.get("/api/subscription", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🔄 API STATS
+   ?? API STATS
 =============================== */
 
 router.get("/api/stats", requireAuth, async (req, res) => {
@@ -400,7 +734,7 @@ router.get("/api/stats", requireAuth, async (req, res) => {
 });
 
 /**
- * 📢 ENDPOINT SMART WAIT - Long-polling: Attendre que les données soient prêtes
+ * ?? ENDPOINT SMART WAIT - Long-polling: Attendre que les données soient prêtes
  * Au lieu de faire 30 polls avec 5 sec chacun, on attend l'événement du serveur
  * TIMEOUT: 5 minutes max (longue requête HTTP)
  */
@@ -441,7 +775,7 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   ⭐ API XP-SNAPSHOT (prefetch glow)
+   ? API XP-SNAPSHOT (prefetch glow)
    Retourne le rang/niveau calculé de l'user courant.
    Utilisé par layout.ejs pour alimenter le localStorage
    dès la connexion — sans attendre la page Profil.
@@ -452,7 +786,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
     const user         = req.session.user;
     const joinedAtTs   = user.joinedAtTimestamp || 0;
 
-    // ⚡ Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
+    // ? Heures depuis DB directe (synchrone, pas d'appel HTTP lent)
     const directStats  = getUserStatsFromTautulli(user.username);
     const hoursHint    = directStats?.totalHours ?? null;
     const statsHint    = directStats ? {
@@ -465,7 +799,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
       morningCount: 0
     } : null;
 
-    // 🎯 Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
+    // ?? Utiliser la fonction centralisée pour GARANTIR la cohérence avec le classement
     const xpData = await calculateUserXp(user.username, joinedAtTs, hoursHint, statsHint);
 
     res.json({
@@ -483,7 +817,7 @@ router.get("/api/xp-snapshot", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🎬 API SEERR
+   ?? API SEERR
 =============================== */
 
 router.get("/api/seerr", requireAuth, async (req, res) => {
@@ -519,7 +853,7 @@ router.get("/api/seerr", requireAuth, async (req, res) => {
 
 
 /* ===============================
-   ️ CACHE INVALIDATION
+   ? CACHE INVALIDATION
 =============================== */
 
 router.post("/api/cache/invalidate", requireAuth, (req, res) => {
@@ -541,7 +875,7 @@ router.post("/api/cache/invalidate", requireAuth, (req, res) => {
 });
 
 /* ===============================
-   🔄 API GET ALL USERS (pour cron job)
+   ?? API GET ALL USERS (pour cron job)
 =============================== */
 
 // Endpoint pour récupérer tous les utilisateurs (utilisé par cron job au démarrage)
@@ -600,7 +934,7 @@ router.get("/api/all-users", async (req, res) => {
 /* ===============================
     ADMIN: Révoquer un badge
 =============================== */
-router.delete("/api/admin/achievement/:achievementId", requireAuth, (req, res) => {
+router.delete("/api/admin/achievement/:achievementId", requireAuth, requireAdmin, (req, res) => {
   const { UserAchievementQueries, UserQueries } = require('../utils/database');
   const username = req.session.user.username;
   const user = UserQueries.getByUsername(username);
@@ -611,8 +945,173 @@ router.delete("/api/admin/achievement/:achievementId", requireAuth, (req, res) =
   res.json({ success: true, revoked: achievementId });
 });
 
+router.get("/api/admin/settings/leaderboard-blur", requireAuth, requireAdmin, (req, res) => {
+  const enabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
+  res.json({ enabled });
+});
+
+router.post("/api/admin/settings/leaderboard-blur", requireAuth, requireAdmin, (req, res) => {
+  const enabled = !!req.body?.enabled;
+  AppSettingQueries.setBool("leaderboard_blur_enabled", enabled);
+  log.create("[Admin]").info(`Leaderboard blur ${enabled ? "activé" : "désactivé"} par ${req.session.user.username}`);
+  res.json({ success: true, enabled });
+});
+
+router.get("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) => {
+  const cards = DashboardCardQueries.list();
+  const availableColorKeys = getAvailableColorKeys(cards);
+  const availableColors = DASHBOARD_CARD_PALETTE.filter(c => availableColorKeys.includes(c.key));
+  const ia = getIntegrationAvailability();
+  const integrations = DASHBOARD_INTEGRATIONS.map(i => ({
+    ...i,
+    available:
+      i.key === "komga_auto" ? ia.komgaConfigured :
+      i.key === "jellyfin_iframe" ? ia.jellyfinConfigured :
+      true
+  }));
+  res.json({ cards, availableColors, allColors: DASHBOARD_CARD_PALETTE, integrations });
+});
+
+router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) => {
+  const payload = req.body || {};
+  const label = String(payload.label || "").trim();
+  const title = String(payload.title || "").trim();
+  const description = String(payload.description || "").trim();
+  const url = String(payload.url || "").trim();
+  const colorKey = String(payload.colorKey || "").trim();
+  const openInIframe = !!payload.openInIframe;
+  const integrationKey = String(payload.integrationKey || "custom").trim();
+  const icon = String(payload.icon || "?").trim();
+
+  const requiresUrl = integrationKey === "custom";
+  if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
+    return res.status(400).json({ error: "Champs obligatoires manquants" });
+  }
+
+  if (label.length > 40 || title.length > 60 || description.length > 120 || icon.length > 4) {
+    return res.status(400).json({ error: "Un ou plusieurs champs sont trop longs" });
+  }
+
+  const isRelativeUrl = url.startsWith("/");
+  const isAbsoluteUrl = /^https?:\/\//i.test(url);
+  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
+    return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
+  }
+
+  const integrationCheck = validateIntegrationForCreateOrUpdate(integrationKey, url);
+  if (!integrationCheck.ok) {
+    return res.status(400).json({ error: integrationCheck.error });
+  }
+
+  const cards = DashboardCardQueries.list();
+  const availableColorKeys = new Set(getAvailableColorKeys(cards));
+  if (!availableColorKeys.has(colorKey)) {
+    return res.status(400).json({ error: "Couleur non disponible" });
+  }
+
+  DashboardCardQueries.create({ label, title, description, url, colorKey, openInIframe, integrationKey, icon });
+  log.create("[Admin]").info(`Carte dashboard ajoutée par ${req.session.user.username}: ${title} (${colorKey})`);
+  res.json({ success: true });
+});
+
+router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "Id invalide" });
+  }
+
+  const payload = req.body || {};
+  const label = String(payload.label || "").trim();
+  const title = String(payload.title || "").trim();
+  const description = String(payload.description || "").trim();
+  const url = String(payload.url || "").trim();
+  const colorKey = String(payload.colorKey || "").trim();
+  const openInIframe = !!payload.openInIframe;
+  const integrationKey = String(payload.integrationKey || "custom").trim();
+  const icon = String(payload.icon || "?").trim();
+
+  const requiresUrl = integrationKey === "custom";
+  if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
+    return res.status(400).json({ error: "Champs obligatoires manquants" });
+  }
+
+  if (label.length > 40 || title.length > 60 || description.length > 120 || icon.length > 4) {
+    return res.status(400).json({ error: "Un ou plusieurs champs sont trop longs" });
+  }
+
+  const isRelativeUrl = url.startsWith("/");
+  const isAbsoluteUrl = /^https?:\/\//i.test(url);
+  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
+    return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
+  }
+
+  const integrationCheck = validateIntegrationForCreateOrUpdate(integrationKey, url);
+  if (!integrationCheck.ok) {
+    return res.status(400).json({ error: integrationCheck.error });
+  }
+
+  const cards = DashboardCardQueries.list();
+  const target = cards.find(c => Number(c.id) === id);
+  if (!target) {
+    return res.status(404).json({ error: "Carte introuvable" });
+  }
+
+  // Couleur autorisée si elle reste identique, sinon elle doit être libre.
+  const colorUnchanged = target.colorKey === colorKey;
+  if (!colorUnchanged) {
+    const used = new Set([...DEFAULT_DASHBOARD_COLOR_KEYS]);
+    cards.filter(c => Number(c.id) !== id).forEach(c => used.add(c.colorKey));
+    if (used.has(colorKey)) {
+      return res.status(400).json({ error: "Couleur non disponible" });
+    }
+  }
+
+  DashboardCardQueries.update(id, { label, title, description, url, colorKey, openInIframe, integrationKey, icon });
+  log.create("[Admin]").info(`Carte dashboard modifiée par ${req.session.user.username}: id=${id}`);
+  res.json({ success: true });
+});
+
+router.get("/app-card/:id", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.redirect(req.basePath + "/dashboard");
+  }
+  const card = DashboardCardQueries.getById(id);
+  if (!card) {
+    return res.redirect(req.basePath + "/dashboard");
+  }
+
+  const integrationKey = String(card.integrationKey || "custom");
+  const srcUrl = resolveIntegrationSrc(card, req.basePath || "");
+  if (!srcUrl) {
+    return res.redirect(req.basePath + "/dashboard");
+  }
+
+  // Schéma préconfig: Komga auto-auth (cookie session)
+  if (integrationKey === "komga_auto") {
+    try { await grabKomgaCookie(res); } catch (_) {}
+  }
+
+  res.render("apps/iframe", {
+    layout: false,
+    basePath: req.basePath || "",
+    title: card.title || "Application",
+    srcUrl
+  });
+});
+
+router.delete("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "Id invalide" });
+  }
+  DashboardCardQueries.remove(id);
+  log.create("[Admin]").info(`Carte dashboard supprimée par ${req.session.user.username}: id=${id}`);
+  res.json({ success: true });
+});
+
 /* ===============================
-   🎵 NOW PLAYING
+   ?? NOW PLAYING
 =============================== */
 router.get("/api/now-playing", requireAuth, async (req, res) => {
   const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
@@ -686,7 +1185,7 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🖼️ PROXY MINIATURE PLEX
+   ??? PROXY MINIATURE PLEX
    Le browser ne peut pas accéder à l'URL interne plex:32400.
    On proxifie l'image côté serveur et on la renvoie au browser.
 =============================== */
@@ -721,7 +1220,7 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📚 STATS SERVEUR (librairies Tautulli)
+   ?? STATS SERVEUR (librairies Tautulli)
 =============================== */
 const logSrv = log.create('[ServerStats]');
 
@@ -782,7 +1281,7 @@ router.get('/api/server-stats', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📊 MES STATISTIQUES
+   ?? MES STATISTIQUES
 =============================== */
 const logStats = log.create('[MesStats]');
 
@@ -832,13 +1331,13 @@ router.get('/api/mes-stats-global', requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   🏆 CLASSEMENT (Leaderboard)
+   ?? CLASSEMENT (Leaderboard)
 =============================== */
 const logLB = log.create('[Classement]');
 
 router.get('/api/classement', requireAuth, (req, res) => {
   try {
-    // ✅ Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
+    // ? Récupérer les données pré-calculées du cache (mis à jour toutes les 5 min)
     const { getClassementCache } = require('../utils/cron-classement-refresh');
     const cacheData = getClassementCache();
 
@@ -855,7 +1354,7 @@ router.get('/api/classement', requireAuth, (req, res) => {
 });
 
 /* ===============================
-   📅 API CALENDRIER (Radarr + Sonarr)
+   ?? API CALENDRIER (Radarr + Sonarr)
 =============================== */
 
 function todayISO() {
@@ -890,7 +1389,7 @@ router.get("/api/calendar", requireAuth, async (req, res) => {
 });
 
 /* ===============================
-   📦 VERSION & CHANGELOG
+   ?? VERSION & CHANGELOG
 =============================== */
 
 router.get('/api/version', (req, res) => {
@@ -951,7 +1450,7 @@ router.get('/api/version-badge.svg', (_, res) => {
 });
 
 /* ===============================
-   🧹 DATABASE MAINTENANCE
+   ?? DATABASE MAINTENANCE
 =============================== */
 
 /**
@@ -981,3 +1480,4 @@ router.post('/api/maintenance/database', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+
