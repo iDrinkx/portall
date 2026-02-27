@@ -751,6 +751,11 @@ body {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+.hero-icon--custom.hero-icon--logo-mode {
+  border: none;
+  box-shadow: none;
+}
+
 .hero-icon-custom-char {
   position: absolute;
   left: 50%;
@@ -769,6 +774,8 @@ body {
   object-fit: cover;
   border-radius: 50%;
   display: block;
+  border: 2px solid var(--custom-icon-border);
+  box-shadow: 0 4px 14px var(--custom-icon-glow);
 }
 
 .hero-icon--calendrier {
