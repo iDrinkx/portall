@@ -449,6 +449,20 @@ async function loginKomgaAndGetSessionCookies(username, password) {
   return null;
 }
 
+async function fetchKomgaCurrentUser(komgaUrl, headers) {
+  const endpoints = ["/api/v2/users/me", "/api/v1/users/me"];
+  for (const endpoint of endpoints) {
+    try {
+      const resp = await fetch(`${komgaUrl}${endpoint}`, {
+        method: "GET",
+        headers
+      });
+      if (resp.status !== 404) return resp;
+    } catch (_) {}
+  }
+  return null;
+}
+
 async function grabKomgaCookieForUser(res, sessionUser) {
   const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
   const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
@@ -473,14 +487,11 @@ async function grabKomgaCookieForUser(res, sessionUser) {
     };
 
     const xAuthSeed = crypto.randomUUID();
-    const meResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
-      method: "GET",
-      headers: {
-        ...authHeaders,
-        "X-Auth-Token": xAuthSeed
-      }
+    const meResp = await fetchKomgaCurrentUser(komgaUrl, {
+      ...authHeaders,
+      "X-Auth-Token": xAuthSeed
     });
-    if (!meResp.ok) {
+    if (!meResp?.ok) {
       const fallbackCookies = await loginKomgaAndGetSessionCookies(cred.username, cred.password);
       if (!fallbackCookies?.sessionCookie) {
         clearUserServiceCredential(sessionUser, "komga");
@@ -1235,14 +1246,11 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
       if (!komgaUrl) return res.status(400).json({ error: "KOMGA_URL manquant côté serveur" });
 
       const basic = Buffer.from(`${username}:${password}`).toString("base64");
-      const testResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Basic ${basic}`
-        }
+      const testResp = await fetchKomgaCurrentUser(komgaUrl, {
+        "Accept": "application/json",
+        "Authorization": `Basic ${basic}`
       });
-      if (!testResp.ok) {
+      if (!testResp?.ok) {
         const fallbackCookies = await loginKomgaAndGetSessionCookies(username, password);
         if (!fallbackCookies?.sessionCookie) {
           return res.status(401).json({ error: "Identifiants Komga invalides" });
