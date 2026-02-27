@@ -99,17 +99,21 @@ app.use((req, res, next) => {
 
       res.locals.customNavCards = cards.map(card => {
         const openInIframe = !!card.openInIframe;
+        const integrationKey = String(card.integrationKey || "custom");
         const rawUrl = String(card.url || "");
         const navColors = navColorMap[card.colorKey] || { base: "rgba(226, 246, 255, 0.9)", hover: "#e8f6ff", accent: "#62b2ff" };
-        const href = openInIframe
-          ? `${basePath}/app-card/${card.id}`
-          : (rawUrl.startsWith("/") ? `${basePath}${rawUrl}` : rawUrl);
+        let href = "";
+        if (integrationKey !== "custom" || openInIframe) {
+          href = `${basePath}/app-card/${card.id}`;
+        } else {
+          href = rawUrl.startsWith("/") ? `${basePath}${rawUrl}` : rawUrl;
+        }
         return {
           id: card.id,
           label: card.label || card.title || `App ${card.id}`,
           icon: card.icon || "✨",
           href,
-          external: !openInIframe && /^https?:\/\//i.test(rawUrl),
+          external: integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl),
           navColorBase: navColors.base,
           navColorHover: navColors.hover,
           navColorAccent: navColors.accent

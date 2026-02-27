@@ -93,9 +93,8 @@
   </a>
 
   <% (dashboardCustomCards || []).forEach(function(card) { %>
-    <% const cardHref = card.openInIframe ? (basePath + '/app-card/' + card.id) : (card.url.startsWith("/") ? (basePath + card.url) : card.url); %>
     <a
-      href="<%= cardHref %>"
+      href="<%= card.href %>"
       class="hero-card hero-card-custom"
       style="
         --custom-bg-start: <%= card.color.bgStart %>;

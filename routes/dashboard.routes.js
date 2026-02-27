@@ -161,6 +161,135 @@ function getAvailableColorKeys(existingCards = []) {
   return DASHBOARD_CARD_PALETTE.filter(c => !used.has(c.key)).map(c => c.key);
 }
 
+const DASHBOARD_INTEGRATIONS = [
+  { key: "custom", label: "Iframe simple (URL libre)" },
+  { key: "komga_auto", label: "Komga auto-auth (session cookie)" },
+  { key: "jellyfin_iframe", label: "Jellyfin preconfig (iframe)" }
+];
+
+function resolveIntegrationSrc(card, basePath = "") {
+  const integrationKey = String(card.integrationKey || "custom");
+  const rawUrl = String(card.url || "");
+
+  if (integrationKey === "komga_auto") {
+    return (process.env.KOMGA_PUBLIC_URL || rawUrl || "").trim();
+  }
+  if (integrationKey === "jellyfin_iframe") {
+    return (process.env.JELLYFIN_PUBLIC_URL || rawUrl || "").trim();
+  }
+
+  if (rawUrl.startsWith("/")) return `${basePath}${rawUrl}`;
+  return rawUrl;
+}
+
+function toCardHref(card, basePath = "") {
+  const integrationKey = String(card.integrationKey || "custom");
+  if (integrationKey !== "custom" || card.openInIframe) {
+    return `${basePath}/app-card/${card.id}`;
+  }
+  const rawUrl = String(card.url || "");
+  return rawUrl.startsWith("/") ? `${basePath}${rawUrl}` : rawUrl;
+}
+
+function getIntegrationAvailability() {
+  const hasKomgaApiKey = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY);
+  const hasKomgaBasic = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD);
+  return {
+    komgaConfigured: hasKomgaApiKey || hasKomgaBasic,
+    jellyfinConfigured: !!process.env.JELLYFIN_PUBLIC_URL
+  };
+}
+
+function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
+  const allowed = new Set(DASHBOARD_INTEGRATIONS.map(i => i.key));
+  if (!allowed.has(integrationKey)) {
+    return { ok: false, error: "Schéma d'intégration invalide" };
+  }
+
+  if (integrationKey === "komga_auto") {
+    const ok = !!(
+      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY) ||
+      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD)
+    );
+    if (!ok) return { ok: false, error: "Komga non configuré côté serveur (.env)" };
+    return { ok: true };
+  }
+
+  if (integrationKey === "jellyfin_iframe") {
+    const ok = !!(process.env.JELLYFIN_PUBLIC_URL || srcUrl);
+    if (!ok) return { ok: false, error: "Jellyfin non configuré (JELLYFIN_PUBLIC_URL manquant)" };
+    return { ok: true };
+  }
+
+  return { ok: true };
+}
+
+function getCookieParentDomain(publicUrl) {
+  if (!publicUrl) return null;
+  try {
+    const hostname = new URL(publicUrl).hostname;
+    const parts = hostname.split(".");
+    if (parts.length >= 2) return "." + parts.slice(-2).join(".");
+  } catch (_) {}
+  return null;
+}
+
+async function grabKomgaCookie(res) {
+  const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+  const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
+  const apiKey = (process.env.KOMGA_API_KEY || "").trim();
+  const username = process.env.KOMGA_USERNAME || "";
+  const password = process.env.KOMGA_PASSWORD || "";
+  if (!komgaUrl || !komgaPublicUrl) return false;
+  if (!apiKey && (!username || !password)) return false;
+
+  try {
+    const endpoints = ["/api/v1/users/me", "/api/v2/users/me"];
+
+    for (const ep of endpoints) {
+      const headers = { "Accept": "application/json" };
+      if (apiKey) {
+        headers["X-API-Key"] = apiKey;
+      } else {
+        const basic = Buffer.from(`${username}:${password}`).toString("base64");
+        headers["Authorization"] = `Basic ${basic}`;
+      }
+
+      const r = await fetch(`${komgaUrl}${ep}`, {
+        method: "GET",
+        headers
+      });
+      if (!r.ok) continue;
+
+      const setCookies = r.headers.raw()["set-cookie"] || [];
+      const sessionCookie = setCookies.find(c => c.startsWith("KOMGA-SESSION="));
+      if (!sessionCookie) continue;
+
+      const rememberCookie = setCookies.find(c => c.startsWith("komga-remember-me="));
+      const parentDomain = getCookieParentDomain(komgaPublicUrl);
+
+      const applyCookie = (cookieStr, cookieName) => {
+        const value = cookieStr.split(";")[0].replace(`${cookieName}=`, "");
+        const opts = {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: true
+        };
+        if (parentDomain) opts.domain = parentDomain;
+        res.cookie(cookieName, decodeURIComponent(value), opts);
+      };
+
+      if (sessionCookie) {
+        applyCookie(sessionCookie, "KOMGA-SESSION");
+        if (rememberCookie) applyCookie(rememberCookie, "komga-remember-me");
+        return true;
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
 /* ===============================
    💾 CACHE MANAGER
 =============================== */
@@ -231,7 +360,13 @@ router.get("/dashboard", requireAuth, (req, res) => {
     .map(card => {
       const color = colorMap.get(card.colorKey);
       if (!color) return null;
-      return { ...card, color, openInIframe: !!card.openInIframe };
+      return {
+        ...card,
+        color,
+        openInIframe: !!card.openInIframe,
+        integrationKey: card.integrationKey || "custom",
+        href: toCardHref(card, req.basePath || "")
+      };
     })
     .filter(Boolean);
 
@@ -387,9 +522,18 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
   const availableColorKeys = getAvailableColorKeys(customCards);
   const availableColors = DASHBOARD_CARD_PALETTE.filter(c => availableColorKeys.includes(c.key));
   const colorMap = getColorMap();
+  const integrationAvailability = getIntegrationAvailability();
+  const integrations = DASHBOARD_INTEGRATIONS.map(i => ({
+    ...i,
+    available:
+      i.key === "komga_auto" ? integrationAvailability.komgaConfigured :
+      i.key === "jellyfin_iframe" ? integrationAvailability.jellyfinConfigured :
+      true
+  }));
   const customCardsResolved = customCards.map(card => ({
     ...card,
     openInIframe: !!card.openInIframe,
+    integrationKey: card.integrationKey || "custom",
     colorName: colorMap.get(card.colorKey)?.name || card.colorKey
   }));
 
@@ -398,7 +542,8 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     basePath: req.basePath,
     leaderboardBlurEnabled,
     dashboardCustomCards: customCardsResolved,
-    availableDashboardColors: availableColors
+    availableDashboardColors: availableColors,
+    dashboardIntegrationOptions: integrations
   });
 });
 
@@ -801,7 +946,15 @@ router.get("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) =
   const cards = DashboardCardQueries.list();
   const availableColorKeys = getAvailableColorKeys(cards);
   const availableColors = DASHBOARD_CARD_PALETTE.filter(c => availableColorKeys.includes(c.key));
-  res.json({ cards, availableColors, allColors: DASHBOARD_CARD_PALETTE });
+  const ia = getIntegrationAvailability();
+  const integrations = DASHBOARD_INTEGRATIONS.map(i => ({
+    ...i,
+    available:
+      i.key === "komga_auto" ? ia.komgaConfigured :
+      i.key === "jellyfin_iframe" ? ia.jellyfinConfigured :
+      true
+  }));
+  res.json({ cards, availableColors, allColors: DASHBOARD_CARD_PALETTE, integrations });
 });
 
 router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) => {
@@ -812,9 +965,11 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
   const url = String(payload.url || "").trim();
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
+  const integrationKey = String(payload.integrationKey || "custom").trim();
   const icon = String(payload.icon || "✨").trim();
 
-  if (!label || !title || !description || !url || !colorKey) {
+  const requiresUrl = integrationKey === "custom";
+  if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
     return res.status(400).json({ error: "Champs obligatoires manquants" });
   }
 
@@ -824,8 +979,13 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
 
   const isRelativeUrl = url.startsWith("/");
   const isAbsoluteUrl = /^https?:\/\//i.test(url);
-  if (!isRelativeUrl && !isAbsoluteUrl) {
+  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
     return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
+  }
+
+  const integrationCheck = validateIntegrationForCreateOrUpdate(integrationKey, url);
+  if (!integrationCheck.ok) {
+    return res.status(400).json({ error: integrationCheck.error });
   }
 
   const cards = DashboardCardQueries.list();
@@ -834,7 +994,7 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
     return res.status(400).json({ error: "Couleur non disponible" });
   }
 
-  DashboardCardQueries.create({ label, title, description, url, colorKey, openInIframe, icon });
+  DashboardCardQueries.create({ label, title, description, url, colorKey, openInIframe, integrationKey, icon });
   log.create("[Admin]").info(`Carte dashboard ajoutée par ${req.session.user.username}: ${title} (${colorKey})`);
   res.json({ success: true });
 });
@@ -852,9 +1012,11 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
   const url = String(payload.url || "").trim();
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
+  const integrationKey = String(payload.integrationKey || "custom").trim();
   const icon = String(payload.icon || "✨").trim();
 
-  if (!label || !title || !description || !url || !colorKey) {
+  const requiresUrl = integrationKey === "custom";
+  if (!label || !title || !description || !colorKey || (requiresUrl && !url)) {
     return res.status(400).json({ error: "Champs obligatoires manquants" });
   }
 
@@ -864,8 +1026,13 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
 
   const isRelativeUrl = url.startsWith("/");
   const isAbsoluteUrl = /^https?:\/\//i.test(url);
-  if (!isRelativeUrl && !isAbsoluteUrl) {
+  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
     return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
+  }
+
+  const integrationCheck = validateIntegrationForCreateOrUpdate(integrationKey, url);
+  if (!integrationCheck.ok) {
+    return res.status(400).json({ error: integrationCheck.error });
   }
 
   const cards = DashboardCardQueries.list();
@@ -884,12 +1051,12 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
     }
   }
 
-  DashboardCardQueries.update(id, { label, title, description, url, colorKey, openInIframe, icon });
+  DashboardCardQueries.update(id, { label, title, description, url, colorKey, openInIframe, integrationKey, icon });
   log.create("[Admin]").info(`Carte dashboard modifiée par ${req.session.user.username}: id=${id}`);
   res.json({ success: true });
 });
 
-router.get("/app-card/:id", requireAuth, (req, res) => {
+router.get("/app-card/:id", requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || id <= 0) {
     return res.redirect(req.basePath + "/dashboard");
@@ -899,9 +1066,16 @@ router.get("/app-card/:id", requireAuth, (req, res) => {
     return res.redirect(req.basePath + "/dashboard");
   }
 
-  const srcUrl = String(card.url || "").startsWith("/")
-    ? `${req.basePath}${card.url}`
-    : card.url;
+  const integrationKey = String(card.integrationKey || "custom");
+  const srcUrl = resolveIntegrationSrc(card, req.basePath || "");
+  if (!srcUrl) {
+    return res.redirect(req.basePath + "/dashboard");
+  }
+
+  // Schéma préconfig: Komga auto-auth (cookie session)
+  if (integrationKey === "komga_auto") {
+    try { await grabKomgaCookie(res); } catch (_) {}
+  }
 
   res.render("apps/iframe", {
     layout: false,

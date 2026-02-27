@@ -384,7 +384,17 @@
             </select>
           </div>
           <div class="settings-field settings-field--full">
-            <label for="cardUrl">Lien (interne `/seerr` ou externe `https://...`)</label>
+            <label for="cardIntegrationKey">Schema preconfigure</label>
+            <select id="cardIntegrationKey" name="integrationKey">
+              <% (dashboardIntegrationOptions || []).forEach(function(item) { %>
+                <option value="<%= item.key %>" <%= item.available ? "" : "disabled" %>>
+                  <%= item.label %><%= item.available ? "" : " (non configure)" %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="settings-field settings-field--full">
+            <label for="cardUrl">Lien (requis en mode custom)</label>
             <input id="cardUrl" name="url" maxlength="220" placeholder="/seerr">
           </div>
           <div class="settings-field settings-field--full">
@@ -416,6 +426,7 @@
                   data-edit-description="<%= card.description %>"
                   data-edit-url="<%= card.url %>"
                   data-edit-color-key="<%= card.colorKey %>"
+                  data-edit-integration-key="<%= card.integrationKey || 'custom' %>"
                   data-edit-open-in-iframe="<%= card.openInIframe ? '1' : '0' %>"
                   data-edit-icon="<%= card.icon || '✨' %>"
                   type="button"
@@ -446,6 +457,7 @@
     const cardDescriptionInput = document.getElementById("cardDescription");
     const cardIconInput = document.getElementById("cardIcon");
     const cardUrlInput = document.getElementById("cardUrl");
+    const cardIntegrationKeyInput = document.getElementById("cardIntegrationKey");
     const cardOpenInIframeInput = document.getElementById("cardOpenInIframe");
     if (!toggle || !state || !addBtn || !dashCardState || !dashCardsList || !form || !colorSelect || !cancelEditBtn) return;
 
@@ -472,6 +484,7 @@
       editingCardId = null;
       addBtn.textContent = "Ajouter la carte";
       cancelEditBtn.style.display = "none";
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
       updateActionAvailability();
     }
 
@@ -484,6 +497,7 @@
       cardDescriptionInput.value = card.description || "";
       cardUrlInput.value = card.url || "";
       cardIconInput.value = card.icon || "✨";
+      cardIntegrationKeyInput.value = card.integrationKey || "custom";
       cardOpenInIframeInput.checked = !!card.openInIframe;
       if (!Array.from(colorSelect.options).some(opt => opt.value === (card.colorKey || ""))) {
         const opt = document.createElement("option");
@@ -492,7 +506,18 @@
         colorSelect.appendChild(opt);
       }
       colorSelect.value = card.colorKey || "";
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
       updateActionAvailability();
+    }
+
+    function applyIntegrationUi(integrationKey) {
+      const isCustom = integrationKey === "custom";
+      if (isCustom) {
+        cardOpenInIframeInput.disabled = false;
+      } else {
+        cardOpenInIframeInput.checked = true;
+        cardOpenInIframeInput.disabled = true;
+      }
     }
 
     async function refreshCardData() {
@@ -503,6 +528,14 @@
       colorSelect.innerHTML = (data.availableColors || [])
         .map(c => `<option value="${c.key}">${c.name}</option>`)
         .join("");
+
+      const currentIntegration = cardIntegrationKeyInput.value || "custom";
+      cardIntegrationKeyInput.innerHTML = (data.integrations || [])
+        .map(i => `<option value="${escHtml(i.key)}" ${i.available === false ? "disabled" : ""}>${escHtml(i.label)}${i.available === false ? " (non configure)" : ""}</option>`)
+        .join("");
+      if (Array.from(cardIntegrationKeyInput.options).some(opt => opt.value === currentIntegration)) {
+        cardIntegrationKeyInput.value = currentIntegration;
+      }
 
       const colorsByKey = Object.fromEntries((data.allColors || []).map(c => [c.key, c.name]));
       canCreate = (data.availableColors || []).length > 0;
@@ -524,6 +557,7 @@
               data-edit-description="${escHtml(card.description)}"
               data-edit-url="${escHtml(card.url)}"
               data-edit-color-key="${escHtml(card.colorKey)}"
+              data-edit-integration-key="${escHtml(card.integrationKey || "custom")}"
               data-edit-open-in-iframe="${card.openInIframe ? "1" : "0"}"
               data-edit-icon="${escHtml(card.icon || "✨")}"
               type="button"
@@ -572,11 +606,13 @@
         description: cardDescriptionInput.value.trim(),
         url: cardUrlInput.value.trim(),
         colorKey: colorSelect.value,
+        integrationKey: cardIntegrationKeyInput.value || "custom",
         openInIframe: !!cardOpenInIframeInput.checked,
         icon: cardIconInput.value.trim() || "✨"
       };
 
-      if (!payload.label || !payload.title || !payload.description || !payload.url || !payload.colorKey) {
+      const requiresUrl = payload.integrationKey === "custom";
+      if (!payload.label || !payload.title || !payload.description || !payload.colorKey || (requiresUrl && !payload.url)) {
         dashCardState.textContent = "Tous les champs sont obligatoires.";
         return;
       }
@@ -616,8 +652,14 @@
     cancelEditBtn.addEventListener("click", function () {
       form.reset();
       cardIconInput.value = "✨";
+      cardIntegrationKeyInput.value = "custom";
+      applyIntegrationUi("custom");
       setFormModeCreate();
       dashCardState.textContent = "Mode création réactivé.";
+    });
+
+    cardIntegrationKeyInput.addEventListener("change", function () {
+      applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
     });
 
     dashCardsList.addEventListener("click", async function (e) {
@@ -630,6 +672,7 @@
           description: editBtn.getAttribute("data-edit-description"),
           url: editBtn.getAttribute("data-edit-url"),
           colorKey: editBtn.getAttribute("data-edit-color-key"),
+          integrationKey: editBtn.getAttribute("data-edit-integration-key") || "custom",
           openInIframe: editBtn.getAttribute("data-edit-open-in-iframe") === "1",
           icon: editBtn.getAttribute("data-edit-icon")
         });
@@ -665,6 +708,7 @@
     });
 
     setFormModeCreate();
+    applyIntegrationUi(cardIntegrationKeyInput.value || "custom");
     refreshCardData().catch(() => {});
   })();
 </script>
