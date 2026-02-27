@@ -221,6 +221,21 @@ function runMigrations() {
       )
     `);  // dashboard_custom_cards
 
+    // Table: user_service_credentials - Credentials chiffrés par utilisateur/service
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_service_credentials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        service_key TEXT NOT NULL,
+        username TEXT NOT NULL,
+        secret_encrypted TEXT NOT NULL,
+        meta_json TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, service_key),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);  // user_service_credentials
+
     // Valeur par défaut: blur des pseudos activé
     db.prepare(`
       INSERT OR IGNORE INTO app_settings (key, value)
@@ -238,6 +253,7 @@ function runMigrations() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_tautulli_sessions_hash ON tautulli_sessions(session_hash) WHERE session_hash IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_user_watch_stats_user ON user_watch_stats(user_id);
       CREATE INDEX IF NOT EXISTS idx_sync_metadata_type ON sync_metadata(sync_type);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_user_service_credentials_user_service ON user_service_credentials(user_id, service_key);
     `);  // indexes
 
     // 🔄 Migration données : renommage d'IDs de badges
@@ -795,6 +811,54 @@ const DashboardCardQueries = {
 };
 
 /**
+ * User service credentials queries (credentials chiffrés)
+ */
+const UserServiceCredentialQueries = {
+  getByUserAndService(userId, serviceKey) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT
+        id,
+        user_id as userId,
+        service_key as serviceKey,
+        username,
+        secret_encrypted as secretEncrypted,
+        meta_json as metaJson,
+        updated_at as updatedAt
+      FROM user_service_credentials
+      WHERE user_id = ? AND service_key = ?
+    `).get(userId, String(serviceKey || "").trim());
+  },
+
+  upsert(userId, serviceKey, username, secretEncrypted, metaJson = null) {
+    const db = getDb();
+    return db.prepare(`
+      INSERT INTO user_service_credentials (user_id, service_key, username, secret_encrypted, meta_json, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, service_key) DO UPDATE SET
+        username = excluded.username,
+        secret_encrypted = excluded.secret_encrypted,
+        meta_json = excluded.meta_json,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(
+      userId,
+      String(serviceKey || "").trim(),
+      String(username || "").trim(),
+      String(secretEncrypted || ""),
+      metaJson ? String(metaJson) : null
+    );
+  },
+
+  remove(userId, serviceKey) {
+    const db = getDb();
+    return db.prepare(`
+      DELETE FROM user_service_credentials
+      WHERE user_id = ? AND service_key = ?
+    `).run(userId, String(serviceKey || "").trim());
+  }
+};
+
+/**
  * Transactions helper
  */
 function transaction(callback) {
@@ -816,5 +880,6 @@ module.exports = {
   AchievementProgressQueries,
   AppSettingQueries,
   DashboardCardQueries,
+  UserServiceCredentialQueries,
   DB_PATH
 };

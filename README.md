@@ -169,6 +169,7 @@ Toutes les URLs et clés API du `docker-compose.yml` sont externalisées dans `c
 cp config/.env.example config/.env
 ```
 2. Éditer `config/.env` et renseigner vos valeurs (`SESSION_SECRET`, URLs, API keys...).
+   Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte son compte une seule fois dans le portail.
 
 ### docker-compose.yml complet (exemple production)
 

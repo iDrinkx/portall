@@ -17,7 +17,8 @@ const {
   AchievementProgressQueries,
   DatabaseMaintenance,
   AppSettingQueries,
-  DashboardCardQueries
+  DashboardCardQueries,
+  UserServiceCredentialQueries
 } = require("../utils/database");
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
@@ -164,8 +165,9 @@ function getAvailableColorKeys(existingCards = []) {
 
 const DASHBOARD_INTEGRATIONS = [
   { key: "custom", label: "Iframe simple (URL libre)" },
-  { key: "komga_auto", label: "Komga auto-auth (session cookie)" },
-  { key: "jellyfin_iframe", label: "Jellyfin preconfig (iframe)" }
+  { key: "komga_auto", label: "Komga auto-auth (compte utilisateur)" },
+  { key: "jellyfin_auto", label: "Jellyfin auto-auth (compte utilisateur)" },
+  { key: "romm_auto", label: "RomM auto-auth (compte utilisateur)" }
 ];
 
 function resolveIntegrationSrc(card, basePath = "") {
@@ -175,8 +177,11 @@ function resolveIntegrationSrc(card, basePath = "") {
   if (integrationKey === "komga_auto") {
     return (process.env.KOMGA_PUBLIC_URL || rawUrl || "").trim();
   }
-  if (integrationKey === "jellyfin_iframe") {
+  if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
     return (process.env.JELLYFIN_PUBLIC_URL || rawUrl || "").trim();
+  }
+  if (integrationKey === "romm_auto") {
+    return (process.env.ROMM_PUBLIC_URL || rawUrl || "").trim();
   }
 
   if (rawUrl.startsWith("/")) return `${basePath}${rawUrl}`;
@@ -193,32 +198,69 @@ function toCardHref(card, basePath = "") {
 }
 
 function getIntegrationAvailability() {
-  const hasKomgaApiKey = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY);
-  const hasKomgaBasic = !!(process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD);
+  const komgaConfigured = !!(
+    process.env.KOMGA_URL &&
+    process.env.KOMGA_PUBLIC_URL
+  );
+  const jellyfinAutoConfigured = !!(
+    process.env.JELLYFIN_URL &&
+    process.env.JELLYFIN_PUBLIC_URL
+  );
+  const rommAutoConfigured = !!(
+    process.env.ROMM_URL &&
+    process.env.ROMM_PUBLIC_URL
+  );
   return {
-    komgaConfigured: hasKomgaApiKey || hasKomgaBasic,
-    jellyfinConfigured: !!process.env.JELLYFIN_PUBLIC_URL
+    komgaConfigured,
+    jellyfinAutoConfigured,
+    rommAutoConfigured
   };
 }
 
 function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
-  const allowed = new Set(DASHBOARD_INTEGRATIONS.map(i => i.key));
+  const allowed = new Set([
+    ...DASHBOARD_INTEGRATIONS.map(i => i.key),
+    // Compat legacy: cartes déjà persistées avant la suppression de l'option UI
+    "jellyfin_iframe"
+  ]);
   if (!allowed.has(integrationKey)) {
     return { ok: false, error: "Schéma d'intégration invalide" };
   }
 
   if (integrationKey === "komga_auto") {
     const ok = !!(
-      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_API_KEY) ||
-      (process.env.KOMGA_URL && process.env.KOMGA_PUBLIC_URL && process.env.KOMGA_USERNAME && process.env.KOMGA_PASSWORD)
+      process.env.KOMGA_URL &&
+      process.env.KOMGA_PUBLIC_URL
     );
-    if (!ok) return { ok: false, error: "Komga non configuré côté serveur (.env)" };
+    if (!ok) return { ok: false, error: "Komga non configuré côté serveur (KOMGA_URL + KOMGA_PUBLIC_URL requis)" };
     return { ok: true };
   }
 
-  if (integrationKey === "jellyfin_iframe") {
-    const ok = !!(process.env.JELLYFIN_PUBLIC_URL || srcUrl);
-    if (!ok) return { ok: false, error: "Jellyfin non configuré (JELLYFIN_PUBLIC_URL manquant)" };
+  if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
+    const ok = !!(
+      process.env.JELLYFIN_URL &&
+      process.env.JELLYFIN_PUBLIC_URL
+    );
+    if (!ok) {
+      return {
+        ok: false,
+        error: "Jellyfin auto-auth non configuré (JELLYFIN_URL + JELLYFIN_PUBLIC_URL requis)"
+      };
+    }
+    return { ok: true };
+  }
+
+  if (integrationKey === "romm_auto") {
+    const ok = !!(
+      process.env.ROMM_URL &&
+      process.env.ROMM_PUBLIC_URL
+    );
+    if (!ok) {
+      return {
+        ok: false,
+        error: "RomM auto-auth non configuré (ROMM_URL + ROMM_PUBLIC_URL requis)"
+      };
+    }
     return { ok: true };
   }
 
@@ -235,23 +277,154 @@ function getCookieParentDomain(publicUrl) {
   return null;
 }
 
-async function grabKomgaCookie(res) {
+function appendJellyfinAuthParams(publicUrl, accessToken, userId) {
+  try {
+    const u = new URL(publicUrl);
+    u.searchParams.set("api_key", accessToken);
+    if (userId) u.searchParams.set("userId", userId);
+    return u.toString();
+  } catch (_) {
+    return publicUrl;
+  }
+}
+
+function getCredentialEncryptionKey() {
+  const seed = String(process.env.SESSION_SECRET || "plex-portal-default").trim();
+  return crypto.createHash("sha256").update(seed).digest();
+}
+
+function encryptCredentialSecret(secret) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", getCredentialEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(String(secret || ""), "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString("base64")}.${tag.toString("base64")}.${encrypted.toString("base64")}`;
+}
+
+function decryptCredentialSecret(payload) {
+  if (!payload || typeof payload !== "string") return "";
+  const parts = payload.split(".");
+  if (parts.length !== 3) return "";
+  try {
+    const iv = Buffer.from(parts[0], "base64");
+    const tag = Buffer.from(parts[1], "base64");
+    const data = Buffer.from(parts[2], "base64");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", getCredentialEncryptionKey(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
+  } catch (_) {
+    return "";
+  }
+}
+
+function getOrCreateDbUser(sessionUser) {
+  if (!sessionUser?.username) return null;
+  return UserQueries.upsert(
+    sessionUser.username,
+    sessionUser.id || null,
+    sessionUser.email || null,
+    sessionUser.joinedAt || sessionUser.joinedAtTimestamp || null
+  );
+}
+
+function getUserServiceCredential(sessionUser, serviceKey) {
+  const dbUser = getOrCreateDbUser(sessionUser);
+  if (!dbUser?.id) return null;
+  const row = UserServiceCredentialQueries.getByUserAndService(dbUser.id, serviceKey);
+  if (!row) return null;
+  const password = decryptCredentialSecret(row.secretEncrypted);
+  if (!row.username || !password) return null;
+  return { username: row.username, password };
+}
+
+function saveUserServiceCredential(sessionUser, serviceKey, username, password) {
+  const dbUser = getOrCreateDbUser(sessionUser);
+  if (!dbUser?.id) return false;
+  const secretEncrypted = encryptCredentialSecret(password);
+  UserServiceCredentialQueries.upsert(dbUser.id, serviceKey, username, secretEncrypted, null);
+  return true;
+}
+
+function clearUserServiceCredential(sessionUser, serviceKey) {
+  const dbUser = getOrCreateDbUser(sessionUser);
+  if (!dbUser?.id) return false;
+  UserServiceCredentialQueries.remove(dbUser.id, serviceKey);
+  return true;
+}
+
+async function authenticateJellyfin(username, password) {
+  const jellyfinUrl = (process.env.JELLYFIN_URL || "").replace(/\/$/, "");
+  if (!jellyfinUrl || !username || !password) return null;
+  try {
+    const authResp = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Emby-Authorization": `MediaBrowser Client="PlexPortal", Device="Web", DeviceId="plex-portal-${crypto.randomUUID()}", Version="1.0.0"`
+      },
+      body: JSON.stringify({ Username: username, Pw: password })
+    });
+    if (!authResp.ok) return null;
+    const payload = await authResp.json();
+    const accessToken = String(payload?.AccessToken || "").trim();
+    const userId = String(payload?.User?.Id || "").trim();
+    if (!accessToken) return null;
+    return { accessToken, userId };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function loginRommAndGetSessionCookie(username, password) {
+  const rommUrl = (process.env.ROMM_URL || "").replace(/\/$/, "");
+  if (!rommUrl || !username || !password) return null;
+
+  const attempts = [
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    },
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json"
+      },
+      body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+    }
+  ];
+
+  for (const options of attempts) {
+    try {
+      const resp = await fetch(`${rommUrl}/login`, options);
+      if (!resp.ok) continue;
+      const setCookies = resp.headers.raw()["set-cookie"] || [];
+      const sessionCookie = setCookies.find(c => c.startsWith("session_id="));
+      if (sessionCookie) return sessionCookie;
+    } catch (_) {}
+  }
+  return null;
+}
+
+async function grabKomgaCookieForUser(res, sessionUser) {
   const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
   const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
-  const apiKey = (process.env.KOMGA_API_KEY || "").trim();
-  const username = process.env.KOMGA_USERNAME || "";
-  const password = process.env.KOMGA_PASSWORD || "";
-  if (!komgaUrl || !komgaPublicUrl) return false;
-  if (!apiKey && (!username || !password)) return false;
+  if (!komgaUrl || !komgaPublicUrl) return { ok: false, needsSetup: false, error: "Komga non configuré côté serveur" };
+
+  const cred = getUserServiceCredential(sessionUser, "komga");
+  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true };
 
   try {
-    const authHeaders = { "Accept": "application/json" };
-    if (apiKey) {
-      authHeaders["X-API-Key"] = apiKey;
-    } else {
-      const basic = Buffer.from(`${username}:${password}`).toString("base64");
-      authHeaders["Authorization"] = `Basic ${basic}`;
-    }
+    const basic = Buffer.from(`${cred.username}:${cred.password}`).toString("base64");
+    const authHeaders = {
+      "Accept": "application/json",
+      "Authorization": `Basic ${basic}`
+    };
 
     const parentDomain = getCookieParentDomain(komgaPublicUrl);
     const applyCookie = (cookieStr, cookieName) => {
@@ -261,7 +434,6 @@ async function grabKomgaCookie(res) {
       res.cookie(cookieName, value, opts);
     };
 
-    // 1) Auth + session token via X-Auth-Token seed
     const xAuthSeed = crypto.randomUUID();
     const meResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
       method: "GET",
@@ -270,19 +442,20 @@ async function grabKomgaCookie(res) {
         "X-Auth-Token": xAuthSeed
       }
     });
-    if (!meResp.ok) return false;
+    if (!meResp.ok) {
+      clearUserServiceCredential(sessionUser, "komga");
+      return { ok: false, needsSetup: true };
+    }
 
-    // 2) Si Komga renvoie déjà un cookie session, l'utiliser directement
     const meCookies = meResp.headers.raw()["set-cookie"] || [];
     const meSessionCookie = meCookies.find(c => c.startsWith("KOMGA-SESSION="));
     const meRememberCookie = meCookies.find(c => c.startsWith("komga-remember-me="));
     if (meSessionCookie) {
       applyCookie(meSessionCookie, "KOMGA-SESSION");
       if (meRememberCookie) applyCookie(meRememberCookie, "komga-remember-me");
-      return true;
+      return { ok: true };
     }
 
-    // 3) Sinon forcer la pose du cookie via endpoint dédié
     const xAuthToken = meResp.headers.get("x-auth-token") || xAuthSeed;
     const setCookieResp = await fetch(`${komgaUrl}/api/v1/login/set-cookie`, {
       method: "GET",
@@ -291,18 +464,70 @@ async function grabKomgaCookie(res) {
         "X-Auth-Token": xAuthToken
       }
     });
-    if (!setCookieResp.ok) return false;
+    if (!setCookieResp.ok) return { ok: false, needsSetup: true };
 
     const forcedCookies = setCookieResp.headers.raw()["set-cookie"] || [];
     const forcedSession = forcedCookies.find(c => c.startsWith("KOMGA-SESSION="));
     const forcedRemember = forcedCookies.find(c => c.startsWith("komga-remember-me="));
-    if (!forcedSession) return false;
+    if (!forcedSession) return { ok: false, needsSetup: true };
 
     applyCookie(forcedSession, "KOMGA-SESSION");
     if (forcedRemember) applyCookie(forcedRemember, "komga-remember-me");
-    return true;
-  } catch (_) {}
-  return false;
+    return { ok: true };
+  } catch (_) {
+    return { ok: false, needsSetup: true };
+  }
+}
+
+async function buildJellyfinAutoAuthUrlForUser(srcUrl, sessionUser) {
+  const cred = getUserServiceCredential(sessionUser, "jellyfin");
+  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true, srcUrl };
+  const auth = await authenticateJellyfin(cred.username, cred.password);
+  if (!auth?.accessToken) {
+    clearUserServiceCredential(sessionUser, "jellyfin");
+    return { ok: false, needsSetup: true, srcUrl };
+  }
+  return { ok: true, needsSetup: false, srcUrl: appendJellyfinAuthParams(srcUrl, auth.accessToken, auth.userId) };
+}
+
+async function grabRommCookieForUser(res, sessionUser) {
+  const rommPublicUrl = (process.env.ROMM_PUBLIC_URL || "").trim();
+  if (!process.env.ROMM_URL || !rommPublicUrl) {
+    return { ok: false, needsSetup: false, error: "RomM non configuré côté serveur" };
+  }
+
+  const cred = getUserServiceCredential(sessionUser, "romm");
+  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true };
+
+  const sessionCookie = await loginRommAndGetSessionCookie(cred.username, cred.password);
+  if (!sessionCookie) {
+    clearUserServiceCredential(sessionUser, "romm");
+    return { ok: false, needsSetup: true };
+  }
+
+  const parentDomain = getCookieParentDomain(rommPublicUrl);
+  const value = sessionCookie.split(";")[0].replace("session_id=", "");
+  const opts = { path: "/", httpOnly: true, sameSite: "none", secure: true };
+  if (parentDomain) opts.domain = parentDomain;
+  res.cookie("session_id", value, opts);
+  return { ok: true };
+}
+
+function renderServiceConnectGate(res, req, serviceKey, cardTitle, errorMessage = "") {
+  const serviceName =
+    serviceKey === "komga" ? "Komga" :
+    serviceKey === "jellyfin" ? "Jellyfin" :
+    "RomM";
+  const returnPath = `${req.basePath || ""}/app-card/${req.params.id}`;
+  return res.render("apps/service-connect", {
+    layout: false,
+    basePath: req.basePath || "",
+    serviceKey,
+    serviceName,
+    cardTitle: cardTitle || serviceName,
+    returnPath,
+    errorMessage: errorMessage || ""
+  });
 }
 
 /* ===============================
@@ -542,7 +767,8 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     ...i,
     available:
       i.key === "komga_auto" ? integrationAvailability.komgaConfigured :
-      i.key === "jellyfin_iframe" ? integrationAvailability.jellyfinConfigured :
+      i.key === "jellyfin_auto" ? integrationAvailability.jellyfinAutoConfigured :
+      i.key === "romm_auto" ? integrationAvailability.rommAutoConfigured :
       true
   }));
   const customCardsResolved = customCards.map(card => ({
@@ -931,6 +1157,64 @@ router.get("/api/all-users", async (req, res) => {
   }
 });
 
+router.post("/api/integrations/:service/connect", requireAuth, async (req, res) => {
+  const service = String(req.params.service || "").trim().toLowerCase();
+  if (service !== "komga" && service !== "jellyfin" && service !== "romm") {
+    return res.status(400).json({ error: "Service invalide" });
+  }
+
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username et mot de passe requis" });
+  }
+  if (username.length > 120 || password.length > 300) {
+    return res.status(400).json({ error: "Identifiants invalides" });
+  }
+
+  try {
+    if (service === "komga") {
+      const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+      if (!komgaUrl) return res.status(400).json({ error: "KOMGA_URL manquant côté serveur" });
+
+      const basic = Buffer.from(`${username}:${password}`).toString("base64");
+      const testResp = await fetch(`${komgaUrl}/api/v1/users/me`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Basic ${basic}`
+        }
+      });
+      if (!testResp.ok) return res.status(401).json({ error: "Identifiants Komga invalides" });
+    }
+
+    if (service === "jellyfin") {
+      const auth = await authenticateJellyfin(username, password);
+      if (!auth?.accessToken) return res.status(401).json({ error: "Identifiants Jellyfin invalides" });
+    }
+    if (service === "romm") {
+      const sessionCookie = await loginRommAndGetSessionCookie(username, password);
+      if (!sessionCookie) return res.status(401).json({ error: "Identifiants RomM invalides" });
+    }
+
+    const saved = saveUserServiceCredential(req.session.user, service, username, password);
+    if (!saved) return res.status(500).json({ error: "Impossible d'enregistrer les identifiants" });
+
+    res.json({ success: true });
+  } catch (_) {
+    res.status(500).json({ error: "Erreur de connexion au service" });
+  }
+});
+
+router.delete("/api/integrations/:service/connect", requireAuth, async (req, res) => {
+  const service = String(req.params.service || "").trim().toLowerCase();
+  if (service !== "komga" && service !== "jellyfin" && service !== "romm") {
+    return res.status(400).json({ error: "Service invalide" });
+  }
+  clearUserServiceCredential(req.session.user, service);
+  res.json({ success: true });
+});
+
 /* ===============================
     ADMIN: Révoquer un badge
 =============================== */
@@ -966,7 +1250,8 @@ router.get("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) =
     ...i,
     available:
       i.key === "komga_auto" ? ia.komgaConfigured :
-      i.key === "jellyfin_iframe" ? ia.jellyfinConfigured :
+      i.key === "jellyfin_auto" ? ia.jellyfinAutoConfigured :
+      i.key === "romm_auto" ? ia.rommAutoConfigured :
       true
   }));
   res.json({ cards, availableColors, allColors: DASHBOARD_CARD_PALETTE, integrations });
@@ -1082,14 +1367,48 @@ router.get("/app-card/:id", requireAuth, async (req, res) => {
   }
 
   const integrationKey = String(card.integrationKey || "custom");
-  const srcUrl = resolveIntegrationSrc(card, req.basePath || "");
+  let srcUrl = resolveIntegrationSrc(card, req.basePath || "");
   if (!srcUrl) {
     return res.redirect(req.basePath + "/dashboard");
   }
 
-  // Schéma préconfig: Komga auto-auth (cookie session)
+  // Schéma préconfig: Komga/Jellyfin auto-auth par utilisateur
   if (integrationKey === "komga_auto") {
-    try { await grabKomgaCookie(res); } catch (_) {}
+    try {
+      const result = await grabKomgaCookieForUser(res, req.session.user);
+      if (!result.ok && result.needsSetup) {
+        return renderServiceConnectGate(res, req, "komga", card.title, "Connecte ton compte Komga pour continuer");
+      }
+      if (!result.ok && result.error) {
+        return res.status(503).send(result.error);
+      }
+    } catch (_) {
+      return renderServiceConnectGate(res, req, "komga", card.title, "Connexion Komga requise");
+    }
+  }
+  if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
+    try {
+      const result = await buildJellyfinAutoAuthUrlForUser(srcUrl, req.session.user);
+      if (!result.ok && result.needsSetup) {
+        return renderServiceConnectGate(res, req, "jellyfin", card.title, "Connecte ton compte Jellyfin pour continuer");
+      }
+      srcUrl = result.srcUrl || srcUrl;
+    } catch (_) {
+      return renderServiceConnectGate(res, req, "jellyfin", card.title, "Connexion Jellyfin requise");
+    }
+  }
+  if (integrationKey === "romm_auto") {
+    try {
+      const result = await grabRommCookieForUser(res, req.session.user);
+      if (!result.ok && result.needsSetup) {
+        return renderServiceConnectGate(res, req, "romm", card.title, "Connecte ton compte RomM pour continuer");
+      }
+      if (!result.ok && result.error) {
+        return res.status(503).send(result.error);
+      }
+    } catch (_) {
+      return renderServiceConnectGate(res, req, "romm", card.title, "Connexion RomM requise");
+    }
   }
 
   res.render("apps/iframe", {

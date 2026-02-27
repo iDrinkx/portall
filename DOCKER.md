@@ -18,7 +18,8 @@ cp config/.env.example config/.env
 ```
 2. Editez `config/.env`:
 - `SESSION_SECRET` (obligatoire)
-- URLs/API des intégrations (`SEERR_*`, `TAUTULLI_*`, `WIZARR_*`, `KOMGA_*`, `JELLYFIN_PUBLIC_URL`, `RADARR_*`, `SONARR_*`, `PLEX_*`)
+- URLs/API des intégrations (`SEERR_*`, `TAUTULLI_*`, `WIZARR_*`, `KOMGA_URL`, `KOMGA_PUBLIC_URL`, `JELLYFIN_URL`, `JELLYFIN_PUBLIC_URL`, `ROMM_URL`, `ROMM_PUBLIC_URL`, `RADARR_*`, `SONARR_*`, `PLEX_*`)
+- Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur renseigne ses identifiants une fois via le portail
 3. Lancez:
 ```bash
 docker-compose up -d

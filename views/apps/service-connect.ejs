@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion <%= serviceName %></title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(1000px 500px at 20% -10%, #1e293b 0%, #0f172a 45%, #020617 100%);
+      color: #e2e8f0;
+      font-family: Segoe UI, Arial, sans-serif;
+    }
+    .card {
+      width: min(460px, 92vw);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+    p {
+      margin: 0 0 14px;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+    input {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.8);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-sizing: border-box;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    button, a {
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.92rem;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+    }
+    button {
+      border: 0;
+      background: #22c55e;
+      color: #052e16;
+      font-weight: 700;
+      flex: 1;
+    }
+    a {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: #cbd5e1;
+      flex: 1;
+    }
+    .state {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 0.9rem;
+      color: #fca5a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1><%= serviceName %> requis pour <%= cardTitle %></h1>
+    <p>Connecte ton compte une seule fois. Plex Portal le réutilisera automatiquement ensuite.</p>
+
+    <form id="connectForm">
+      <label for="username">Username</label>
+      <input id="username" name="username" maxlength="120" autocomplete="username" required>
+
+      <label for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" maxlength="300" autocomplete="current-password" required>
+
+      <div class="row">
+        <button type="submit">Connecter</button>
+        <a href="<%= basePath %>/dashboard">Retour dashboard</a>
+      </div>
+      <div class="state" id="state"><%= errorMessage || "" %></div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById("connectForm");
+      const state = document.getElementById("state");
+      if (!form || !state) return;
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        state.textContent = "Connexion en cours...";
+        const payload = {
+          username: form.username.value.trim(),
+          password: form.password.value
+        };
+
+        try {
+          const resp = await fetch("<%= basePath %>/api/integrations/<%= serviceKey %>/connect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
+          window.location.href = "<%= returnPath %>";
+        } catch (err) {
+          state.textContent = err.message || "Connexion impossible";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
