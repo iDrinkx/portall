@@ -86,7 +86,7 @@
     <p>Connecte ton compte une seule fois. Plex Portal le réutilisera automatiquement ensuite.</p>
 
     <form id="connectForm">
-      <label for="username">Username</label>
+      <label for="username"><%= serviceKey === "komga" ? "Email Komga" : "Username" %></label>
       <input id="username" name="username" maxlength="120" autocomplete="username" required>
 
       <label for="password">Mot de passe</label>
