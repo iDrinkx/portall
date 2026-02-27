@@ -411,6 +411,44 @@ async function loginRommAndGetSessionCookie(username, password) {
   return null;
 }
 
+async function loginKomgaAndGetSessionCookies(username, password) {
+  const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+  if (!komgaUrl || !username || !password) return null;
+
+  const attempts = [
+    {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      },
+      body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+    },
+    {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    }
+  ];
+
+  for (const options of attempts) {
+    try {
+      const resp = await fetch(`${komgaUrl}/login`, options);
+      const setCookies = resp.headers.raw()["set-cookie"] || [];
+      const sessionCookie = setCookies.find(c => c.startsWith("KOMGA-SESSION="));
+      const rememberCookie = setCookies.find(c => c.startsWith("komga-remember-me="));
+      if (sessionCookie) return { sessionCookie, rememberCookie };
+    } catch (_) {}
+  }
+
+  return null;
+}
+
 async function grabKomgaCookieForUser(res, sessionUser) {
   const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
   const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
@@ -443,8 +481,14 @@ async function grabKomgaCookieForUser(res, sessionUser) {
       }
     });
     if (!meResp.ok) {
-      clearUserServiceCredential(sessionUser, "komga");
-      return { ok: false, needsSetup: true };
+      const fallbackCookies = await loginKomgaAndGetSessionCookies(cred.username, cred.password);
+      if (!fallbackCookies?.sessionCookie) {
+        clearUserServiceCredential(sessionUser, "komga");
+        return { ok: false, needsSetup: true };
+      }
+      applyCookie(fallbackCookies.sessionCookie, "KOMGA-SESSION");
+      if (fallbackCookies.rememberCookie) applyCookie(fallbackCookies.rememberCookie, "komga-remember-me");
+      return { ok: true };
     }
 
     const meCookies = meResp.headers.raw()["set-cookie"] || [];
@@ -475,6 +519,19 @@ async function grabKomgaCookieForUser(res, sessionUser) {
     if (forcedRemember) applyCookie(forcedRemember, "komga-remember-me");
     return { ok: true };
   } catch (_) {
+    const fallbackCookies = await loginKomgaAndGetSessionCookies(cred.username, cred.password);
+    if (fallbackCookies?.sessionCookie) {
+      const parentDomain = getCookieParentDomain(komgaPublicUrl);
+      const applyCookie = (cookieStr, cookieName) => {
+        const value = cookieStr.split(";")[0].replace(`${cookieName}=`, "");
+        const opts = { path: "/", httpOnly: true, sameSite: "none", secure: true };
+        if (parentDomain) opts.domain = parentDomain;
+        res.cookie(cookieName, value, opts);
+      };
+      applyCookie(fallbackCookies.sessionCookie, "KOMGA-SESSION");
+      if (fallbackCookies.rememberCookie) applyCookie(fallbackCookies.rememberCookie, "komga-remember-me");
+      return { ok: true };
+    }
     return { ok: false, needsSetup: true };
   }
 }
@@ -1185,7 +1242,12 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
           "Authorization": `Basic ${basic}`
         }
       });
-      if (!testResp.ok) return res.status(401).json({ error: "Identifiants Komga invalides" });
+      if (!testResp.ok) {
+        const fallbackCookies = await loginKomgaAndGetSessionCookies(username, password);
+        if (!fallbackCookies?.sessionCookie) {
+          return res.status(401).json({ error: "Identifiants Komga invalides" });
+        }
+      }
     }
 
     if (service === "jellyfin") {
