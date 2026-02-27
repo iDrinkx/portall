@@ -2,6 +2,11 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.29.0 (2026-02-27)
+
+* Merge pull request #25 from iDrinkx/develop ([eb7a2da](https://github.com/iDrinkx/plex-portal/commit/eb7a2da)), closes [#25](https://github.com/iDrinkx/plex-portal/issues/25)
+* feat: add Komga email label to connection form in service connect view ([a148039](https://github.com/iDrinkx/plex-portal/commit/a148039))
+
 ## 1.28.0 (2026-02-27)
 
 * Merge pull request #24 from iDrinkx/develop ([ee948ae](https://github.com/iDrinkx/plex-portal/commit/ee948ae)), closes [#24](https://github.com/iDrinkx/plex-portal/issues/24)
