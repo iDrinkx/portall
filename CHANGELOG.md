@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## 1.30.0 (2026-02-28)
+
+* Merge pull request #27 from iDrinkx/develop ([41cb58c](https://github.com/iDrinkx/plex-portal/commit/41cb58c)), closes [#27](https://github.com/iDrinkx/plex-portal/issues/27)
+* feat: add Agent 007 achievement and update collection keys for Tautulli integration ([b7fdaa5](https://github.com/iDrinkx/plex-portal/commit/b7fdaa5))
+* feat: add new achievements for Fast and Furious, Les Charlots, Star Trek Universe, and Arrowverse wi ([b640b38](https://github.com/iDrinkx/plex-portal/commit/b640b38))
+* fix: update achievement icons for better visual representation in dashboard ([dd2ee0e](https://github.com/iDrinkx/plex-portal/commit/dd2ee0e))
+
 ## <small>1.29.1 (2026-02-27)</small>
 
 * Merge pull request #26 from iDrinkx/develop ([e136541](https://github.com/iDrinkx/plex-portal/commit/e136541)), closes [#26](https://github.com/iDrinkx/plex-portal/issues/26)
