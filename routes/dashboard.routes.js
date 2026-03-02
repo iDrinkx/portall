@@ -383,6 +383,8 @@ async function loginRommAndGetSessionCookies(username, password) {
 
   let preflightCookieHeader = "";
   let preflightCsrfToken = "";
+  let loginPostUrl = `${rommUrl}/login`;
+  let hiddenFields = {};
 
   try {
     const preflightResp = await fetch(`${rommUrl}/login`, {
@@ -394,7 +396,15 @@ async function loginRommAndGetSessionCookies(username, password) {
     });
 
     const preflightCookies = preflightResp.headers.raw()["set-cookie"] || [];
-    logRomm.info(`GET /login -> ${preflightResp.status} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
+    const preflightHtml = await preflightResp.text().catch(() => "");
+    const formActionMatch = preflightHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
+    if (formActionMatch?.[1]) {
+      loginPostUrl = new URL(formActionMatch[1], `${rommUrl}/login`).toString();
+    }
+    const hiddenFieldMatches = [...preflightHtml.matchAll(/<input[^>]*type=["']hidden["'][^>]*name=["']([^"']+)["'][^>]*value=["']([^"']*)["'][^>]*>/gi)];
+    hiddenFields = Object.fromEntries(hiddenFieldMatches.map((m) => [m[1], m[2]]));
+
+    logRomm.info(`GET /login -> ${preflightResp.status} | form action: ${loginPostUrl} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
     const csrfCookie = preflightCookies.find(c => c.startsWith("csrftoken=")) || "";
     const sessionCookie = preflightCookies.find(c => c.startsWith("session_id=")) || "";
 
@@ -411,6 +421,9 @@ async function loginRommAndGetSessionCookies(username, password) {
   } catch (_) {}
 
   const formBody = new URLSearchParams();
+  for (const [name, value] of Object.entries(hiddenFields)) {
+    formBody.set(name, value);
+  }
   formBody.set("username", username);
   formBody.set("password", password);
   if (preflightCsrfToken) formBody.set("csrfmiddlewaretoken", preflightCsrfToken);
@@ -422,10 +435,11 @@ async function loginRommAndGetSessionCookies(username, password) {
       redirect: "manual",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json, text/plain, */*",
+        "Accept": "application/json, text/plain, text/html, */*",
         ...(preflightCookieHeader ? { "Cookie": preflightCookieHeader } : {}),
         ...(preflightCsrfToken ? { "X-CSRFToken": preflightCsrfToken, "X-CSRF-Token": preflightCsrfToken } : {}),
-        "Referer": `${rommUrl}/login`
+        "Referer": `${rommUrl}/login`,
+        "Origin": rommUrl
       },
       body: JSON.stringify({
         username,
@@ -438,7 +452,7 @@ async function loginRommAndGetSessionCookies(username, password) {
       redirect: "manual",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json, text/plain, */*",
+        "Accept": "application/json, text/plain, text/html, */*",
         ...(preflightCookieHeader ? { "Cookie": preflightCookieHeader } : {}),
         ...(preflightCsrfToken ? { "X-CSRFToken": preflightCsrfToken, "X-CSRF-Token": preflightCsrfToken } : {}),
         "Referer": `${rommUrl}/login`,
@@ -450,10 +464,10 @@ async function loginRommAndGetSessionCookies(username, password) {
 
   for (const options of attempts) {
     try {
-      const resp = await fetch(`${rommUrl}/login`, options);
+      const resp = await fetch(loginPostUrl, options);
       const setCookies = resp.headers.raw()["set-cookie"] || [];
       const location = resp.headers.get("location") || "";
-      logRomm.info(`POST /login -> ${resp.status}${location ? ` -> ${location}` : ""} | cookies: ${setCookies.map(c => c.split("=")[0]).join(", ") || "none"} | content-type: ${resp.headers.get("content-type") || "unknown"}`);
+      logRomm.info(`POST ${loginPostUrl} -> ${resp.status}${location ? ` -> ${location}` : ""} | cookies: ${setCookies.map(c => c.split("=")[0]).join(", ") || "none"} | content-type: ${resp.headers.get("content-type") || "unknown"}`);
       const sessionCookie = setCookies.find(c => c.startsWith("session_id="));
       if (!sessionCookie) continue;
 
