@@ -449,15 +449,6 @@ async function loginRommAndGetSessionCookies(username, password) {
   return null;
 }
 
-async function validateRommCredentials(username, password) {
-  try {
-    const cookies = await loginRommAndGetSessionCookies(username, password);
-    return !!cookies?.sessionCookie;
-  } catch (_) {
-    return false;
-  }
-}
-
 async function loginKomgaAndGetSessionCookies(username, password) {
   const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
   if (!komgaUrl || !username || !password) return null;
@@ -1322,11 +1313,6 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
       const auth = await authenticateJellyfin(username, password);
       if (!auth?.accessToken) return res.status(401).json({ error: "Identifiants Jellyfin invalides" });
     }
-    if (service === "romm") {
-      const valid = await validateRommCredentials(username, password);
-      if (!valid) return res.status(401).json({ error: "Identifiants RomM invalides" });
-    }
-
     const saved = saveUserServiceCredential(req.session.user, service, username, password);
     if (!saved) return res.status(500).json({ error: "Impossible d'enregistrer les identifiants" });
 
