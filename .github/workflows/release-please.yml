@@ -90,6 +90,7 @@ jobs:
 
           # Copier CHANGELOG.md depuis le repo privé vers le repo public
           cp private-repo/CHANGELOG.md public-repo/CHANGELOG.md
+          cp private-repo/config/.env.example public-repo/.env.example
 
           # Mettre à jour la version dans le README du repo public
           cd public-repo
@@ -106,6 +107,6 @@ jobs:
           cd public-repo
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md CHANGELOG.md
+          git add README.md CHANGELOG.md .env.example
           git commit -m "chore: sync version v${{ needs.release.outputs.new_release_version }} and changelog from private repo"
           git push

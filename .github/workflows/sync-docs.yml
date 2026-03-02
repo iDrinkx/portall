@@ -32,6 +32,7 @@ jobs:
           cp docker-compose.yml public-repo/ || true
           cp CHANGELOG.md public-repo/ || true
           cp LICENSE public-repo/ || true
+          cp config/.env.example public-repo/.env.example || true
 
       - name: Commit and push
         run: |
