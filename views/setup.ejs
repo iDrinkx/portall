@@ -178,13 +178,13 @@
 <body>
   <section class="setup-shell">
     <div class="setup-hero">
-      <h1>Configuration initiale</h1>
-      <p>Renseigne ici les connexions de ton portail. Les valeurs seront stockées en base, appliquées au runtime et resteront modifiables dans les paramètres admin.</p>
+      <h1><%= t("setup.title") %></h1>
+      <p><%= t("setup.subtitle") %></p>
       <% if (error) { %>
         <div class="setup-alert"><%= error %></div>
       <% } %>
       <% if (missingKeys && missingKeys.length) { %>
-        <div class="setup-alert">Champs obligatoires manquants : <%= missingKeys.join(", ") %></div>
+        <div class="setup-alert"><%= t("setup.missing", { keys: missingKeys.join(", ") }) %></div>
       <% } %>
     </div>
 
@@ -198,7 +198,7 @@
                 <div class="setup-field">
                   <label for="setup-<%= field.key %>">
                     <%= field.label %>
-                    <% if (field.required) { %><span class="setup-required">requis</span><% } %>
+                    <% if (field.required) { %><span class="setup-required"><%= t("common.required") %></span><% } %>
                   </label>
                   <input
                     id="setup-<%= field.key %>"
@@ -215,10 +215,10 @@
         </div>
 
         <div class="setup-actions">
-          <div class="setup-note">Tu pourras ensuite modifier ces connexions dans les paramètres admin.</div>
-          <button class="setup-btn" type="submit">Enregistrer la configuration</button>
+          <div class="setup-note"><%= t("setup.note") %></div>
+          <button class="setup-btn" type="submit"><%= t("setup.save") %></button>
         </div>
-        <div class="setup-state" id="setupState">Aucune configuration enregistrée.</div>
+        <div class="setup-state" id="setupState"><%= t("setup.state.empty") %></div>
       </form>
     </div>
   </section>
@@ -270,7 +270,7 @@
 
       form.addEventListener("submit", async function (event) {
         event.preventDefault();
-        state.textContent = "Enregistrement en cours...";
+        state.textContent = "<%= t('setup.state.saving') %>";
 
         const payload = {};
         new FormData(form).forEach((value, key) => {
@@ -288,10 +288,10 @@
             throw new Error(data.error || ("HTTP " + response.status));
           }
 
-          state.textContent = "Configuration enregistrée. Redirection...";
+          state.textContent = "<%= t('setup.state.saved') %>";
           window.location.href = data.redirectTo || "<%= basePath %>/";
         } catch (error) {
-          state.textContent = error.message || "Impossible d'enregistrer la configuration.";
+          state.textContent = error.message || "<%= t('setup.state.error') %>";
         }
       });
     })();

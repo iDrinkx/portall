@@ -38,19 +38,21 @@ mkdir -p /mnt/user/appdata/plex-portal/config
 
 ### 1. Créer/modifier `docker-compose.yml`
 
-Ajouter juste le `SESSION_SECRET`:
+Ajouter au minimum le `SESSION_SECRET`:
 
 ```yaml
 environment:
   SESSION_SECRET: "change-me-to-a-secure-key"
 ```
 
-**C'est tout!** ✨
+**C'est tout pour le bootstrap.**
 
 L'app détectera automatiquement:
 - La présence du reverse proxy via les headers `X-Forwarded-*`
 - L'URL publique via `X-Forwarded-Host`
 - Le chemin de base via `X-Forwarded-Prefix`
+
+Les connexions Plex, Seerr, Tautulli, Wizarr, Radarr, Sonarr, Komga, Jellyfin et RomM peuvent ensuite être renseignées via le setup web puis `Parametres > Connexions`.
 
 ### 2. Ajouter le logo (optionnel)
 
@@ -114,6 +116,17 @@ services:
    cd /mnt/user/appdata/plex-portal
    docker-compose up -d
    ```
+
+### 3. Finaliser `/setup`
+
+Au premier lancement:
+
+1. Ouvrir l'URL du portail
+2. Si l'application n'est pas encore configurée, elle redirige vers `/setup`
+3. Renseigner au minimum les connexions Plex
+4. Enregistrer
+
+Les valeurs seront ensuite modifiables dans `Parametres > Connexions`.
 
 ---
 
@@ -197,6 +210,14 @@ Vous devriez être redirigé vers login. ✅
 1. Cliquer sur "Se connecter avec Plex"
 2. Vous connecter avec votre compte Plex
 3. Redirection vers le dashboard ✅
+
+### 4. Compléter les intégrations
+
+Depuis l'admin:
+
+1. Ouvrir `Parametres > Connexions`
+2. Renseigner les URLs et tokens des services
+3. Pour `Komga`, `Jellyfin` et `RomM`, chaque utilisateur connecte ensuite son compte une seule fois depuis le portail si une carte auto-auth est utilisée
 
 **L'app a automatiquement détecté que vous étiez derrière un reverse proxy!** ✨
 

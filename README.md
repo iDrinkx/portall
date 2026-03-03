@@ -74,63 +74,55 @@ plex-portal/
  Dockerfile
  docker-compose.yml
  server.js                           # Serveur Express principal
+ TECHNICAL.md                        # Architecture et configuration runtime
  package.json
 
- middleware/
-    auth.middleware.js              # Vérification session
-    reverseproxy.middleware.js      # Auto-détection reverse proxy
-
  routes/
-    auth.routes.js                  # Login Plex OAuth + SSO Seerr
-    dashboard.routes.js             # APIs dashboard, stats, profil
+    auth.routes.js                  # Login Plex OAuth + setup initial
+    dashboard.routes.js             # Dashboard, paramètres admin, intégrations
     seerr-proxy.routes.js           # Route iframe Seerr (/seerr)
 
  views/
     layout.ejs
     login.ejs
-    badges.ejs
+    setup.ejs
+    succes.ejs
+    parametres/
+       index.ejs                    # Onglets admin
     dashboard/
+       index.ejs                    # Dashboard principal
+    profil/
        index.ejs
-       _activity.ejs
-       _overseerr.ejs
-       _stats.ejs
-       _subscription.ejs
-
-     profil/
-       index.ejs
-     seerr/
+    seerr/
        index.ejs                   # Iframe full-page Seerr
-     statistiques/
+    apps/
+       iframe.ejs                  # Wrapper iframe pour cartes custom/intégrations
+       service-connect.ejs         # Connexion utilisateur Komga/Jellyfin/RomM
+    statistiques/
         index.ejs
         activite.ejs
 
-   public/
-     css/style.css
-     js/
+  public/
+    css/style.css
+    js/
         dashboard.js
         statistiques.js
 
-   utils/
-     achievements.js                 # Système de succès
-     cache.js                        # Couche de cache mémoire
-     cron-session-job.js             # Job cron sessions/stats
-     database.js                     # SQLite (sessions, XP, cache)
-     health-check.js                 # Vérification santé services
-     plex.js                         # Whitelist utilisateurs Plex
-     seerr.js                        # API Seerr (stats demandes)
-     session-stats-cache.js
-     session-stats-cache-db.js
-     tautulli.js                     # API Tautulli
-     tautulli-direct.js              # Lecture directe DB Tautulli
-     tautulli-events.js
-     logger.js                       # Logger unifié (timestamp + couleurs)
-     wizarr.js                       # API Wizarr
-     radarr-sonarr.js                # APIs calendrier Radarr + Sonarr
-     xp-system.js                    # Calcul XP et niveaux
+  utils/
+    config.js                       # Config centralisée DB > env > défaut
+    database.js                     # SQLite et app_settings
+    i18n.js                         # Traductions fr/en
+    site-background.js              # Fond global configurable
+    dashboard-builtins.js           # Cartes natives dashboard
+    dashboard-custom-html.js        # HTML custom sous les cartes
+    achievements.js                 # Système de succès
+    tautulli-direct.js              # Lecture directe DB Tautulli
+    seerr.js                        # API Seerr (stats demandes)
+    wizarr.js                       # API Wizarr
 
-   config/
-      logo.png                        # Logo personnalisable
-  ```
+  config/
+    logo.png                        # Logo personnalisable
+```
 
   ---
 
