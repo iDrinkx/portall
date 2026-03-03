@@ -372,6 +372,12 @@
     margin-left: 6px;
   }
 
+  .settings-restart {
+    color: #fda4af;
+    font-size: 11px;
+    margin-left: 6px;
+  }
+
   @media (max-width: 640px) {
     .settings-shell {
       padding: 16px;
@@ -520,6 +526,7 @@
                         <label for="config-<%= field.key %>">
                           <%= field.label %>
                           <% if (field.required) { %><span class="settings-required">requis</span><% } %>
+                          <% if (field.requiresRestart) { %><span class="settings-restart">redemarrage requis</span><% } %>
                         </label>
                         <input
                           id="config-<%= field.key %>"
@@ -540,6 +547,7 @@
           <div class="settings-actions">
             <button class="settings-btn" id="saveConfigBtn" type="button">Enregistrer les connexions</button>
           </div>
+          <div class="settings-inline-note">Les changements sont enregistres de facon permanente. Les champs marques "redemarrage requis" necessitent un restart du conteneur pour etre totalement pris en compte.</div>
           <div class="settings-inline-note" id="configState">Modifie ici les URL et tokens utilises par le portail.</div>
         </div>
       </div>

@@ -6,10 +6,18 @@ services:
     container_name: plex-portal
     ports:
       - "3000:3000"
-    env_file:
-      - ./config/.env
     environment:
-      NODE_ENV: "${NODE_ENV:-production}"
+      NODE_ENV: "production"
+      PORT: "3000"
+      COOKIE_SECURE: "true"
+      DEBUG: "false"
+
+      # Obligatoire: remplacez par une vraie clé longue et aléatoire
+      SESSION_SECRET: "change-me-to-a-secure-key"
+
+      # Optionnel: overrides du portail si besoin
+      APP_URL: ""
+      BASE_PATH: ""
     volumes:
       # Logo et fichiers de config
       - ./config:/config

@@ -11,7 +11,7 @@ const CONFIG_FIELDS = [
 
   { key: "TAUTULLI_URL", label: "URL Tautulli", group: "Tautulli", type: "url" },
   { key: "TAUTULLI_API_KEY", label: "API key Tautulli", group: "Tautulli", type: "password", secret: true },
-  { key: "TAUTULLI_DB_PATH", label: "Chemin DB Tautulli", group: "Tautulli", type: "text" },
+  { key: "TAUTULLI_DB_PATH", label: "Chemin DB Tautulli", group: "Tautulli", type: "text", requiresRestart: true },
 
   { key: "SEERR_URL", label: "URL Seerr interne", group: "Seerr", type: "url" },
   { key: "SEERR_PUBLIC_URL", label: "URL Seerr publique", group: "Seerr", type: "url" },
