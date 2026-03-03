@@ -63,6 +63,7 @@ docker compose up -d
 - **[SETUP.md](./SETUP.md)**  Guide pas à pas complet
 - **[DOCKER.md](./DOCKER.md)**  Guide Docker et reverse proxy
 - **[UNRAID.md](./UNRAID.md)**  Configuration spécifique Unraid
+- **[TECHNICAL.md](./TECHNICAL.md)**  Architecture technique et fonctionnement runtime
 
 ---
 
@@ -160,17 +161,25 @@ Pour plus de détails, consultez la page `/succes` ou le dashboard.
 
 ##  Configuration
 
-### Fichier d'environnement Docker
+### Configuration actuelle
 
-Toutes les URLs et clés API du `docker-compose.yml` sont externalisées dans `config/.env`.
-Le template d'environnement est fourni à la racine du projet sous `.env.example`.
+Le projet n'a plus besoin d'un fichier de configuration runtime séparé pour fonctionner.
 
-1. Copier l'exemple:
-```bash
-cp .env.example config/.env
-```
-2. Éditer `config/.env` et renseigner vos valeurs (`SESSION_SECRET`, URLs, API keys...).
-   Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte son compte une seule fois dans le portail.
+Le modèle actuel est:
+
+1. `docker-compose.yml` contient uniquement les variables de bootstrap
+2. le premier lancement passe par `/setup`
+3. les URLs et tokens des services sont ensuite gérés dans `Parametres > Connexions`
+4. les valeurs sont persistées en base SQLite
+
+Variables de bootstrap typiques:
+
+- `SESSION_SECRET`
+- `PORT`
+- `COOKIE_SECURE`
+- `NODE_ENV`
+
+Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte son compte une seule fois dans le portail.
 
 ### docker-compose.yml complet (exemple production)
 
@@ -181,10 +190,10 @@ services:
     container_name: plex-portal
     ports:
       - "4000:3000"
-    env_file:
-      - ./config/.env
     environment:
-      - NODE_ENV=production
+      SESSION_SECRET: "change-me"
+      NODE_ENV: "production"
+      COOKIE_SECURE: "true"
     restart: unless-stopped
     networks:
       - proxy
@@ -212,6 +221,7 @@ Plex Portal intègre Seerr (ex-Overseerr / Jellyseerr) via **SSO Organizr-style*
 - `SEERR_PUBLIC_URL` et l'URL de plex-portal doivent partager le même domaine parent
   _(ex: `plex-portal.votredomaine.com` + `seerr.votredomaine.com`  parent `.votredomaine.com`)_
 - HTTPS obligatoire en production (cookie `secure: true`)
+- `SEERR_URL` et `SEERR_PUBLIC_URL` peuvent être renseignés depuis `Parametres > Connexions`
 
 ---
 

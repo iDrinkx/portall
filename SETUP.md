@@ -21,12 +21,15 @@ SESSION_SECRET: "change-me-to-a-secure-key"
 SESSION_SECRET: "my-super-secret-key-12345"
 ```
 
-**C'est tout ce qui est obligatoire!**
+**C'est tout ce qui est obligatoire au bootstrap.**
 
 L'app détecte automatiquement:
 - ✅ Si elle est en local ou derrière un reverse proxy
 - ✅ L'URL publique (via headers du reverse proxy)
 - ✅ Le chemin de base (via headers du reverse proxy)
+
+Les URLs/tokens Plex, Seerr, Tautulli, Radarr, Sonarr, Komga, Jellyfin, RomM et Wizarr ne sont plus obligatoirement définis dans le compose.
+Ils peuvent être saisis au premier lancement via le setup web.
 
 ### 2. Créer le dossier `config` (optionnel)
 
@@ -40,7 +43,7 @@ Placer un fichier `logo.png` dans le dossier `config/` (300x300px recommandé)
 
 ---
 
-## 🚀 Étape 3: Lancer l'application
+## 🚀 Étape 2: Lancer l'application
 
 ### En local
 
@@ -59,6 +62,16 @@ docker-compose logs -f plex-portal
 Vous devriez voir: `🚀 Server running on port 3000`
 
 ---
+
+## 🧪 Étape 3: Finaliser le setup web
+
+1. Ouvrir votre navigateur
+2. Aller à **http://localhost:3000**
+3. Si l'app n'est pas configurée, vous serez redirigé vers **/setup**
+4. Renseigner au minimum les connexions Plex
+5. Enregistrer la configuration
+
+Une fois le setup terminé, les valeurs sont stockées en base et restent modifiables dans `Parametres > Connexions`.
 
 ## 🧪 Étape 4: Tester l'application
 
@@ -154,7 +167,8 @@ ports:
 
 ## 📊 Options avancées (optionnel)
 
-Si vous avez Wizarr ou Tautulli:
+Si vous préférez préremplir certaines valeurs au démarrage, vous pouvez toujours les mettre dans `docker-compose.yml`.
+Elles seront ensuite surchargeables depuis `Parametres > Connexions`.
 
 ```yaml
 environment:
@@ -165,6 +179,11 @@ environment:
   TAUTULLI_API_KEY: "your-key"
   DEBUG: "true"  # Affiche logs de détection
 ```
+
+Note:
+
+- `TAUTULLI_DB_PATH` peut nécessiter un redémarrage après modification
+- les auto-auths `Komga`, `Jellyfin` et `RomM` utilisent des identifiants par utilisateur, saisis une seule fois dans le portail
 
 ---
 

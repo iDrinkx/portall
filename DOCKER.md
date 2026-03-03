@@ -2,28 +2,26 @@
 
 ## Objectif
 
-Le `docker-compose.yml` charge maintenant les variables via `config/.env` pour ne plus exposer les URLs et clés API directement dans le compose.
+Le `docker-compose.yml` ne porte plus que les variables de bootstrap.
+Les URLs et clés API des services sont désormais gérées par le setup web puis `Parametres > Connexions`.
 
 ## Fichiers
 
 - `docker-compose.yml` : définition du service
-- `config/.env` : variables privées (non versionné)
-- `.env.example` : template d'environnement à copier
+- `SETUP.md` : guide de premier lancement
+- `TECHNICAL.md` : détail de l'architecture de configuration
 
 ## Demarrage rapide
 
-1. Créez le fichier d'environnement:
-```bash
-cp .env.example config/.env
-```
-2. Editez `config/.env`:
-- `SESSION_SECRET` (obligatoire)
-- URLs/API des intégrations (`SEERR_*`, `TAUTULLI_*`, `WIZARR_*`, `KOMGA_URL`, `KOMGA_PUBLIC_URL`, `JELLYFIN_URL`, `JELLYFIN_PUBLIC_URL`, `ROMM_URL`, `ROMM_PUBLIC_URL`, `RADARR_*`, `SONARR_*`, `PLEX_*`)
-- Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur renseigne ses identifiants une fois via le portail
+1. Editez `docker-compose.yml`
+2. Renseignez au minimum `SESSION_SECRET`
 3. Lancez:
 ```bash
 docker-compose up -d
 ```
+4. Ouvrez l'application
+5. Finalisez `/setup`
+6. Renseignez ensuite les services dans `Parametres > Connexions`
 
 ## Exemple compose
 
@@ -36,10 +34,10 @@ services:
     container_name: plex-portal
     ports:
       - "3000:3000"
-    env_file:
-      - ./config/.env
     environment:
-      NODE_ENV: "${NODE_ENV:-production}"
+      SESSION_SECRET: "change-me"
+      NODE_ENV: "production"
+      COOKIE_SECURE: "true"
     volumes:
       - ./config:/config
       - /mnt/user/appdata/tautulli:/tautulli-data
@@ -48,8 +46,9 @@ services:
 
 ## Notes securite
 
-- Ne versionnez pas `config/.env`.
 - Generez une vraie valeur `SESSION_SECRET` en production:
 ```bash
 openssl rand -hex 32
 ```
+- Les secrets applicatifs saisis dans l'UI sont persistés en base SQLite. Protégez le volume `/config`.
+- Pour les intégrations iframe et SSO, utilisez des URLs publiques HTTPS cohérentes sur le même domaine parent quand nécessaire.
