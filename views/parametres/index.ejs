@@ -321,6 +321,12 @@
     cursor: default;
   }
 
+  .settings-btn-secondary {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e7efff;
+  }
+
   .settings-inline-note {
     margin-top: 8px;
     font-size: 12px;
@@ -479,6 +485,50 @@
     font-size: 13px;
     color: #cfe0ff;
     font-weight: 700;
+  }
+
+  .dashboard-html-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .dashboard-html-block {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 14px;
+  }
+
+  .dashboard-html-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .dashboard-html-block-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #dbe7ff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .dashboard-html-block-remove {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #e6eefc;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .dashboard-html-block-remove:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .settings-preview-box {
@@ -1083,8 +1133,8 @@
           <p class="settings-card-sub"><%= t("settings.dashboardHtml.desc") %></p>
 
           <div class="settings-field settings-field--full">
-            <label for="dashboardHtmlInput"><%= t("settings.dashboardHtml.code") %></label>
-            <textarea id="dashboardHtmlInput" spellcheck="false" autocomplete="off"><%= dashboardCustomHtmlRaw || "" %></textarea>
+            <label><%= t("settings.dashboardHtml.code") %></label>
+            <div class="dashboard-html-blocks" id="dashboardHtmlBlocks"></div>
           </div>
 
           <div class="settings-row">
@@ -1099,6 +1149,7 @@
           </div>
 
           <div class="settings-actions">
+            <button class="settings-btn settings-btn-secondary" id="addDashboardHtmlBlockBtn" type="button">+ <%= t("settings.dashboardHtml.addBlock") %></button>
             <button class="settings-btn" id="saveDashboardHtmlBtn" type="button"><%= t("settings.dashboardHtml.save") %></button>
           </div>
           <div class="settings-inline-note" id="dashboardHtmlState"><%= dashboardCustomHtmlRawMode ? t("settings.dashboardHtml.rawNote") : t("settings.dashboardHtml.safeNote") %></div>
@@ -1159,7 +1210,8 @@
     const siteBackgroundPreview = document.getElementById("siteBackgroundPreview");
     const siteBackgroundPreviewModeLabel = document.getElementById("siteBackgroundPreviewModeLabel");
     const siteBackgroundPreviewOpacityLabel = document.getElementById("siteBackgroundPreviewOpacityLabel");
-    const dashboardHtmlInput = document.getElementById("dashboardHtmlInput");
+    const dashboardHtmlBlocks = document.getElementById("dashboardHtmlBlocks");
+    const addDashboardHtmlBlockBtn = document.getElementById("addDashboardHtmlBlockBtn");
     const saveDashboardHtmlBtn = document.getElementById("saveDashboardHtmlBtn");
     const dashboardHtmlState = document.getElementById("dashboardHtmlState");
     const dashboardHtmlPreview = document.getElementById("dashboardHtmlPreview");
@@ -1175,6 +1227,7 @@
     let siteBackgroundCustomSource = siteBackgroundFileDataUrl ? "file" : "url";
     const SITE_BACKGROUND_RECOMMENDED_MAX_BYTES = 8 * 1024 * 1024;
     let dashboardBuiltinItems = <%- JSON.stringify(dashboardBuiltinItems || []) %>;
+    let dashboardHtmlBlockItems = <%- JSON.stringify((dashboardCustomHtmlBlocks && dashboardCustomHtmlBlocks.length ? dashboardCustomHtmlBlocks : [{ id: "block-1", html: dashboardCustomHtmlRaw || "" }]) || []) %>;
     const backgroundPresetLabels = {
       particles: "<%= t('settings.background.presets.particles') %>",
       aurora: "<%= t('settings.background.presets.aurora') %>",
@@ -1205,6 +1258,39 @@
 
     function escAttr(v) {
       return escHtml(v).replace(/`/g, "&#96;");
+    }
+
+    function getDashboardHtmlBlocksPayload() {
+      if (!dashboardHtmlBlocks) return [];
+      return Array.from(dashboardHtmlBlocks.querySelectorAll("[data-dashboard-html-block]"))
+        .map(function (el, index) {
+          const textarea = el.querySelector("textarea");
+          return {
+            id: el.getAttribute("data-block-id") || ("block-" + (index + 1)),
+            html: textarea ? String(textarea.value || "") : ""
+          };
+        })
+        .filter(function (block) {
+          return String(block.html || "").trim();
+        });
+    }
+
+    function renderDashboardHtmlBlocks() {
+      if (!dashboardHtmlBlocks) return;
+      const blocks = Array.isArray(dashboardHtmlBlockItems) && dashboardHtmlBlockItems.length
+        ? dashboardHtmlBlockItems
+        : [{ id: "block-1", html: "" }];
+      dashboardHtmlBlocks.innerHTML = blocks.map(function (block, index) {
+        return `
+          <div class="dashboard-html-block" data-dashboard-html-block data-block-id="${escAttr(block.id || ("block-" + (index + 1)))}">
+            <div class="dashboard-html-block-head">
+              <div class="dashboard-html-block-title">Bloc ${index + 1}</div>
+              <button class="dashboard-html-block-remove" type="button" data-remove-dashboard-html-block="${escAttr(block.id || ("block-" + (index + 1)))}"><%= t("settings.dashboardHtml.removeBlock") %></button>
+            </div>
+            <textarea spellcheck="false" autocomplete="off">${escHtml(block.html || "")}</textarea>
+          </div>
+        `;
+      }).join("");
     }
 
     function updateSiteBackgroundUi() {
@@ -1690,9 +1776,36 @@
       });
     }
 
-    if (saveDashboardHtmlBtn && dashboardHtmlInput && dashboardHtmlState && dashboardHtmlPreview) {
+    if (dashboardHtmlBlocks) {
+      renderDashboardHtmlBlocks();
+      dashboardHtmlBlocks.addEventListener("click", function (event) {
+        const removeBtn = event.target.closest("[data-remove-dashboard-html-block]");
+        if (!removeBtn) return;
+        const blockId = removeBtn.getAttribute("data-remove-dashboard-html-block");
+        dashboardHtmlBlockItems = getDashboardHtmlBlocksPayload().filter(function (block) {
+          return block.id !== blockId;
+        });
+        if (!dashboardHtmlBlockItems.length) {
+          dashboardHtmlBlockItems = [{ id: "block-1", html: "" }];
+        }
+        renderDashboardHtmlBlocks();
+      });
+    }
+
+    if (addDashboardHtmlBlockBtn && dashboardHtmlBlocks) {
+      addDashboardHtmlBlockBtn.addEventListener("click", function () {
+        dashboardHtmlBlockItems = getDashboardHtmlBlocksPayload();
+        dashboardHtmlBlockItems.push({
+          id: "block-" + Date.now(),
+          html: ""
+        });
+        renderDashboardHtmlBlocks();
+      });
+    }
+
+    if (saveDashboardHtmlBtn && dashboardHtmlBlocks && dashboardHtmlState && dashboardHtmlPreview) {
       saveDashboardHtmlBtn.addEventListener("click", async function () {
-        const html = dashboardHtmlInput.value || "";
+        const blocks = getDashboardHtmlBlocksPayload();
         const mode = dashboardHtmlRawModeToggle && dashboardHtmlRawModeToggle.checked ? "raw" : "safe";
 
         saveDashboardHtmlBtn.disabled = true;
@@ -1703,11 +1816,16 @@
           const resp = await fetch(bp + "/api/admin/dashboard-html", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ html, mode })
+            body: JSON.stringify({ blocks, mode })
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
-          dashboardHtmlInput.value = data.raw || "";
+          dashboardHtmlBlockItems = Array.isArray(data.blocks) && data.blocks.length
+            ? data.blocks.map(function (block) {
+                return { id: block.id || ("block-" + Date.now()), html: block.raw || block.html || "" };
+              })
+            : [{ id: "block-1", html: "" }];
+          renderDashboardHtmlBlocks();
           dashboardHtmlPreview.innerHTML = data.rendered || "";
           if (dashboardHtmlPreviewTitle) {
             dashboardHtmlPreviewTitle.textContent = data.mode === "raw" ? "<%= t('settings.dashboardHtml.preview.raw') %>" : "<%= t('settings.dashboardHtml.preview.safe') %>";

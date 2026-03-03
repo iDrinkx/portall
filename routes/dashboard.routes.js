@@ -33,6 +33,8 @@ const {
 } = require("../utils/dashboard-builtins");
 const {
   getDashboardCustomHtml,
+  getDashboardCustomHtmlBlocks,
+  getDashboardCustomHtmlBlocksRaw,
   getDashboardCustomHtmlRaw,
   getDashboardCustomHtmlMode,
   isDashboardCustomHtmlRawMode,
@@ -882,6 +884,7 @@ router.get("/dashboard", requireAuth, (req, res) => {
     basePath: req.basePath,
     dashboardBuiltinCards,
     dashboardCustomCards,
+    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtml: getDashboardCustomHtml(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardServerStatsEnabled
@@ -1065,7 +1068,9 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     siteLanguage: getSiteLanguage(),
     dashboardBuiltinItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
+    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocksRaw(),
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
+    dashboardCustomHtmlPreviewBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardCustomHtmlRawMode: isDashboardCustomHtmlRawMode(),
     configSections: getConfigSections(),
@@ -1594,17 +1599,22 @@ router.post("/api/admin/dashboard-builtins", requireAuth, requireAdmin, (req, re
 router.get("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
   res.json({
     raw: getDashboardCustomHtmlRaw(),
+    blocks: getDashboardCustomHtmlBlocksRaw(),
     rendered: getDashboardCustomHtml(),
     mode: getDashboardCustomHtmlMode()
   });
 });
 
 router.post("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
-  const result = saveDashboardCustomHtml(req.body?.html || "", { mode: req.body?.mode || "safe" });
+  const result = saveDashboardCustomHtml(req.body?.html || "", {
+    mode: req.body?.mode || "safe",
+    blocks: Array.isArray(req.body?.blocks) ? req.body.blocks : null
+  });
   log.create("[Admin]").info(`HTML dashboard mis a jour par ${req.session.user.username}`);
   res.json({
     success: true,
     raw: result.raw,
+    blocks: result.blocks || [],
     rendered: result.rendered,
     sanitized: result.sanitized,
     mode: result.mode

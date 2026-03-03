@@ -84,7 +84,13 @@
 
 </div>
 
-<% if (dashboardCustomHtml) { %>
+<% if ((dashboardCustomHtmlBlocks || []).length) { %>
+  <% (dashboardCustomHtmlBlocks || []).forEach(function(block) { %>
+  <div class="dashboard-custom-html">
+    <%- block.rendered %>
+  </div>
+  <% }) %>
+<% } else if (dashboardCustomHtml) { %>
   <div class="dashboard-custom-html">
     <%- dashboardCustomHtml %>
   </div>
