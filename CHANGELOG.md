@@ -2,6 +2,11 @@
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
+## <small>1.31.1 (2026-03-03)</small>
+
+* Merge pull request #29 from iDrinkx/develop ([e03125e](https://github.com/iDrinkx/plex-portal/commit/e03125e)), closes [#29](https://github.com/iDrinkx/plex-portal/issues/29)
+* refactor: replace process.env variables with config values for Plex integration ([f18f906](https://github.com/iDrinkx/plex-portal/commit/f18f906))
+
 ## 1.31.0 (2026-03-03)
 
 * Merge pull request #28 from iDrinkx/develop ([601381d](https://github.com/iDrinkx/plex-portal/commit/601381d)), closes [#28](https://github.com/iDrinkx/plex-portal/issues/28)
