@@ -34,6 +34,8 @@ const {
 const {
   getDashboardCustomHtml,
   getDashboardCustomHtmlRaw,
+  getDashboardCustomHtmlMode,
+  isDashboardCustomHtmlRawMode,
   saveDashboardCustomHtml
 } = require("../utils/dashboard-custom-html");
 
@@ -779,6 +781,7 @@ router.get("/dashboard", requireAuth, (req, res) => {
     dashboardBuiltinCards,
     dashboardCustomCards,
     dashboardCustomHtml: getDashboardCustomHtml(),
+    dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardServerStatsEnabled
   });
 });
@@ -954,6 +957,8 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     dashboardBuiltinItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
+    dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
+    dashboardCustomHtmlRawMode: isDashboardCustomHtmlRawMode(),
     configSections: getConfigSections(),
     dashboardCustomCards: customCardsResolved,
     availableDashboardColors: availableColors,
@@ -1437,17 +1442,20 @@ router.post("/api/admin/dashboard-builtins", requireAuth, requireAdmin, (req, re
 router.get("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
   res.json({
     raw: getDashboardCustomHtmlRaw(),
-    sanitized: getDashboardCustomHtml()
+    rendered: getDashboardCustomHtml(),
+    mode: getDashboardCustomHtmlMode()
   });
 });
 
 router.post("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
-  const result = saveDashboardCustomHtml(req.body?.html || "");
+  const result = saveDashboardCustomHtml(req.body?.html || "", { mode: req.body?.mode || "safe" });
   log.create("[Admin]").info(`HTML dashboard mis a jour par ${req.session.user.username}`);
   res.json({
     success: true,
     raw: result.raw,
-    sanitized: result.sanitized
+    rendered: result.rendered,
+    sanitized: result.sanitized,
+    mode: result.mode
   });
 });
 

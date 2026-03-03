@@ -660,20 +660,31 @@
       <div class="settings-panel" data-tab-panel="dashboard-html">
         <div class="settings-card">
           <h3 class="settings-card-title">HTML personnalise du dashboard</h3>
-          <p class="settings-card-sub">Ce contenu est affiche juste sous les cartes du dashboard. Les scripts, iframes et attributs dangereux sont retires automatiquement.</p>
+          <p class="settings-card-sub">Ce contenu est affiche juste sous les cartes du dashboard. Le mode securise nettoie le HTML. Le mode compatibilite Organizr rend le code tel quel.</p>
 
           <div class="settings-field settings-field--full">
             <label for="dashboardHtmlInput">Code HTML</label>
             <textarea id="dashboardHtmlInput" spellcheck="false" autocomplete="off"><%= dashboardCustomHtmlRaw || "" %></textarea>
           </div>
 
+          <div class="settings-row">
+            <div>
+              <h3>Compatibilite Organizr</h3>
+              <p>Autorise le rendu brut du HTML, y compris scripts, iframes et code inline deja present dans une page Organizr.</p>
+            </div>
+            <label class="switch" aria-label="Activer ou desactiver la compatibilite Organizr">
+              <input id="dashboardHtmlRawModeToggle" type="checkbox" <%= dashboardCustomHtmlRawMode ? "checked" : "" %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
           <div class="settings-actions">
             <button class="settings-btn" id="saveDashboardHtmlBtn" type="button">Enregistrer le HTML</button>
           </div>
-          <div class="settings-inline-note" id="dashboardHtmlState">Le rendu est nettoye avant affichage sur le dashboard.</div>
+          <div class="settings-inline-note" id="dashboardHtmlState"><%= dashboardCustomHtmlRawMode ? "Mode compatibilite Organizr actif : le HTML est rendu brut." : "Mode securise actif : le rendu est nettoye avant affichage sur le dashboard." %></div>
 
           <div class="dashboard-html-preview">
-            <div class="dashboard-html-preview-title">Apercu nettoye</div>
+            <div class="dashboard-html-preview-title"><%= dashboardCustomHtmlRawMode ? "Apercu brut" : "Apercu nettoye" %></div>
             <div class="dashboard-custom-html" id="dashboardHtmlPreview"><%- dashboardCustomHtmlPreview || "" %></div>
           </div>
         </div>
@@ -714,6 +725,8 @@
     const saveDashboardHtmlBtn = document.getElementById("saveDashboardHtmlBtn");
     const dashboardHtmlState = document.getElementById("dashboardHtmlState");
     const dashboardHtmlPreview = document.getElementById("dashboardHtmlPreview");
+    const dashboardHtmlRawModeToggle = document.getElementById("dashboardHtmlRawModeToggle");
+    const dashboardHtmlPreviewTitle = document.querySelector(".dashboard-html-preview-title");
     if (!toggle || !state || !addBtn || !dashCardState || !dashCardsList || !form || !colorSelect || !cancelEditBtn) return;
 
     let cardBusy = false;
@@ -1038,20 +1051,28 @@
     if (saveDashboardHtmlBtn && dashboardHtmlInput && dashboardHtmlState && dashboardHtmlPreview) {
       saveDashboardHtmlBtn.addEventListener("click", async function () {
         const html = dashboardHtmlInput.value || "";
+        const mode = dashboardHtmlRawModeToggle && dashboardHtmlRawModeToggle.checked ? "raw" : "safe";
 
         saveDashboardHtmlBtn.disabled = true;
-        dashboardHtmlState.textContent = "Enregistrement du HTML du dashboard...";
+        dashboardHtmlState.textContent = mode === "raw"
+          ? "Enregistrement du HTML du dashboard en mode compatibilite Organizr..."
+          : "Enregistrement du HTML du dashboard...";
         try {
           const resp = await fetch(bp + "/api/admin/dashboard-html", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ html })
+            body: JSON.stringify({ html, mode })
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
           dashboardHtmlInput.value = data.raw || "";
-          dashboardHtmlPreview.innerHTML = data.sanitized || "";
-          dashboardHtmlState.textContent = "HTML du dashboard enregistre avec succes.";
+          dashboardHtmlPreview.innerHTML = data.rendered || "";
+          if (dashboardHtmlPreviewTitle) {
+            dashboardHtmlPreviewTitle.textContent = data.mode === "raw" ? "Apercu brut" : "Apercu nettoye";
+          }
+          dashboardHtmlState.textContent = data.mode === "raw"
+            ? "HTML du dashboard enregistre en mode compatibilite Organizr."
+            : "HTML du dashboard enregistre avec succes.";
         } catch (err) {
           dashboardHtmlState.textContent = err.message || "Impossible d'enregistrer le HTML du dashboard.";
         } finally {
