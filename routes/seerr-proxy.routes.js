@@ -82,8 +82,8 @@ router.get("/seerr", requireAuth, async (req, res) => {
         <div style="text-align:center">
           <div style="font-size:3rem"></div>
           <h2>SEERR_PUBLIC_URL non configuré</h2>
-          <p style="color:#94a3b8">Ajoutez cette variable d'env dans votre docker-compose.yml</p>
-          <code style="color:#64748b">SEERR_PUBLIC_URL: "https://seerr.votredomaine.com"</code>
+          <p style="color:#94a3b8">Renseignez l'URL publique Seerr dans Parametres &gt; Connexions</p>
+          <code style="color:#64748b">Champ attendu : URL Seerr publique</code>
         </div>
       </body></html>
     `);
@@ -97,7 +97,12 @@ router.get("/seerr", requireAuth, async (req, res) => {
   await grabSeerrCookie(plexToken, res, username);
 
   // Rendu sans layout (page standalone full-screen)
-  res.render("seerr/index", { layout: false, seerrPublicUrl });
+  res.render("seerr/index", {
+    layout: false,
+    seerrPublicUrl,
+    locale: res.locals.locale || "fr",
+    basePath: req.basePath || ""
+  });
 });
 
 module.exports = router;
