@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const router = express.Router();
 const log = require("../utils/logger");
 const logAuth = log.create('[Auth]');
+const { AppSettingQueries, UserQueries } = require("../utils/database");
 
 const { isUserAuthorized, getAuthorizedServerUsers, getServerOwnerId, getServerMachineId } = require("../utils/plex");
 const { checkWizarrAccess } = require("../utils/wizarr");
@@ -209,6 +210,17 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     return res.redirect((req.basePath || "") + "/?error=unauthorized");
   }
 
+  const persistedAdminUserId = String(AppSettingQueries.get("admin_user_id", "") || "").trim();
+  if (persistedAdminUserId) {
+    if (Number(persistedAdminUserId) === Number(user.id)) {
+      isAdmin = true;
+    }
+  } else {
+    AppSettingQueries.set("admin_user_id", String(user.id));
+    isAdmin = true;
+    logAuth.warn(`Aucun admin persiste — ${user.username} (${user.id}) defini comme admin principal`);
+  }
+
   logAuth.info(`✅ Connecté: ${user.username} (${user.id})`);
 
   req.session.user = user;
@@ -218,7 +230,6 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   delete req.session.pinId;
 
   // 💾 Sauvegarder joinedAtTimestamp dans la DB pour cohérence XP/niveau avec classement
-  const { UserQueries } = require("../utils/database");
   try {
     UserQueries.upsert(
       user.username,

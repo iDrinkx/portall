@@ -51,9 +51,14 @@ async function ensureAdminFlag(req) {
 
   let isAdmin = false;
   try {
-    const plexToken = getConfigValue("PLEX_TOKEN", "");
-    const ownerId = plexToken ? await getServerOwnerId(plexToken) : null;
-    isAdmin = !!ownerId && Number(ownerId) === Number(req.session.user.id);
+    const persistedAdminUserId = String(AppSettingQueries.get("admin_user_id", "") || "").trim();
+    if (persistedAdminUserId) {
+      isAdmin = Number(persistedAdminUserId) === Number(req.session.user.id);
+    } else {
+      const plexToken = getConfigValue("PLEX_TOKEN", "");
+      const ownerId = plexToken ? await getServerOwnerId(plexToken) : null;
+      isAdmin = !!ownerId && Number(ownerId) === Number(req.session.user.id);
+    }
   } catch (_) {
     isAdmin = false;
   }
