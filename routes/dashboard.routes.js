@@ -928,6 +928,7 @@ router.get("/calendrier", requireAuth, (req, res) => {
 router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
   const leaderboardBlurEnabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
   const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
+  const navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   const dashboardBuiltinItems = getDashboardBuiltinAdminItems();
   const customCards = DashboardCardQueries.list();
   const availableColorKeys = getAvailableColorKeys(customCards);
@@ -954,6 +955,7 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     basePath: req.basePath,
     leaderboardBlurEnabled,
     dashboardServerStatsEnabled,
+    navSubscriptionPillEnabled,
     dashboardBuiltinItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
@@ -1425,6 +1427,18 @@ router.post("/api/admin/settings/dashboard-server-stats", requireAuth, requireAd
   const enabled = !!req.body?.enabled;
   AppSettingQueries.setBool("dashboard_server_stats_enabled", enabled);
   log.create("[Admin]").info(`Barre stats dashboard ${enabled ? "activée" : "désactivée"} par ${req.session.user.username}`);
+  res.json({ success: true, enabled });
+});
+
+router.get("/api/admin/settings/nav-subscription-pill", requireAuth, requireAdmin, (req, res) => {
+  const enabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
+  res.json({ enabled });
+});
+
+router.post("/api/admin/settings/nav-subscription-pill", requireAuth, requireAdmin, (req, res) => {
+  const enabled = !!req.body?.enabled;
+  AppSettingQueries.setBool("nav_subscription_pill_enabled", enabled);
+  log.create("[Admin]").info(`Pastille abonnement navbar ${enabled ? "activée" : "désactivée"} par ${req.session.user.username}`);
   res.json({ success: true, enabled });
 });
 

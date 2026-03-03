@@ -505,6 +505,22 @@
         </div>
 
         <div class="settings-card">
+        <div class="settings-row">
+          <div>
+            <h3>Pastille abonnement dans la navbar</h3>
+            <p>Affiche ou masque le temps d'abonnement en haut du site, a cote de Deconnexion.</p>
+          </div>
+          <label class="switch" aria-label="Activer ou desactiver la pastille abonnement dans la navbar">
+            <input id="navSubscriptionPillToggle" type="checkbox" <%= navSubscriptionPillEnabled ? "checked" : "" %>>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="settings-state" id="navSubscriptionPillState">
+          Etat actuel: <strong><%= navSubscriptionPillEnabled ? "Active" : "Desactive" %></strong>
+        </div>
+        </div>
+
+        <div class="settings-card">
         <h3 class="settings-card-title">Cartes natives du dashboard</h3>
         <p class="settings-card-sub">Active, desactive et reordonne les cartes deja presentes sur le dashboard. Le meme ordre est applique dans le menu du haut.</p>
         <div class="builtin-cards-list" id="dashboardBuiltinList">
@@ -700,6 +716,8 @@
     const state = document.getElementById("settingsState");
     const dashboardServerStatsToggle = document.getElementById("dashboardServerStatsToggle");
     const dashboardServerStatsState = document.getElementById("dashboardServerStatsState");
+    const navSubscriptionPillToggle = document.getElementById("navSubscriptionPillToggle");
+    const navSubscriptionPillState = document.getElementById("navSubscriptionPillState");
     const dashboardBuiltinList = document.getElementById("dashboardBuiltinList");
     const dashboardBuiltinState = document.getElementById("dashboardBuiltinState");
     const addBtn = document.getElementById("addDashboardCardBtn");
@@ -963,6 +981,33 @@
         } finally {
           dashboardServerStatsToggle.disabled = false;
           dashboardServerStatsInFlight = false;
+        }
+      });
+    }
+
+    let navSubscriptionPillInFlight = false;
+    if (navSubscriptionPillToggle && navSubscriptionPillState) {
+      navSubscriptionPillToggle.addEventListener("change", async function () {
+        if (navSubscriptionPillInFlight) return;
+        navSubscriptionPillInFlight = true;
+        navSubscriptionPillToggle.disabled = true;
+        const enabled = !!navSubscriptionPillToggle.checked;
+
+        try {
+          const resp = await fetch(bp + "/api/admin/settings/nav-subscription-pill", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled })
+          });
+
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          const data = await resp.json();
+          navSubscriptionPillState.innerHTML = "Etat actuel: <strong>" + (data.enabled ? "Active" : "Desactive") + "</strong>";
+        } catch (_) {
+          navSubscriptionPillToggle.checked = !enabled;
+        } finally {
+          navSubscriptionPillToggle.disabled = false;
+          navSubscriptionPillInFlight = false;
         }
       });
     }

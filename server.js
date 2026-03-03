@@ -12,7 +12,7 @@ const { startSessionCronJob } = require("./utils/cron-session-job");
 const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
 const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
-const { initDatabase, DashboardCardQueries } = require("./utils/database");  // 🗄️  Database initialization
+const { initDatabase, DashboardCardQueries, AppSettingQueries } = require("./utils/database");  // 🗄️  Database initialization
 const { applyRuntimeConfig, isSetupComplete } = require("./utils/config");
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
 const { buildDashboardNavItems } = require("./utils/dashboard-builtins");
@@ -144,6 +144,7 @@ app.use(async (req, res, next) => {
   res.locals.basePath = req.basePath || "";
   res.locals.customNavCards = [];
   res.locals.dashboardNavItems = [];
+  res.locals.navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   res.locals.plexServerName = await getPlexServerName() || "votre serveur Plex";
 
   if (req.session.user) {

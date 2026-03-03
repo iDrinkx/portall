@@ -47,12 +47,16 @@
 
     <!-- Desktop Logout -->
     <div class="nav-right desktop-menu">
-      <a href="<%= basePath %>/profil" class="nav-sub-pill" id="navSubPill">&#x2014;</a>
+      <% if (navSubscriptionPillEnabled) { %>
+        <a href="<%= basePath %>/profil" class="nav-sub-pill" id="navSubPill">&#x2014;</a>
+      <% } %>
       <a class="logout-btn" href="<%= basePath %>/logout">Déconnexion</a>
     </div>
 
     <!-- Pill abonnement mobile -->
-    <a href="<%= basePath %>/profil" class="nav-sub-pill mobile-sub-pill" id="mobileSubPill">&#x2014;</a>
+    <% if (navSubscriptionPillEnabled) { %>
+      <a href="<%= basePath %>/profil" class="nav-sub-pill mobile-sub-pill" id="mobileSubPill">&#x2014;</a>
+    <% } %>
     <!-- Burger Mobile -->
     <div class="burger" id="burger">☰</div>
 
@@ -229,6 +233,7 @@
 
   });
 
+  <% if (navSubscriptionPillEnabled) { %>
   // --- Bulle abonnement navbar ---
   (function () {
     const pill   = document.getElementById('navSubPill');
@@ -271,6 +276,7 @@
       })
       .catch(() => {});
   })();
+  <% } %>
 
 </script>
 
