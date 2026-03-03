@@ -3,6 +3,7 @@ const session = require("express-session");
 const expressLayouts = require("express-ejs-layouts");
 const fetch = require("node-fetch");
 const path = require("path");
+const fs = require("fs");
 
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
@@ -23,6 +24,27 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 let cachedPlexServerName = undefined;
 let cachedPlexServerKey = null;
+
+function getCustomFaviconAsset() {
+  const candidates = [
+    { file: "favicon.ico", href: "/favicon.ico", type: "image/x-icon" },
+    { file: "favicon.png", href: "/favicon.png", type: "image/png" },
+    { file: "favicon.svg", href: "/favicon.svg", type: "image/svg+xml" },
+    { file: "favicon.webp", href: "/favicon.webp", type: "image/webp" },
+    { file: "favicon.jpg", href: "/favicon.jpg", type: "image/jpeg" },
+    { file: "favicon.jpeg", href: "/favicon.jpeg", type: "image/jpeg" }
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(path.join("/config", candidate.file))) {
+        return candidate;
+      }
+    } catch (_) {}
+  }
+
+  return { href: "/logo.png", type: "image/png" };
+}
 
 async function getPlexServerName() {
   const plexUrl = (process.env.PLEX_URL || "").replace(/\/$/, "");
@@ -168,6 +190,7 @@ app.use(async (req, res, next) => {
   res.locals.navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   res.locals.siteBackground = getSiteBackgroundSettings();
   res.locals.plexServerName = await getPlexServerName() || "votre serveur Plex";
+  res.locals.siteFavicon = getCustomFaviconAsset();
 
   if (req.session.user) {
     try {
