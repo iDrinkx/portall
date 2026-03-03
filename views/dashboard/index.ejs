@@ -5,6 +5,23 @@
   </div>
 </div>
 
+<%
+  const dashboardHtmlAboveBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
+    return block && block.position === "above";
+  });
+  const dashboardHtmlBelowBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
+    return !block || block.position !== "above";
+  });
+%>
+
+<% if (dashboardHtmlAboveBlocks.length) { %>
+  <% dashboardHtmlAboveBlocks.forEach(function(block) { %>
+  <div class="dashboard-custom-html">
+    <%- block.rendered %>
+  </div>
+  <% }) %>
+<% } %>
+
 <!-- HERO CARDS -->
 <div class="hero-cards">
 
@@ -84,8 +101,8 @@
 
 </div>
 
-<% if ((dashboardCustomHtmlBlocks || []).length) { %>
-  <% (dashboardCustomHtmlBlocks || []).forEach(function(block) { %>
+<% if (dashboardHtmlBelowBlocks.length) { %>
+  <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
   <div class="dashboard-custom-html">
     <%- block.rendered %>
   </div>

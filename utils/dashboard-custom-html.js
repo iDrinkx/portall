@@ -6,7 +6,8 @@ const MODE_KEY = "dashboard_custom_html_mode";
 function normalizeHtmlBlock(rawBlock, index = 0) {
   const html = String(rawBlock?.html == null ? rawBlock == null ? "" : rawBlock : rawBlock.html).trim();
   const id = String(rawBlock?.id || `block-${index + 1}`).trim() || `block-${index + 1}`;
-  return { id, html };
+  const position = String(rawBlock?.position || "below").trim().toLowerCase() === "above" ? "above" : "below";
+  return { id, html, position };
 }
 
 function parseDashboardCustomHtmlBlocks(rawValue) {
@@ -73,6 +74,7 @@ function getDashboardCustomHtmlBlocks() {
     const sanitized = sanitizeDashboardCustomHtml(block.html);
     return {
       id: block.id,
+      position: block.position,
       raw: block.html,
       sanitized,
       rendered: rawMode ? block.html : sanitized
@@ -100,6 +102,7 @@ function saveDashboardCustomHtml(rawHtml, options = {}) {
     const sanitized = sanitizeDashboardCustomHtml(block.html);
     return {
       id: block.id,
+      position: block.position,
       raw: block.html,
       sanitized,
       rendered: mode === "raw" ? block.html : sanitized

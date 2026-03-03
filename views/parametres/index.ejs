@@ -1,6 +1,6 @@
 <style>
   .settings-page {
-    max-width: 860px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 18px 0 40px;
   }
@@ -493,6 +493,13 @@
     padding: 14px;
   }
 
+  .dashboard-html-block textarea {
+    display: block;
+    width: 100%;
+    min-height: 280px;
+    resize: vertical;
+  }
+
   .dashboard-html-block-head {
     display: flex;
     align-items: center;
@@ -507,6 +514,19 @@
     color: #dbe7ff;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  .dashboard-html-block-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .dashboard-html-block-position {
+    min-width: 220px;
+    max-width: 320px;
   }
 
   .dashboard-html-block-remove {
@@ -815,9 +835,9 @@
 
     <div class="settings-tabs" id="settingsTabs">
       <button class="settings-tab active" type="button" data-tab-target="general"><%= t("settings.tab.general") %></button>
+      <button class="settings-tab" type="button" data-tab-target="dashboard"><%= t("settings.tab.dashboard") %></button>
       <button class="settings-tab" type="button" data-tab-target="background"><%= t("settings.tab.background") %></button>
       <button class="settings-tab" type="button" data-tab-target="connections"><%= t("settings.tab.connections") %></button>
-      <button class="settings-tab" type="button" data-tab-target="dashboard-html">Dashboard HTML</button>
     </div>
 
     <div class="settings-stack">
@@ -889,6 +909,9 @@
         </div>
         </div>
 
+      </div>
+
+      <div class="settings-panel" data-tab-panel="dashboard">
         <div class="settings-card">
         <h3 class="settings-card-title"><%= t("settings.dashboardBuiltins.title") %></h3>
         <p class="settings-card-sub"><%= t("settings.dashboardBuiltins.desc") %></p>
@@ -997,6 +1020,32 @@
             </div>
           <% }) %>
         </div>
+        </div>
+        <div class="settings-card">
+          <h3 class="settings-card-title"><%= t("settings.dashboardHtml.title") %></h3>
+          <p class="settings-card-sub"><%= t("settings.dashboardHtml.desc") %></p>
+
+          <div class="settings-field settings-field--full">
+            <label><%= t("settings.dashboardHtml.code") %></label>
+            <div class="dashboard-html-blocks" id="dashboardHtmlBlocks"></div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <h3><%= t("settings.dashboardHtml.rawMode.title") %></h3>
+              <p><%= t("settings.dashboardHtml.rawMode.desc") %></p>
+            </div>
+            <label class="switch" aria-label="Activer ou desactiver la compatibilite Organizr">
+              <input id="dashboardHtmlRawModeToggle" type="checkbox" <%= dashboardCustomHtmlRawMode ? "checked" : "" %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-actions">
+            <button class="settings-btn settings-btn-secondary" id="addDashboardHtmlBlockBtn" type="button">+ <%= t("settings.dashboardHtml.addBlock") %></button>
+            <button class="settings-btn" id="saveDashboardHtmlBtn" type="button"><%= t("settings.dashboardHtml.save") %></button>
+          </div>
+          <div class="settings-inline-note" id="dashboardHtmlState"><%= dashboardCustomHtmlRawMode ? t("settings.dashboardHtml.rawNote") : t("settings.dashboardHtml.safeNote") %></div>
         </div>
       </div>
 
@@ -1119,35 +1168,6 @@
           <div class="settings-inline-note" id="configState"><%= t("settings.connections.helper") %></div>
         </div>
       </div>
-
-      <div class="settings-panel" data-tab-panel="dashboard-html">
-        <div class="settings-card">
-          <h3 class="settings-card-title"><%= t("settings.dashboardHtml.title") %></h3>
-          <p class="settings-card-sub"><%= t("settings.dashboardHtml.desc") %></p>
-
-          <div class="settings-field settings-field--full">
-            <label><%= t("settings.dashboardHtml.code") %></label>
-            <div class="dashboard-html-blocks" id="dashboardHtmlBlocks"></div>
-          </div>
-
-          <div class="settings-row">
-            <div>
-              <h3><%= t("settings.dashboardHtml.rawMode.title") %></h3>
-              <p><%= t("settings.dashboardHtml.rawMode.desc") %></p>
-            </div>
-            <label class="switch" aria-label="Activer ou desactiver la compatibilite Organizr">
-              <input id="dashboardHtmlRawModeToggle" type="checkbox" <%= dashboardCustomHtmlRawMode ? "checked" : "" %>>
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="settings-actions">
-            <button class="settings-btn settings-btn-secondary" id="addDashboardHtmlBlockBtn" type="button">+ <%= t("settings.dashboardHtml.addBlock") %></button>
-            <button class="settings-btn" id="saveDashboardHtmlBtn" type="button"><%= t("settings.dashboardHtml.save") %></button>
-          </div>
-          <div class="settings-inline-note" id="dashboardHtmlState"><%= dashboardCustomHtmlRawMode ? t("settings.dashboardHtml.rawNote") : t("settings.dashboardHtml.safeNote") %></div>
-        </div>
-      </div>
     </div>
   </div>
 </section>
@@ -1251,8 +1271,10 @@
       return Array.from(dashboardHtmlBlocks.querySelectorAll("[data-dashboard-html-block]"))
         .map(function (el, index) {
           const textarea = el.querySelector("textarea");
+          const positionSelect = el.querySelector("[data-dashboard-html-position]");
           return {
             id: el.getAttribute("data-block-id") || ("block-" + (index + 1)),
+            position: positionSelect && positionSelect.value === "above" ? "above" : "below",
             html: textarea ? String(textarea.value || "") : ""
           };
         })
@@ -1272,6 +1294,15 @@
             <div class="dashboard-html-block-head">
               <div class="dashboard-html-block-title">Bloc ${index + 1}</div>
               <button class="dashboard-html-block-remove" type="button" data-remove-dashboard-html-block="${escAttr(block.id || ("block-" + (index + 1)))}"><%= t("settings.dashboardHtml.removeBlock") %></button>
+            </div>
+            <div class="dashboard-html-block-meta">
+              <div class="settings-field dashboard-html-block-position">
+                <label><%= t("settings.dashboardHtml.position") %></label>
+                <select class="settings-inline-select" data-dashboard-html-position>
+                  <option value="above" ${block.position === "above" ? "selected" : ""}><%= t("settings.dashboardHtml.position.above") %></option>
+                  <option value="below" ${block.position === "above" ? "" : "selected"}><%= t("settings.dashboardHtml.position.below") %></option>
+                </select>
+              </div>
             </div>
             <textarea spellcheck="false" autocomplete="off">${escHtml(block.html || "")}</textarea>
           </div>
@@ -1783,6 +1814,7 @@
         dashboardHtmlBlockItems = getDashboardHtmlBlocksPayload();
         dashboardHtmlBlockItems.push({
           id: "block-" + Date.now(),
+          position: "below",
           html: ""
         });
         renderDashboardHtmlBlocks();
