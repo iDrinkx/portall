@@ -51,7 +51,8 @@ async function ensureAdminFlag(req) {
 
   let isAdmin = false;
   try {
-    const ownerId = await getServerOwnerId(process.env.PLEX_TOKEN);
+    const plexToken = getConfigValue("PLEX_TOKEN", "");
+    const ownerId = plexToken ? await getServerOwnerId(plexToken) : null;
     isAdmin = !!ownerId && Number(ownerId) === Number(req.session.user.id);
   } catch (_) {
     isAdmin = false;

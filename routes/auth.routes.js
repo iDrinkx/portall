@@ -180,19 +180,21 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   // Plex est BLOQUANT (obligatoire pour le login)
   let authorizedByPlex = true;
   let isAdmin = false;
-  if (process.env.PLEX_URL && process.env.PLEX_TOKEN) {
+  const plexUrl = getConfigValue("PLEX_URL", "");
+  const plexToken = getConfigValue("PLEX_TOKEN", "");
+  if (plexUrl && plexToken) {
     try {
       const userId = parseInt(user.id);
       const [ownerId, machineId] = await Promise.all([
-        getServerOwnerId(process.env.PLEX_TOKEN),
-        getServerMachineId(process.env.PLEX_URL, process.env.PLEX_TOKEN)
+        getServerOwnerId(plexToken),
+        getServerMachineId(plexUrl, plexToken)
       ]);
 
       if (ownerId && ownerId === userId) {
         isAdmin = true;
         logAuth.info(`User ${userId} — propriétaire du serveur`);
       } else {
-        const authorizedUsers = await getAuthorizedServerUsers(process.env.PLEX_TOKEN, machineId);
+        const authorizedUsers = await getAuthorizedServerUsers(plexToken, machineId);
         if (!authorizedUsers.some(u => u.id === userId)) {
           logAuth.warn(`Accès Plex refusé — ${user.username} (${userId}) absent du serveur`);
           authorizedByPlex = false;
@@ -240,7 +242,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
 
   // ── Vérifications en ARRIÈRE-PLAN (ne bloquent pas le login) ────────────────────────
   // Wizarr en arrière-plan - si elle échoue, on log juste un warning
-  checkWizarrAccess(user, process.env.WIZARR_URL, process.env.WIZARR_API_KEY)
+  checkWizarrAccess(user, getConfigValue("WIZARR_URL", ""), getConfigValue("WIZARR_API_KEY", ""))
     .then(wizarrCheck => {
       if (!wizarrCheck.authorized) {
         logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
