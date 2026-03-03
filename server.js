@@ -200,7 +200,7 @@ app.use(async (req, res, next) => {
           icon: card.icon || "✨",
           integrationKey,
           href,
-          external: integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl),
+          external: integrationKey === "romm_auto" || (integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl)),
           navColorBase: navColors.base,
           navColorHover: navColors.hover,
           navColorAccent: navColors.accent

@@ -43,6 +43,7 @@
     <a
       href="<%= card.href %>"
       class="hero-card hero-card-custom"
+      <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
       style="
         --custom-bg-start: <%= card.color.bgStart %>;
         --custom-bg-end: <%= card.color.bgEnd %>;

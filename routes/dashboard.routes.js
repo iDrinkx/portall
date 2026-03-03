@@ -871,7 +871,8 @@ router.get("/dashboard", requireAuth, (req, res) => {
         color,
         openInIframe: !!card.openInIframe,
         integrationKey: card.integrationKey || "custom",
-        href: toCardHref(card, req.basePath || "")
+        href: toCardHref(card, req.basePath || ""),
+        external: String(card.integrationKey || "custom") === "romm_auto"
       };
     })
     .filter(Boolean);
@@ -1792,6 +1793,7 @@ router.get("/app-card/:id", requireAuth, async (req, res) => {
       if (!result.ok && result.error) {
         return renderServiceConnectGate(res, req, "romm", card.title, result.error);
       }
+      return res.redirect(srcUrl);
     } catch (_) {
       return renderServiceConnectGate(res, req, "romm", card.title, "Connexion RomM requise");
     }
