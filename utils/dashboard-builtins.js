@@ -51,7 +51,7 @@ const DASHBOARD_BUILTIN_DEFINITIONS = [
     navLabel: "Demandes",
     navClass: "nav-link-demandes",
     cardKind: "image",
-    iconSrc: "/img/seerr-icon.png",
+    iconSrc: "/img/seerr-icon.svg",
     iconAlt: "Seerr"
   },
   {
