@@ -383,6 +383,40 @@ function decodeCookieValue(rawValue) {
   }
 }
 
+function getSetCookieName(cookieStr) {
+  return String(cookieStr || "").split("=")[0].trim();
+}
+
+function findRommSessionCookie(setCookies = []) {
+  const exactCandidates = ["session_id", "romm_session", "session", "connect.sid"];
+  for (const name of exactCandidates) {
+    const match = setCookies.find((cookie) => cookie.startsWith(`${name}=`));
+    if (match) return { name, raw: match };
+  }
+
+  const heuristic = setCookies.find((cookie) => {
+    const name = getSetCookieName(cookie).toLowerCase();
+    return name.includes("session") && !name.includes("csrf") && !name.includes("xsrf");
+  });
+  if (heuristic) return { name: getSetCookieName(heuristic), raw: heuristic };
+  return null;
+}
+
+function findRommCsrfCookie(setCookies = []) {
+  const exactCandidates = ["csrftoken", "csrf_token", "xsrf-token", "XSRF-TOKEN"];
+  for (const name of exactCandidates) {
+    const match = setCookies.find((cookie) => cookie.startsWith(`${name}=`));
+    if (match) return { name, raw: match };
+  }
+
+  const heuristic = setCookies.find((cookie) => {
+    const name = getSetCookieName(cookie).toLowerCase();
+    return name.includes("csrf") || name.includes("xsrf");
+  });
+  if (heuristic) return { name: getSetCookieName(heuristic), raw: heuristic };
+  return null;
+}
+
 async function authenticateJellyfin(username, password) {
   const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
   if (!jellyfinUrl || !username || !password) return null;
@@ -435,8 +469,10 @@ async function loginRommAndGetSessionCookies(username, password) {
     hiddenFields = Object.fromEntries(hiddenFieldMatches.map((m) => [m[1], m[2]]));
 
     logRomm.info(`GET /login -> ${preflightResp.status} | form action: ${loginPostUrl} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
-    const csrfCookie = preflightCookies.find(c => c.startsWith("csrftoken=")) || "";
-    const sessionCookie = preflightCookies.find(c => c.startsWith("session_id=")) || "";
+    const csrfCookieInfo = findRommCsrfCookie(preflightCookies);
+    const sessionCookieInfo = findRommSessionCookie(preflightCookies);
+    const csrfCookie = csrfCookieInfo?.raw || "";
+    const sessionCookie = sessionCookieInfo?.raw || "";
 
     const cookiePairs = [csrfCookie, sessionCookie]
       .filter(Boolean)
@@ -497,14 +533,31 @@ async function loginRommAndGetSessionCookies(username, password) {
       const resp = await fetch(loginPostUrl, options);
       const setCookies = resp.headers.raw()["set-cookie"] || [];
       const location = resp.headers.get("location") || "";
+      const contentType = resp.headers.get("content-type") || "unknown";
       logRomm.info(`POST ${loginPostUrl} -> ${resp.status}${location ? ` -> ${location}` : ""} | cookies: ${setCookies.map(c => c.split("=")[0]).join(", ") || "none"} | content-type: ${resp.headers.get("content-type") || "unknown"}`);
-      const sessionCookie = setCookies.find(c => c.startsWith("session_id="));
-      if (!sessionCookie) continue;
+      const sessionCookieInfo = findRommSessionCookie(setCookies);
+      const csrfCookieInfo = findRommCsrfCookie(setCookies);
+      const sessionCookie = sessionCookieInfo?.raw || null;
+      if (!sessionCookie) {
+        const bodyPreview = await resp.text().catch(() => "");
+        if (bodyPreview) {
+          logRomm.warn(`RomM login sans cookie session | extrait: ${bodyPreview.slice(0, 220).replace(/\s+/g, " ")}`);
+        } else {
+          logRomm.warn(`RomM login sans cookie session | body vide | content-type: ${contentType}`);
+        }
+        continue;
+      }
 
-      const csrfCookie = setCookies.find(c => c.startsWith("csrftoken=")) || null;
-      logRomm.info("Session RomM detectee via /login");
-      return { sessionCookie, csrfCookie };
-    } catch (_) {}
+      logRomm.info(`Session RomM detectee via /login (${sessionCookieInfo?.name || "unknown"})`);
+      return {
+        sessionCookie,
+        sessionCookieName: sessionCookieInfo?.name || getSetCookieName(sessionCookie),
+        csrfCookie: csrfCookieInfo?.raw || null,
+        csrfCookieName: csrfCookieInfo?.name || (csrfCookieInfo?.raw ? getSetCookieName(csrfCookieInfo.raw) : null)
+      };
+    } catch (err) {
+      logRomm.warn(`Erreur RomM sur ${loginPostUrl}: ${err.message}`);
+    }
   }
   logRomm.warn("Aucun cookie de session RomM retourne par /login");
   return null;
@@ -677,12 +730,14 @@ async function grabRommCookieForUser(res, sessionUser) {
   const opts = { path: "/", httpOnly: true, sameSite: "none", secure: true, encode: v => v };
   if (parentDomain) opts.domain = parentDomain;
 
-  const sessionValue = decodeCookieValue(cookies.sessionCookie.split(";")[0].replace("session_id=", ""));
-  res.cookie("session_id", sessionValue, opts);
+  const sessionCookieName = String(cookies.sessionCookieName || getSetCookieName(cookies.sessionCookie) || "session_id");
+  const sessionValue = decodeCookieValue(cookies.sessionCookie.split(";")[0].replace(`${sessionCookieName}=`, ""));
+  res.cookie(sessionCookieName, sessionValue, opts);
 
   if (cookies.csrfCookie) {
-    const csrfValue = decodeCookieValue(cookies.csrfCookie.split(";")[0].replace("csrftoken=", ""));
-    res.cookie("csrftoken", csrfValue, {
+    const csrfCookieName = String(cookies.csrfCookieName || getSetCookieName(cookies.csrfCookie) || "csrftoken");
+    const csrfValue = decodeCookieValue(cookies.csrfCookie.split(";")[0].replace(`${csrfCookieName}=`, ""));
+    res.cookie(csrfCookieName, csrfValue, {
       path: "/",
       httpOnly: false,
       sameSite: "none",
@@ -1398,6 +1453,12 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
     if (service === "jellyfin") {
       const auth = await authenticateJellyfin(username, password);
       if (!auth?.accessToken) return res.status(401).json({ error: "Identifiants Jellyfin invalides" });
+    }
+    if (service === "romm") {
+      const cookies = await loginRommAndGetSessionCookies(username, password);
+      if (!cookies?.sessionCookie) {
+        return res.status(401).json({ error: "Identifiants RomM invalides ou login RomM non compatible avec cette configuration" });
+      }
     }
     const saved = saveUserServiceCredential(req.session.user, service, username, password);
     if (!saved) return res.status(500).json({ error: "Impossible d'enregistrer les identifiants" });
