@@ -107,7 +107,7 @@
     <%- block.rendered %>
   </div>
   <% }) %>
-<% } else if (dashboardCustomHtml) { %>
+<% } else if (!(dashboardCustomHtmlBlocks || []).length && dashboardCustomHtml) { %>
   <div class="dashboard-custom-html">
     <%- dashboardCustomHtml %>
   </div>
