@@ -990,6 +990,12 @@ body.site-bg-mode-custom .site-bg-image {
   box-shadow: 0 4px 14px var(--custom-icon-glow);
 }
 
+.hero-icon-custom-logo--jellyfin {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
 .hero-icon--calendrier {
   background: transparent;
   border: 2px solid rgba(239, 68, 68, 0.5);

@@ -487,6 +487,14 @@
     font-weight: 700;
   }
 
+  .dashboard-html-preview-frame {
+    width: 100%;
+    min-height: 320px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(5, 8, 12, 0.72);
+  }
+
   .dashboard-html-blocks {
     display: flex;
     flex-direction: column;
@@ -1156,7 +1164,7 @@
 
           <div class="dashboard-html-preview">
             <div class="dashboard-html-preview-title"><%= dashboardCustomHtmlRawMode ? t("settings.dashboardHtml.preview.raw") : t("settings.dashboardHtml.preview.safe") %></div>
-            <div class="dashboard-custom-html" id="dashboardHtmlPreview"><%- dashboardCustomHtmlPreview || "" %></div>
+            <iframe class="dashboard-html-preview-frame" id="dashboardHtmlPreview" sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts"></iframe>
           </div>
         </div>
       </div>
@@ -1258,6 +1266,34 @@
 
     function escAttr(v) {
       return escHtml(v).replace(/`/g, "&#96;");
+    }
+
+    function renderDashboardHtmlPreview(html) {
+      if (!dashboardHtmlPreview) return;
+      const previewHtml = String(html || "");
+      dashboardHtmlPreview.srcdoc = `<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        background: #050607;
+        color: #eef3ff;
+        font-family: system-ui, sans-serif;
+      }
+
+      body {
+        padding: 16px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>${previewHtml}</body>
+</html>`;
     }
 
     function getDashboardHtmlBlocksPayload() {
@@ -1778,6 +1814,7 @@
 
     if (dashboardHtmlBlocks) {
       renderDashboardHtmlBlocks();
+      renderDashboardHtmlPreview(<%- JSON.stringify(dashboardCustomHtmlPreview || "") %>);
       dashboardHtmlBlocks.addEventListener("click", function (event) {
         const removeBtn = event.target.closest("[data-remove-dashboard-html-block]");
         if (!removeBtn) return;
@@ -1826,7 +1863,7 @@
               })
             : [{ id: "block-1", html: "" }];
           renderDashboardHtmlBlocks();
-          dashboardHtmlPreview.innerHTML = data.rendered || "";
+          renderDashboardHtmlPreview(data.rendered || "");
           if (dashboardHtmlPreviewTitle) {
             dashboardHtmlPreviewTitle.textContent = data.mode === "raw" ? "<%= t('settings.dashboardHtml.preview.raw') %>" : "<%= t('settings.dashboardHtml.preview.safe') %>";
           }
