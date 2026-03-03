@@ -4,7 +4,7 @@
   </div>
 
   <div class="login-card">
-    <h1><%= t("login.title") %></h1>
+    <h1>Connectez-vous pour continuer</h1>
     <% if (typeof error !== 'undefined' && error === 'unauthorized') { %>
     <div class="login-error"><%= t("login.unauthorized", { serverName: plexServerName }) %></div>
     <% } %>
