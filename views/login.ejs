@@ -17,8 +17,14 @@
 
 <style>
   .plex-btn--logo {
-    min-width: 320px;
+    min-width: 360px;
+    min-height: 40px;
     gap: 4px;
+    color: #f4f1ec;
+    background: #533f2b;
+    border: 1px solid #a66822;
+    box-shadow: none;
+    filter: none;
   }
 
   .plex-btn-label {
@@ -30,6 +36,22 @@
     height: auto;
     display: block;
     transform: translateY(1px);
+  }
+
+  .plex-btn--logo::before {
+    display: none;
+  }
+
+  .plex-btn--logo:hover {
+    background: #a66822;
+    border-color: #a66822;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+  }
+
+  .plex-btn--logo:active {
+    transform: none;
   }
 
   .login-error {
