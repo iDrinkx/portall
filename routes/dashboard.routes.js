@@ -25,7 +25,7 @@ const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, 
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // ?? Import EventEmitter
 const { calculateUserXp } = require("../utils/xp-calculator");  // ?? Fonction centralisée XP
-const { getConfigSections, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
+const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
 const {
   getDashboardBuiltinAdminItems,
   saveDashboardBuiltinConfig,
@@ -191,13 +191,13 @@ function resolveIntegrationSrc(card, basePath = "") {
   const rawUrl = String(card.url || "");
 
   if (integrationKey === "komga_auto") {
-    return (process.env.KOMGA_PUBLIC_URL || rawUrl || "").trim();
+    return (getConfigValue("KOMGA_PUBLIC_URL", "") || rawUrl || "").trim();
   }
   if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
-    return (process.env.JELLYFIN_PUBLIC_URL || rawUrl || "").trim();
+    return (getConfigValue("JELLYFIN_PUBLIC_URL", "") || rawUrl || "").trim();
   }
   if (integrationKey === "romm_auto") {
-    return (process.env.ROMM_PUBLIC_URL || rawUrl || "").trim();
+    return (getConfigValue("ROMM_PUBLIC_URL", "") || rawUrl || "").trim();
   }
 
   if (rawUrl.startsWith("/")) return `${basePath}${rawUrl}`;
@@ -215,16 +215,16 @@ function toCardHref(card, basePath = "") {
 
 function getIntegrationAvailability() {
   const komgaConfigured = !!(
-    process.env.KOMGA_URL &&
-    process.env.KOMGA_PUBLIC_URL
+    getConfigValue("KOMGA_URL", "") &&
+    getConfigValue("KOMGA_PUBLIC_URL", "")
   );
   const jellyfinAutoConfigured = !!(
-    process.env.JELLYFIN_URL &&
-    process.env.JELLYFIN_PUBLIC_URL
+    getConfigValue("JELLYFIN_URL", "") &&
+    getConfigValue("JELLYFIN_PUBLIC_URL", "")
   );
   const rommAutoConfigured = !!(
-    process.env.ROMM_URL &&
-    process.env.ROMM_PUBLIC_URL
+    getConfigValue("ROMM_URL", "") &&
+    getConfigValue("ROMM_PUBLIC_URL", "")
   );
   return {
     komgaConfigured,
@@ -245,8 +245,8 @@ function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
 
   if (integrationKey === "komga_auto") {
     const ok = !!(
-      process.env.KOMGA_URL &&
-      process.env.KOMGA_PUBLIC_URL
+      getConfigValue("KOMGA_URL", "") &&
+      getConfigValue("KOMGA_PUBLIC_URL", "")
     );
     if (!ok) return { ok: false, error: "Komga non configuré côté serveur (KOMGA_URL + KOMGA_PUBLIC_URL requis)" };
     return { ok: true };
@@ -254,8 +254,8 @@ function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
 
   if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
     const ok = !!(
-      process.env.JELLYFIN_URL &&
-      process.env.JELLYFIN_PUBLIC_URL
+      getConfigValue("JELLYFIN_URL", "") &&
+      getConfigValue("JELLYFIN_PUBLIC_URL", "")
     );
     if (!ok) {
       return {
@@ -268,8 +268,8 @@ function validateIntegrationForCreateOrUpdate(integrationKey, srcUrl) {
 
   if (integrationKey === "romm_auto") {
     const ok = !!(
-      process.env.ROMM_URL &&
-      process.env.ROMM_PUBLIC_URL
+      getConfigValue("ROMM_URL", "") &&
+      getConfigValue("ROMM_PUBLIC_URL", "")
     );
     if (!ok) {
       return {
@@ -369,7 +369,7 @@ function clearUserServiceCredential(sessionUser, serviceKey) {
 }
 
 async function authenticateJellyfin(username, password) {
-  const jellyfinUrl = (process.env.JELLYFIN_URL || "").replace(/\/$/, "");
+  const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
   if (!jellyfinUrl || !username || !password) return null;
   try {
     const authResp = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
@@ -393,7 +393,7 @@ async function authenticateJellyfin(username, password) {
 }
 
 async function loginRommAndGetSessionCookies(username, password) {
-  const rommUrl = (process.env.ROMM_URL || "").replace(/\/$/, "");
+  const rommUrl = getConfigValue("ROMM_URL", "").replace(/\/$/, "");
   if (!rommUrl || !username || !password) return null;
 
   let preflightCookieHeader = "";
@@ -496,7 +496,7 @@ async function loginRommAndGetSessionCookies(username, password) {
 }
 
 async function loginKomgaAndGetSessionCookies(username, password) {
-  const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+  const komgaUrl = getConfigValue("KOMGA_URL", "").replace(/\/$/, "");
   if (!komgaUrl || !username || !password) return null;
 
   const attempts = [
@@ -548,8 +548,8 @@ async function fetchKomgaCurrentUser(komgaUrl, headers) {
 }
 
 async function grabKomgaCookieForUser(res, sessionUser) {
-  const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
-  const komgaPublicUrl = (process.env.KOMGA_PUBLIC_URL || "").trim();
+  const komgaUrl = getConfigValue("KOMGA_URL", "").replace(/\/$/, "");
+  const komgaPublicUrl = getConfigValue("KOMGA_PUBLIC_URL", "").trim();
   if (!komgaUrl || !komgaPublicUrl) return { ok: false, needsSetup: false, error: "Komga non configuré côté serveur" };
 
   const cred = getUserServiceCredential(sessionUser, "komga");
@@ -643,8 +643,9 @@ async function buildJellyfinAutoAuthUrlForUser(srcUrl, sessionUser) {
 }
 
 async function grabRommCookieForUser(res, sessionUser) {
-  const rommPublicUrl = (process.env.ROMM_PUBLIC_URL || "").trim();
-  if (!process.env.ROMM_URL || !rommPublicUrl) {
+  const rommUrl = getConfigValue("ROMM_URL", "").replace(/\/$/, "");
+  const rommPublicUrl = getConfigValue("ROMM_PUBLIC_URL", "").trim();
+  if (!rommUrl || !rommPublicUrl) {
     return { ok: false, needsSetup: false, error: "RomM non configuré côté serveur" };
   }
 
@@ -653,7 +654,7 @@ async function grabRommCookieForUser(res, sessionUser) {
 
   const cookies = await loginRommAndGetSessionCookies(cred.username, cred.password);
   if (!cookies?.sessionCookie) {
-    logRomm.warn(`Echec auto-auth pour ${sessionUser?.username || "unknown"} via ${process.env.ROMM_URL || ""}`);
+    logRomm.warn(`Echec auto-auth pour ${sessionUser?.username || "unknown"} via ${rommUrl}`);
     return { ok: false, needsSetup: false, error: "Connexion automatique RomM impossible avec les identifiants enregistrés" };
   }
 
@@ -687,6 +688,7 @@ function renderServiceConnectGate(res, req, serviceKey, cardTitle, errorMessage 
   return res.render("apps/service-connect", {
     layout: false,
     basePath: req.basePath || "",
+    locale: res.locals.locale || "fr",
     serviceKey,
     serviceName,
     cardTitle: cardTitle || serviceName,
@@ -1361,7 +1363,7 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
 
   try {
     if (service === "komga") {
-      const komgaUrl = (process.env.KOMGA_URL || "").replace(/\/$/, "");
+      const komgaUrl = getConfigValue("KOMGA_URL", "").replace(/\/$/, "");
       if (!komgaUrl) return res.status(400).json({ error: "KOMGA_URL manquant côté serveur" });
 
       const basic = Buffer.from(`${username}:${password}`).toString("base64");
