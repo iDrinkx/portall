@@ -54,6 +54,36 @@ function buildClassementUsersFromTautulli() {
   return results;
 }
 
+function chooseBestClassementFallbackUsers() {
+  const dbUsers = buildClassementUsersFromDb(UserQueries.getAll() || []);
+  const tautulliUsers = buildClassementUsersFromTautulli();
+
+  if (tautulliUsers.length > dbUsers.length) {
+    return {
+      source: "tautulli",
+      users: tautulliUsers,
+      dbCount: dbUsers.length,
+      tautulliCount: tautulliUsers.length
+    };
+  }
+
+  if (dbUsers.length > 0) {
+    return {
+      source: "db",
+      users: dbUsers,
+      dbCount: dbUsers.length,
+      tautulliCount: tautulliUsers.length
+    };
+  }
+
+  return {
+    source: "tautulli",
+    users: tautulliUsers,
+    dbCount: dbUsers.length,
+    tautulliCount: tautulliUsers.length
+  };
+}
+
 /**
  * 🔍 Valide les données calculées pour détecter les corruptions
  */
@@ -178,6 +208,7 @@ async function refreshClassementCache() {
     // ══════════════════════════════════════════════════════════════════
     const wizarrConfigured = !!(process.env.WIZARR_URL && process.env.WIZARR_API_KEY);
     let wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
+    const hadInitialWizarrUsers = wizarrUsers.length > 0;
 
     if (wizarrUsers.length > 0) {
       // Garder uniquement les utilisateurs actifs (abonnement illimité ou non expiré)
@@ -231,6 +262,14 @@ async function refreshClassementCache() {
           wizarrUsers = [];
           logCR.warn('Wizarr vide, DB locale vide et Tautulli sans utilisateurs');
         }
+      }
+    }
+
+    if (!hadInitialWizarrUsers) {
+      const fallback = chooseBestClassementFallbackUsers();
+      if (fallback.source === "tautulli" && fallback.tautulliCount > wizarrUsers.length) {
+        wizarrUsers = fallback.users;
+        logCR.warn(`Fallback classement remplacé par Tautulli (${fallback.tautulliCount} users, DB=${fallback.dbCount})`);
       }
     }
 
