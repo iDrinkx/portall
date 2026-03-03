@@ -991,6 +991,8 @@
             <div class="settings-field settings-field--full" id="siteBackgroundFileField">
               <label for="siteBackgroundFile"><%= t("settings.background.customFile") %></label>
               <input id="siteBackgroundFile" type="file" accept="image/*">
+              <div class="settings-inline-note"><%= t("settings.background.formatsHint") %></div>
+              <div class="settings-inline-note"><%= t("settings.background.sizeHint") %></div>
             </div>
           </div>
           <div class="settings-actions">
@@ -1171,6 +1173,7 @@
     let dashboardBuiltinsInFlight = false;
     let siteBackgroundFileDataUrl = <%- JSON.stringify(siteBackground && String(siteBackground.customUrl || "").startsWith("data:image/") ? siteBackground.customUrl : "") %>;
     let siteBackgroundCustomSource = siteBackgroundFileDataUrl ? "file" : "url";
+    const SITE_BACKGROUND_RECOMMENDED_MAX_BYTES = 8 * 1024 * 1024;
     let dashboardBuiltinItems = <%- JSON.stringify(dashboardBuiltinItems || []) %>;
     const backgroundPresetLabels = {
       particles: "<%= t('settings.background.presets.particles') %>",
@@ -1557,7 +1560,7 @@
             body: JSON.stringify(payload)
           });
           const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
+          if (!resp.ok) throw new Error((data && (data.message || data.error)) || ("HTTP " + resp.status));
           configState.textContent = "Connexions enregistrees avec succes.";
         } catch (err) {
           configState.textContent = err.message || "Impossible d'enregistrer les connexions.";
@@ -1615,6 +1618,16 @@
           renderSiteBackgroundPreview();
           return;
         }
+        if (file.size > SITE_BACKGROUND_RECOMMENDED_MAX_BYTES) {
+          siteBackgroundFile.value = "";
+          siteBackgroundFileDataUrl = "";
+          siteBackgroundCustomSource = "url";
+          if (siteBackgroundState) {
+            siteBackgroundState.textContent = "<%= t('settings.background.tooLarge') %>";
+          }
+          renderSiteBackgroundPreview();
+          return;
+        }
         const reader = new FileReader();
         reader.onload = function () {
           siteBackgroundFileDataUrl = String(reader.result || "");
@@ -1652,7 +1665,14 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ mode, customUrl, customOpacity })
           });
-          const data = await resp.json();
+          const contentType = resp.headers.get("content-type") || "";
+          let data = null;
+          if (contentType.includes("application/json")) {
+            data = await resp.json();
+          } else {
+            const rawText = await resp.text();
+            throw new Error(rawText && rawText.includes("<!DOCTYPE") ? "<%= t('settings.background.serverPayloadTooLarge') %>" : ("HTTP " + resp.status));
+          }
           if (!resp.ok) throw new Error(data.error || ("HTTP " + resp.status));
           if (siteBackgroundOpacity) {
             siteBackgroundOpacity.value = String(data.background.customOpacity != null ? data.background.customOpacity : customOpacity);
@@ -1660,7 +1680,10 @@
           renderSiteBackgroundPreview();
           siteBackgroundState.textContent = "<%= t('settings.background.saved') %>";
         } catch (err) {
-          siteBackgroundState.textContent = err.message || "<%= t('settings.background.error') %>";
+          const message = err && err.message === "Payload too large"
+            ? "<%= t('settings.background.serverPayloadTooLarge') %>"
+            : (err.message || "<%= t('settings.background.error') %>");
+          siteBackgroundState.textContent = message;
         } finally {
           saveSiteBackgroundBtn.disabled = false;
         }
