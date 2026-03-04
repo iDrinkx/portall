@@ -101,7 +101,8 @@ router.get("/seerr", requireAuth, async (req, res) => {
     layout: false,
     seerrPublicUrl,
     locale: res.locals.locale || "fr",
-    basePath: req.basePath || ""
+    basePath: req.basePath || "",
+    siteTitle: res.locals.siteTitle || "Plex-Portal"
   });
 });
 

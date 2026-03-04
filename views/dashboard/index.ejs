@@ -5,6 +5,23 @@
   </div>
 </div>
 
+<%
+  const dashboardHtmlAboveBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
+    return block && block.position === "above";
+  });
+  const dashboardHtmlBelowBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
+    return !block || block.position !== "above";
+  });
+%>
+
+<% if (dashboardHtmlAboveBlocks.length) { %>
+  <% dashboardHtmlAboveBlocks.forEach(function(block) { %>
+  <div class="dashboard-custom-html">
+    <%- block.rendered %>
+  </div>
+  <% }) %>
+<% } %>
+
 <!-- HERO CARDS -->
 <div class="hero-cards">
 
@@ -43,6 +60,7 @@
     <a
       href="<%= card.href %>"
       class="hero-card hero-card-custom"
+      <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
       style="
         --custom-bg-start: <%= card.color.bgStart %>;
         --custom-bg-end: <%= card.color.bgEnd %>;
@@ -63,7 +81,7 @@
             <% if ((card.integrationKey || "") === "komga_auto") { %>
               <img src="<%= basePath %>/img/komga-icon.svg" alt="Komga" class="hero-icon-custom-logo">
             <% } else if ((card.integrationKey || "") === "jellyfin_auto") { %>
-              <img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="hero-icon-custom-logo">
+              <img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="hero-icon-custom-logo hero-icon-custom-logo--jellyfin">
             <% } else if ((card.integrationKey || "") === "romm_auto") { %>
               <img src="<%= basePath %>/img/romm-icon.svg" alt="RomM" class="hero-icon-custom-logo">
             <% } else { %>
@@ -83,7 +101,13 @@
 
 </div>
 
-<% if (dashboardCustomHtml) { %>
+<% if (dashboardHtmlBelowBlocks.length) { %>
+  <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
+  <div class="dashboard-custom-html">
+    <%- block.rendered %>
+  </div>
+  <% }) %>
+<% } else if (!(dashboardCustomHtmlBlocks || []).length && dashboardCustomHtml) { %>
   <div class="dashboard-custom-html">
     <%- dashboardCustomHtml %>
   </div>

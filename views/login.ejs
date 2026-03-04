@@ -4,23 +4,62 @@
   </div>
 
   <div class="login-card">
-    <h1><%= t("login.title") %></h1>
+    <h1>Connectez-vous pour continuer</h1>
     <% if (typeof error !== 'undefined' && error === 'unauthorized') { %>
     <div class="login-error"><%= t("login.unauthorized", { serverName: plexServerName }) %></div>
     <% } %>
-    <a class="plex-btn" href="<%= basePath %>/login"><%= t("login.withPlex") %></a>
+    <a class="plex-btn plex-btn--logo" href="<%= basePath %>/login" aria-label="<%= t('login.withPlex') %>">
+      <span class="plex-btn-label"><%= locale === "en" ? "Sign in with" : "Se connecter avec" %></span>
+      <img src="<%= basePath %>/img/plex-alt-light.svg" alt="Plex" class="plex-btn-logo" />
+    </a>
   </div>
 </div>
 
 <style>
-  .login-error {
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    font-size: 0.88rem;
-    text-align: center;
+  .login-card h1 {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+
+  .plex-btn--logo {
+    min-width: 280px;
+    min-height: 48px;
+    gap: 4px;
+    padding: 12px 24px;
+    color: #f4f1ec;
+    background: #533f2b;
+    border: 1px solid #a66822;
+    box-shadow: none;
+    filter: none;
+  }
+
+  .plex-btn-label {
+    line-height: 1;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f4f1ec;
+  }
+
+  .plex-btn-logo {
+    width: 36px;
+    height: auto;
+    display: block;
+    transform: translateY(1px);
+  }
+
+  .plex-btn--logo::before {
+    display: none;
+  }
+
+  .plex-btn--logo:hover {
+    background: #a66822;
+    border-color: #a66822;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+  }
+
+  .plex-btn--logo:active {
+    transform: none;
   }
 </style>

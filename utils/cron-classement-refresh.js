@@ -3,7 +3,7 @@ const fetch = require('node-fetch');
 const log = require('./logger');
 const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
-const { getUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
+const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
 const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
 const { getAllWizarrUsers } = require('./wizarr');       // 🔑 Source de vérité
 
@@ -17,6 +17,72 @@ let classementCache = {
 
 let lastValidCache = null; // Cache de secours en cas de corruption
 let corruptionCount = 0;    // Compteur de corruptions détectées
+
+function buildClassementUsersFromDb(dbUsers = []) {
+  return dbUsers.map(u => ({
+    username: u.username,
+    plexUserId: null,
+    email: u.email || null,
+    joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
+  }));
+}
+
+function buildClassementUsersFromTautulli() {
+  const tautulliUsers = getAllUserStatsFromTautulli() || [];
+  const seen = new Set();
+  const results = [];
+
+  for (const user of tautulliUsers) {
+    const username = String(user?.username || "").trim();
+    if (!username) continue;
+    const key = username.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    try {
+      UserQueries.upsert(username, null, null, null);
+    } catch (_) {}
+
+    results.push({
+      username,
+      plexUserId: user.userId || null,
+      email: null,
+      joinedAtTimestamp: null
+    });
+  }
+
+  return results;
+}
+
+function chooseBestClassementFallbackUsers() {
+  const dbUsers = buildClassementUsersFromDb(UserQueries.getAll() || []);
+  const tautulliUsers = buildClassementUsersFromTautulli();
+
+  if (tautulliUsers.length > dbUsers.length) {
+    return {
+      source: "tautulli",
+      users: tautulliUsers,
+      dbCount: dbUsers.length,
+      tautulliCount: tautulliUsers.length
+    };
+  }
+
+  if (dbUsers.length > 0) {
+    return {
+      source: "db",
+      users: dbUsers,
+      dbCount: dbUsers.length,
+      tautulliCount: tautulliUsers.length
+    };
+  }
+
+  return {
+    source: "tautulli",
+    users: tautulliUsers,
+    dbCount: dbUsers.length,
+    tautulliCount: tautulliUsers.length
+  };
+}
 
 /**
  * 🔍 Valide les données calculées pour détecter les corruptions
@@ -142,6 +208,7 @@ async function refreshClassementCache() {
     // ══════════════════════════════════════════════════════════════════
     const wizarrConfigured = !!(process.env.WIZARR_URL && process.env.WIZARR_API_KEY);
     let wizarrUsers = await getAllWizarrUsers(process.env.WIZARR_URL, process.env.WIZARR_API_KEY);
+    const hadInitialWizarrUsers = wizarrUsers.length > 0;
 
     if (wizarrUsers.length > 0) {
       // Garder uniquement les utilisateurs actifs (abonnement illimité ou non expiré)
@@ -174,26 +241,35 @@ async function refreshClassementCache() {
       }
     } else if (!wizarrConfigured) {
       const dbUsers = UserQueries.getAll() || [];
-      wizarrUsers = dbUsers.map(u => ({
-        username: u.username,
-        plexUserId: null,
-        email: u.email || null,
-        joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
-      }));
+      wizarrUsers = buildClassementUsersFromDb(dbUsers);
       logCR.debug(`[Classement-Refresh] Fallback DB: ${wizarrUsers.length} users`);
+      if (wizarrUsers.length === 0) {
+        wizarrUsers = buildClassementUsersFromTautulli();
+        if (wizarrUsers.length > 0) {
+          logCR.warn(`Wizarr non configuré et DB vide, fallback Tautulli (${wizarrUsers.length} users)`);
+        }
+      }
     } else {
       const dbUsers = UserQueries.getAll() || [];
       if (dbUsers.length > 0) {
-        wizarrUsers = dbUsers.map(u => ({
-          username: u.username,
-          plexUserId: null,
-          email: u.email || null,
-          joinedAtTimestamp: u.joinedAt ? Number(u.joinedAt) : null
-        }));
+        wizarrUsers = buildClassementUsersFromDb(dbUsers);
         logCR.warn(`Wizarr vide, fallback DB de secours (${wizarrUsers.length} users)`);
       } else {
-        wizarrUsers = [];
-        logCR.warn('Wizarr vide et DB locale vide');
+        wizarrUsers = buildClassementUsersFromTautulli();
+        if (wizarrUsers.length > 0) {
+          logCR.warn(`Wizarr vide, fallback Tautulli (${wizarrUsers.length} users)`);
+        } else {
+          wizarrUsers = [];
+          logCR.warn('Wizarr vide, DB locale vide et Tautulli sans utilisateurs');
+        }
+      }
+    }
+
+    if (!hadInitialWizarrUsers) {
+      const fallback = chooseBestClassementFallbackUsers();
+      if (fallback.source === "tautulli" && fallback.tautulliCount > wizarrUsers.length) {
+        wizarrUsers = fallback.users;
+        logCR.warn(`Fallback classement remplacé par Tautulli (${fallback.tautulliCount} users, DB=${fallback.dbCount})`);
       }
     }
 

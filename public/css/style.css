@@ -486,6 +486,28 @@ body.site-bg-mode-custom .site-bg-image {
   transform: translateY(0);
 }
 
+.logout-btn,
+.logout-mobile {
+  color: #f4f1ec;
+  background: #533f2b;
+  border: 1px solid #a66822;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.logout-btn::before,
+.logout-mobile::before {
+  display: none;
+}
+
+.logout-btn:hover,
+.logout-mobile:hover {
+  background: #a66822;
+  border-color: #a66822;
+  box-shadow: none;
+  filter: none;
+}
+
 /* =========================
    CONTENT
 ========================= */
@@ -591,7 +613,7 @@ body.site-bg-mode-custom .site-bg-image {
 ========================= */
 
 .dashboard-header {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 16px;
   margin-bottom: 32px;
@@ -988,6 +1010,12 @@ body.site-bg-mode-custom .site-bg-image {
   display: block;
   border: 2px solid var(--custom-icon-border);
   box-shadow: 0 4px 14px var(--custom-icon-glow);
+}
+
+.hero-icon-custom-logo--jellyfin {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .hero-icon--calendrier {

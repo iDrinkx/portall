@@ -3,6 +3,7 @@ const session = require("express-session");
 const expressLayouts = require("express-ejs-layouts");
 const fetch = require("node-fetch");
 const path = require("path");
+const fs = require("fs");
 
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
@@ -23,6 +24,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 let cachedPlexServerName = undefined;
 let cachedPlexServerKey = null;
+
+function getSiteTitle() {
+  return String(AppSettingQueries.get("site_title", "Plex-Portal") || "Plex-Portal").trim() || "Plex-Portal";
+}
+
+function getCustomFaviconAsset() {
+  const candidates = [
+    { file: "favicon.ico", href: "/favicon.ico", type: "image/x-icon" },
+    { file: "favicon.png", href: "/favicon.png", type: "image/png" },
+    { file: "favicon.svg", href: "/favicon.svg", type: "image/svg+xml" },
+    { file: "favicon.webp", href: "/favicon.webp", type: "image/webp" },
+    { file: "favicon.jpg", href: "/favicon.jpg", type: "image/jpeg" },
+    { file: "favicon.jpeg", href: "/favicon.jpeg", type: "image/jpeg" }
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(path.join("/config", candidate.file))) {
+        return candidate;
+      }
+    } catch (_) {}
+  }
+
+  return { href: "/logo.png", type: "image/png" };
+}
 
 async function getPlexServerName() {
   const plexUrl = (process.env.PLEX_URL || "").replace(/\/$/, "");
@@ -112,8 +138,24 @@ app.use(session({
 app.use("/", seeerrProxyRoutes);
 
 // 3. Body parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "12mb" }));
+app.use(express.urlencoded({ extended: true, limit: "12mb" }));
+
+app.use((err, req, res, next) => {
+  if (!err) return next();
+
+  if (err.type === "entity.too.large") {
+    if ((req.path || "").startsWith("/api/")) {
+      return res.status(413).json({
+        error: "Payload too large",
+        message: "The uploaded image is too large. Use a lighter file or an external image URL."
+      });
+    }
+    return res.status(413).send("Payload too large");
+  }
+
+  return next(err);
+});
 
 /* =========================
    REVERSE PROXY DETECTION
@@ -152,6 +194,8 @@ app.use(async (req, res, next) => {
   res.locals.navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   res.locals.siteBackground = getSiteBackgroundSettings();
   res.locals.plexServerName = await getPlexServerName() || "votre serveur Plex";
+  res.locals.siteTitle = getSiteTitle();
+  res.locals.siteFavicon = getCustomFaviconAsset();
 
   if (req.session.user) {
     try {
@@ -169,6 +213,7 @@ app.use(async (req, res, next) => {
 
       res.locals.customNavCards = cards.map(card => {
         const openInIframe = !!card.openInIframe;
+        const openInNewTab = !!card.openInNewTab;
         const integrationKey = String(card.integrationKey || "custom");
         const rawUrl = String(card.url || "");
         const navColors = navColorMap[card.colorKey] || { base: "rgba(226, 246, 255, 0.9)", hover: "#e8f6ff", accent: "#62b2ff" };
@@ -184,7 +229,7 @@ app.use(async (req, res, next) => {
           icon: card.icon || "✨",
           integrationKey,
           href,
-          external: integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl),
+          external: integrationKey === "romm_auto" || openInNewTab || (integrationKey === "custom" && !openInIframe && /^https?:\/\//i.test(rawUrl)),
           navColorBase: navColors.base,
           navColorHover: navColors.hover,
           navColorAccent: navColors.accent

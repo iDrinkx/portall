@@ -33,6 +33,8 @@ const {
 } = require("../utils/dashboard-builtins");
 const {
   getDashboardCustomHtml,
+  getDashboardCustomHtmlBlocks,
+  getDashboardCustomHtmlBlocksRaw,
   getDashboardCustomHtmlRaw,
   getDashboardCustomHtmlMode,
   isDashboardCustomHtmlRawMode,
@@ -383,6 +385,40 @@ function decodeCookieValue(rawValue) {
   }
 }
 
+function getSetCookieName(cookieStr) {
+  return String(cookieStr || "").split("=")[0].trim();
+}
+
+function findRommSessionCookie(setCookies = []) {
+  const exactCandidates = ["session_id", "romm_session", "session", "connect.sid"];
+  for (const name of exactCandidates) {
+    const match = setCookies.find((cookie) => cookie.startsWith(`${name}=`));
+    if (match) return { name, raw: match };
+  }
+
+  const heuristic = setCookies.find((cookie) => {
+    const name = getSetCookieName(cookie).toLowerCase();
+    return name.includes("session") && !name.includes("csrf") && !name.includes("xsrf");
+  });
+  if (heuristic) return { name: getSetCookieName(heuristic), raw: heuristic };
+  return null;
+}
+
+function findRommCsrfCookie(setCookies = []) {
+  const exactCandidates = ["csrftoken", "csrf_token", "xsrf-token", "XSRF-TOKEN"];
+  for (const name of exactCandidates) {
+    const match = setCookies.find((cookie) => cookie.startsWith(`${name}=`));
+    if (match) return { name, raw: match };
+  }
+
+  const heuristic = setCookies.find((cookie) => {
+    const name = getSetCookieName(cookie).toLowerCase();
+    return name.includes("csrf") || name.includes("xsrf");
+  });
+  if (heuristic) return { name: getSetCookieName(heuristic), raw: heuristic };
+  return null;
+}
+
 async function authenticateJellyfin(username, password) {
   const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
   if (!jellyfinUrl || !username || !password) return null;
@@ -413,6 +449,7 @@ async function loginRommAndGetSessionCookies(username, password) {
 
   let preflightCookieHeader = "";
   let preflightCsrfToken = "";
+  let preflightCsrfCookieName = "";
   let loginPostUrl = `${rommUrl}/login`;
   let hiddenFields = {};
 
@@ -435,8 +472,11 @@ async function loginRommAndGetSessionCookies(username, password) {
     hiddenFields = Object.fromEntries(hiddenFieldMatches.map((m) => [m[1], m[2]]));
 
     logRomm.info(`GET /login -> ${preflightResp.status} | form action: ${loginPostUrl} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
-    const csrfCookie = preflightCookies.find(c => c.startsWith("csrftoken=")) || "";
-    const sessionCookie = preflightCookies.find(c => c.startsWith("session_id=")) || "";
+    const csrfCookieInfo = findRommCsrfCookie(preflightCookies);
+    const sessionCookieInfo = findRommSessionCookie(preflightCookies);
+    const csrfCookie = csrfCookieInfo?.raw || "";
+    const sessionCookie = sessionCookieInfo?.raw || "";
+    preflightCsrfCookieName = csrfCookieInfo?.name || "";
 
     const cookiePairs = [csrfCookie, sessionCookie]
       .filter(Boolean)
@@ -446,7 +486,7 @@ async function loginRommAndGetSessionCookies(username, password) {
       preflightCookieHeader = cookiePairs.join("; ");
     }
     if (csrfCookie) {
-      preflightCsrfToken = csrfCookie.split(";")[0].replace("csrftoken=", "");
+      preflightCsrfToken = decodeCookieValue(csrfCookie.split(";")[0].replace(`${preflightCsrfCookieName}=`, ""));
     }
   } catch (_) {}
 
@@ -461,6 +501,26 @@ async function loginRommAndGetSessionCookies(username, password) {
 
   const attempts = [
     {
+      url: `${rommUrl}/api/login`,
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*",
+        "Authorization": `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
+        ...(preflightCookieHeader ? { "Cookie": preflightCookieHeader } : {}),
+        ...(preflightCsrfToken ? {
+          "X-CSRFToken": preflightCsrfToken,
+          "X-CSRF-Token": preflightCsrfToken,
+          "X-CSRF-TOKEN": preflightCsrfToken
+        } : {}),
+        "Referer": `${rommUrl}/login`,
+        "Origin": rommUrl
+      },
+      body: "{}"
+    },
+    {
+      url: loginPostUrl,
       method: "POST",
       redirect: "manual",
       headers: {
@@ -478,6 +538,7 @@ async function loginRommAndGetSessionCookies(username, password) {
       })
     },
     {
+      url: loginPostUrl,
       method: "POST",
       redirect: "manual",
       headers: {
@@ -494,17 +555,37 @@ async function loginRommAndGetSessionCookies(username, password) {
 
   for (const options of attempts) {
     try {
-      const resp = await fetch(loginPostUrl, options);
+      const requestUrl = options.url || loginPostUrl;
+      const fetchOptions = { ...options };
+      delete fetchOptions.url;
+      const resp = await fetch(requestUrl, fetchOptions);
       const setCookies = resp.headers.raw()["set-cookie"] || [];
       const location = resp.headers.get("location") || "";
-      logRomm.info(`POST ${loginPostUrl} -> ${resp.status}${location ? ` -> ${location}` : ""} | cookies: ${setCookies.map(c => c.split("=")[0]).join(", ") || "none"} | content-type: ${resp.headers.get("content-type") || "unknown"}`);
-      const sessionCookie = setCookies.find(c => c.startsWith("session_id="));
-      if (!sessionCookie) continue;
+      const contentType = resp.headers.get("content-type") || "unknown";
+      logRomm.info(`POST ${requestUrl} -> ${resp.status}${location ? ` -> ${location}` : ""} | cookies: ${setCookies.map(c => c.split("=")[0]).join(", ") || "none"} | content-type: ${contentType}`);
+      const sessionCookieInfo = findRommSessionCookie(setCookies);
+      const csrfCookieInfo = findRommCsrfCookie(setCookies);
+      const sessionCookie = sessionCookieInfo?.raw || null;
+      if (!sessionCookie) {
+        const bodyPreview = await resp.text().catch(() => "");
+        if (bodyPreview) {
+          logRomm.warn(`RomM login sans cookie session | extrait: ${bodyPreview.slice(0, 220).replace(/\s+/g, " ")}`);
+        } else {
+          logRomm.warn(`RomM login sans cookie session | body vide | content-type: ${contentType}`);
+        }
+        continue;
+      }
 
-      const csrfCookie = setCookies.find(c => c.startsWith("csrftoken=")) || null;
-      logRomm.info("Session RomM detectee via /login");
-      return { sessionCookie, csrfCookie };
-    } catch (_) {}
+      logRomm.info(`Session RomM detectee via /login (${sessionCookieInfo?.name || "unknown"})`);
+      return {
+        sessionCookie,
+        sessionCookieName: sessionCookieInfo?.name || getSetCookieName(sessionCookie),
+        csrfCookie: csrfCookieInfo?.raw || null,
+        csrfCookieName: csrfCookieInfo?.name || (csrfCookieInfo?.raw ? getSetCookieName(csrfCookieInfo.raw) : null)
+      };
+    } catch (err) {
+      logRomm.warn(`Erreur RomM sur ${loginPostUrl}: ${err.message}`);
+    }
   }
   logRomm.warn("Aucun cookie de session RomM retourne par /login");
   return null;
@@ -677,12 +758,14 @@ async function grabRommCookieForUser(res, sessionUser) {
   const opts = { path: "/", httpOnly: true, sameSite: "none", secure: true, encode: v => v };
   if (parentDomain) opts.domain = parentDomain;
 
-  const sessionValue = decodeCookieValue(cookies.sessionCookie.split(";")[0].replace("session_id=", ""));
-  res.cookie("session_id", sessionValue, opts);
+  const sessionCookieName = String(cookies.sessionCookieName || getSetCookieName(cookies.sessionCookie) || "session_id");
+  const sessionValue = decodeCookieValue(cookies.sessionCookie.split(";")[0].replace(`${sessionCookieName}=`, ""));
+  res.cookie(sessionCookieName, sessionValue, opts);
 
   if (cookies.csrfCookie) {
-    const csrfValue = decodeCookieValue(cookies.csrfCookie.split(";")[0].replace("csrftoken=", ""));
-    res.cookie("csrftoken", csrfValue, {
+    const csrfCookieName = String(cookies.csrfCookieName || getSetCookieName(cookies.csrfCookie) || "csrftoken");
+    const csrfValue = decodeCookieValue(cookies.csrfCookie.split(";")[0].replace(`${csrfCookieName}=`, ""));
+    res.cookie(csrfCookieName, csrfValue, {
       path: "/",
       httpOnly: false,
       sameSite: "none",
@@ -789,8 +872,10 @@ router.get("/dashboard", requireAuth, (req, res) => {
         ...card,
         color,
         openInIframe: !!card.openInIframe,
+        openInNewTab: !!card.openInNewTab,
         integrationKey: card.integrationKey || "custom",
-        href: toCardHref(card, req.basePath || "")
+        href: toCardHref(card, req.basePath || ""),
+        external: String(card.integrationKey || "custom") === "romm_auto" || !!card.openInNewTab
       };
     })
     .filter(Boolean);
@@ -800,6 +885,7 @@ router.get("/dashboard", requireAuth, (req, res) => {
     basePath: req.basePath,
     dashboardBuiltinCards,
     dashboardCustomCards,
+    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtml: getDashboardCustomHtml(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardServerStatsEnabled
@@ -901,7 +987,7 @@ router.get("/succes", requireAuth, async (req, res) => {
     // Construire les cards depuis l'état DB courant
     for (const category in achievementsByCategory) {
       achievementsByCategory[category].achievements = achievementsByCategory[category].achievements.map(a => ({
-        ...hydrateAchievementTexts(a, res.locals.plexServerName),
+        ...hydrateAchievementTexts(a, res.locals.siteTitle),
         unlocked:     !!userUnlockedMap[a.id],
         unlockedDate: userUnlockedMap[a.id] || null
       }));
@@ -967,6 +1053,7 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
   const customCardsResolved = customCards.map(card => ({
     ...card,
     openInIframe: !!card.openInIframe,
+    openInNewTab: !!card.openInNewTab,
     integrationKey: card.integrationKey || "custom",
     colorName: colorMap.get(card.colorKey)?.name || card.colorKey
   }));
@@ -983,7 +1070,9 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     siteLanguage: getSiteLanguage(),
     dashboardBuiltinItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
+    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocksRaw(),
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
+    dashboardCustomHtmlPreviewBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardCustomHtmlRawMode: isDashboardCustomHtmlRawMode(),
     configSections: getConfigSections(),
@@ -1399,6 +1488,12 @@ router.post("/api/integrations/:service/connect", requireAuth, async (req, res) 
       const auth = await authenticateJellyfin(username, password);
       if (!auth?.accessToken) return res.status(401).json({ error: "Identifiants Jellyfin invalides" });
     }
+    if (service === "romm") {
+      const cookies = await loginRommAndGetSessionCookies(username, password);
+      if (!cookies?.sessionCookie) {
+        return res.status(401).json({ error: "Identifiants RomM invalides ou login RomM non compatible avec cette configuration" });
+      }
+    }
     const saved = saveUserServiceCredential(req.session.user, service, username, password);
     if (!saved) return res.status(500).json({ error: "Impossible d'enregistrer les identifiants" });
 
@@ -1479,6 +1574,17 @@ router.post("/api/admin/settings/site-language", requireAuth, requireAdmin, (req
   res.json({ success: true, language });
 });
 
+router.get("/api/admin/settings/site-title", requireAuth, requireAdmin, (req, res) => {
+  res.json({ siteTitle: String(AppSettingQueries.get("site_title", "Plex-Portal") || "Plex-Portal") });
+});
+
+router.post("/api/admin/settings/site-title", requireAuth, requireAdmin, (req, res) => {
+  const siteTitle = String(req.body?.siteTitle || "").trim() || "Plex-Portal";
+  AppSettingQueries.set("site_title", siteTitle);
+  log.create("[Admin]").info(`Nom du site mis a jour par ${req.session.user.username}: ${siteTitle}`);
+  res.json({ success: true, siteTitle });
+});
+
 router.get("/api/admin/settings/site-background", requireAuth, requireAdmin, (req, res) => {
   res.json({
     background: getSiteBackgroundSettings(),
@@ -1506,17 +1612,22 @@ router.post("/api/admin/dashboard-builtins", requireAuth, requireAdmin, (req, re
 router.get("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
   res.json({
     raw: getDashboardCustomHtmlRaw(),
+    blocks: getDashboardCustomHtmlBlocksRaw(),
     rendered: getDashboardCustomHtml(),
     mode: getDashboardCustomHtmlMode()
   });
 });
 
 router.post("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) => {
-  const result = saveDashboardCustomHtml(req.body?.html || "", { mode: req.body?.mode || "safe" });
+  const result = saveDashboardCustomHtml(req.body?.html || "", {
+    mode: req.body?.mode || "safe",
+    blocks: Array.isArray(req.body?.blocks) ? req.body.blocks : null
+  });
   log.create("[Admin]").info(`HTML dashboard mis a jour par ${req.session.user.username}`);
   res.json({
     success: true,
     raw: result.raw,
+    blocks: result.blocks || [],
     rendered: result.rendered,
     sanitized: result.sanitized,
     mode: result.mode
@@ -1564,6 +1675,7 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
   const url = String(payload.url || "").trim();
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
+  const openInNewTab = !!payload.openInNewTab;
   const integrationKey = String(payload.integrationKey || "custom").trim();
   const icon = String(payload.icon || "?").trim();
 
@@ -1593,7 +1705,7 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
     return res.status(400).json({ error: "Couleur non disponible" });
   }
 
-  DashboardCardQueries.create({ label, title, description, url, colorKey, openInIframe, integrationKey, icon });
+  DashboardCardQueries.create({ label, title, description, url, colorKey, openInIframe, openInNewTab, integrationKey, icon });
   log.create("[Admin]").info(`Carte dashboard ajoutée par ${req.session.user.username}: ${title} (${colorKey})`);
   res.json({ success: true });
 });
@@ -1611,6 +1723,7 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
   const url = String(payload.url || "").trim();
   const colorKey = String(payload.colorKey || "").trim();
   const openInIframe = !!payload.openInIframe;
+  const openInNewTab = !!payload.openInNewTab;
   const integrationKey = String(payload.integrationKey || "custom").trim();
   const icon = String(payload.icon || "?").trim();
 
@@ -1650,9 +1763,27 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
     }
   }
 
-  DashboardCardQueries.update(id, { label, title, description, url, colorKey, openInIframe, integrationKey, icon });
+  DashboardCardQueries.update(id, { label, title, description, url, colorKey, openInIframe, openInNewTab, integrationKey, icon });
   log.create("[Admin]").info(`Carte dashboard modifiée par ${req.session.user.username}: id=${id}`);
   res.json({ success: true });
+});
+
+router.post("/api/admin/dashboard-cards/order", requireAuth, requireAdmin, (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const cards = DashboardCardQueries.list();
+  const existingIds = new Set(cards.map(card => Number(card.id)));
+  const orderedIds = ids
+    .map(id => Number(id))
+    .filter(id => Number.isInteger(id) && existingIds.has(id));
+
+  cards.forEach(card => {
+    const id = Number(card.id);
+    if (!orderedIds.includes(id)) orderedIds.push(id);
+  });
+
+  DashboardCardQueries.saveOrder(orderedIds);
+  log.create("[Admin]").info(`Ordre des cartes custom mis a jour par ${req.session.user.username}`);
+  res.json({ success: true, ids: orderedIds });
 });
 
 router.get("/app-card/:id", requireAuth, async (req, res) => {
@@ -1705,6 +1836,7 @@ router.get("/app-card/:id", requireAuth, async (req, res) => {
       if (!result.ok && result.error) {
         return renderServiceConnectGate(res, req, "romm", card.title, result.error);
       }
+      return res.redirect(srcUrl);
     } catch (_) {
       return renderServiceConnectGate(res, req, "romm", card.title, "Connexion RomM requise");
     }

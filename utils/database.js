@@ -61,6 +61,7 @@ function runMigrations() {
     attemptAddColumn('tautulli_sessions', 'session_hash', 'TEXT');
     attemptAddColumn('dashboard_custom_cards', 'open_in_iframe', 'INTEGER NOT NULL DEFAULT 1');
     attemptAddColumn('dashboard_custom_cards', 'integration_key', "TEXT NOT NULL DEFAULT 'custom'");
+    attemptAddColumn('dashboard_custom_cards', 'open_in_new_tab', 'INTEGER NOT NULL DEFAULT 0');
     
     // Table: users
     db.exec(`
@@ -220,6 +221,7 @@ function runMigrations() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);  // dashboard_custom_cards
+    attemptAddColumn('dashboard_custom_cards', 'open_in_new_tab', 'INTEGER NOT NULL DEFAULT 0');
 
     // Table: user_service_credentials - Credentials chiffrés par utilisateur/service
     db.exec(`
@@ -745,17 +747,40 @@ const AppSettingQueries = {
 const DashboardCardQueries = {
   list() {
     const db = getDb();
-    return db.prepare(`
+    const cards = db.prepare(`
       SELECT
         id, label, title, description, url,
         color_key as colorKey,
         open_in_iframe as openInIframe,
         integration_key as integrationKey,
+        open_in_new_tab as openInNewTab,
         icon,
         created_at as createdAt
       FROM dashboard_custom_cards
       ORDER BY id ASC
     `).all();
+
+    let orderedIds = [];
+    try {
+      orderedIds = JSON.parse(AppSettingQueries.get("dashboard_custom_card_order", "[]") || "[]");
+    } catch (_) {
+      orderedIds = [];
+    }
+
+    const rankById = new Map();
+    orderedIds.forEach((id, index) => {
+      const num = Number(id);
+      if (Number.isInteger(num) && num > 0) {
+        rankById.set(num, index);
+      }
+    });
+
+    return cards.sort((a, b) => {
+      const aRank = rankById.has(Number(a.id)) ? rankById.get(Number(a.id)) : Number.MAX_SAFE_INTEGER;
+      const bRank = rankById.has(Number(b.id)) ? rankById.get(Number(b.id)) : Number.MAX_SAFE_INTEGER;
+      if (aRank !== bRank) return aRank - bRank;
+      return Number(a.id) - Number(b.id);
+    });
   },
 
   getById(id) {
@@ -766,6 +791,7 @@ const DashboardCardQueries = {
         color_key as colorKey,
         open_in_iframe as openInIframe,
         integration_key as integrationKey,
+        open_in_new_tab as openInNewTab,
         icon,
         created_at as createdAt
       FROM dashboard_custom_cards
@@ -773,11 +799,11 @@ const DashboardCardQueries = {
     `).get(id);
   },
 
-  create({ label, title, description, url, colorKey, openInIframe, integrationKey, icon }) {
+  create({ label, title, description, url, colorKey, openInIframe, openInNewTab, integrationKey, icon }) {
     const db = getDb();
     const stmt = db.prepare(`
-      INSERT INTO dashboard_custom_cards (label, title, description, url, color_key, open_in_iframe, integration_key, icon)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dashboard_custom_cards (label, title, description, url, color_key, open_in_iframe, integration_key, open_in_new_tab, icon)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       String(label || "").trim(),
@@ -787,12 +813,13 @@ const DashboardCardQueries = {
       String(colorKey || "").trim(),
       openInIframe ? 1 : 0,
       String(integrationKey || "custom").trim(),
+      openInNewTab ? 1 : 0,
       String(icon || "✨").trim()
     );
     return result.lastInsertRowid;
   },
 
-  update(id, { label, title, description, url, colorKey, openInIframe, integrationKey, icon }) {
+  update(id, { label, title, description, url, colorKey, openInIframe, openInNewTab, integrationKey, icon }) {
     const db = getDb();
     return db.prepare(`
       UPDATE dashboard_custom_cards
@@ -804,7 +831,8 @@ const DashboardCardQueries = {
         color_key = ?,
         open_in_iframe = ?,
         integration_key = ?,
-        icon = ?
+        icon = ?,
+        open_in_new_tab = ?
       WHERE id = ?
     `).run(
       String(label || "").trim(),
@@ -815,13 +843,33 @@ const DashboardCardQueries = {
       openInIframe ? 1 : 0,
       String(integrationKey || "custom").trim(),
       String(icon || "✨").trim(),
+      openInNewTab ? 1 : 0,
       id
     );
   },
 
   remove(id) {
     const db = getDb();
-    return db.prepare(`DELETE FROM dashboard_custom_cards WHERE id = ?`).run(id);
+    const result = db.prepare(`DELETE FROM dashboard_custom_cards WHERE id = ?`).run(id);
+    try {
+      const raw = AppSettingQueries.get("dashboard_custom_card_order", "[]") || "[]";
+      const ids = JSON.parse(raw);
+      if (Array.isArray(ids)) {
+        AppSettingQueries.set(
+          "dashboard_custom_card_order",
+          JSON.stringify(ids.filter(entry => Number(entry) !== Number(id)))
+        );
+      }
+    } catch (_) {}
+    return result;
+  },
+
+  saveOrder(ids = []) {
+    const normalized = ids
+      .map(id => Number(id))
+      .filter(id => Number.isInteger(id) && id > 0);
+    AppSettingQueries.set("dashboard_custom_card_order", JSON.stringify(normalized));
+    return normalized;
   }
 };
 
