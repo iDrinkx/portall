@@ -159,7 +159,7 @@
     .cal-day-col {
       position: relative;
       overflow: hidden;
-      background: rgba(14, 22, 34, 0.012);
+      background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
       border: 1px solid rgba(226, 246, 255, 0.42);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
       backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
@@ -279,7 +279,7 @@
     .cal-month-cell {
       position: relative;
       overflow: hidden;
-      background: rgba(14, 22, 34, 0.012);
+      background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
       border: 1px solid rgba(226, 246, 255, 0.42);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
       backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
@@ -370,7 +370,7 @@
     .cal-week-block {
       position: relative;
       overflow: hidden;
-      background: rgba(14, 22, 34, 0.012);
+      background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
       border: 1px solid rgba(226, 246, 255, 0.42);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
       backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
@@ -443,7 +443,7 @@
     .cal-event-card {
       position: relative;
       overflow: hidden;
-      background: rgba(14, 22, 34, 0.012);
+      background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
       border: 1px solid rgba(226, 246, 255, 0.42);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(232, 248, 255, 0.2) inset, 0 4px 10px rgba(98, 178, 255, 0.04);
       backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
@@ -831,7 +831,7 @@
     .cal-modal {
       position: relative;
       isolation: isolate;
-      background: rgba(14, 22, 34, 0.22);
+      background: rgb(14 22 34 / var(--site-card-soft-opacity, 0.222));
       border: 1px solid rgba(226, 246, 255, 0.42);
       border-radius: 16px;
       max-width: 500px;
@@ -929,7 +929,7 @@
 
     .cal-modal-body {
       padding: 20px;
-      background: linear-gradient(180deg, rgba(8, 12, 18, 0.28), rgba(8, 12, 18, 0.44));
+      background: linear-gradient(180deg, rgb(8 12 18 / var(--site-card-elevated-opacity, 0.242)), rgb(8 12 18 / min(0.7, calc(var(--site-card-elevated-opacity, 0.242) + 0.2))));
       overflow-y: auto;
       max-height: calc(80vh - 200px);
       scrollbar-width: thin;

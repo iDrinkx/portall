@@ -33,6 +33,10 @@ html, body { height: 100%; }
   /* LOGIN LOGO */
   --logo-login-h: 110px;
   --logo-login-maxw: 380px;
+  --site-card-opacity: 0.012;
+  --site-card-soft-opacity: 0.222;
+  --site-card-elevated-opacity: 0.242;
+  --site-card-input-opacity: 0.362;
 }
 
 body {
@@ -548,7 +552,7 @@ body.site-bg-mode-custom .site-bg-image {
 .login-card{
   width: min(440px, 100%);
   padding: 40px;
-  background: rgba(14, 22, 34, 0.012);
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 20px;
   text-align: center;
@@ -960,7 +964,7 @@ body.site-bg-mode-custom .site-bg-image {
   margin: 18px 0 22px;
   border: 1px solid rgba(226, 246, 255, 0.22);
   border-radius: 18px;
-  background: rgba(8, 12, 18, 0.22);
+  background: rgb(8 12 18 / var(--site-card-soft-opacity, 0.222));
   padding: 18px;
   box-shadow: 0 14px 34px rgba(0,0,0,.12);
 }
@@ -1701,7 +1705,7 @@ body.site-bg-mode-custom .site-bg-image {
 
 /* Carte de statistique */
 .stat-card {
-  background: rgba(14, 22, 34, 0.012);
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 20px;
   padding: 20px 16px;
@@ -1825,7 +1829,7 @@ body.site-bg-mode-custom .site-bg-image {
   align-items: stretch;
   justify-content: center;
   gap: 0;
-  background: rgba(14, 22, 34, 0.012);
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 20px;
   padding: 18px 28px;
@@ -2096,7 +2100,7 @@ body.site-bg-mode-custom .site-bg-image {
 .changelog-modal-content {
   position: relative;
   isolation: isolate;
-  background: rgba(14, 22, 34, 0.012);
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 16px;
   max-width: 600px;

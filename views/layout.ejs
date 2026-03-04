@@ -14,7 +14,7 @@
     window.APP_SITE_BACKGROUND = <%- JSON.stringify(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }) %>;
   </script>
 </head>
-<body class="site-bg-mode-<%= (siteBackground && siteBackground.mode) || 'particles' %>" style="--site-bg-opacity:<%= siteBackground && siteBackground.customOpacity != null ? siteBackground.customOpacity : 0.34 %>;<% if (siteBackground && siteBackground.mode === 'custom' && siteBackground.customUrl) { %>--site-bg-image:url('<%= siteBackground.customUrl.replace(/'/g, "\\'") %>');<% } %>" <% if (user) { %>data-user-id="<%= user.id %>"<% } %>>
+<body class="site-bg-mode-<%= (siteBackground && siteBackground.mode) || 'particles' %>" style="--site-bg-opacity:<%= siteBackground && siteBackground.customOpacity != null ? siteBackground.customOpacity : 0.34 %>;--site-card-opacity:<%= siteBackground && siteBackground.cardOpacity != null ? siteBackground.cardOpacity : 0.012 %>;--site-card-soft-opacity:<%= siteBackground && siteBackground.cardOpacitySoft != null ? siteBackground.cardOpacitySoft : 0.222 %>;--site-card-elevated-opacity:<%= siteBackground && siteBackground.cardOpacityElevated != null ? siteBackground.cardOpacityElevated : 0.242 %>;--site-card-input-opacity:<%= siteBackground && siteBackground.cardOpacityInput != null ? siteBackground.cardOpacityInput : 0.362 %>;<% if (siteBackground && siteBackground.mode === 'custom' && siteBackground.customUrl) { %>--site-bg-image:url('<%= siteBackground.customUrl.replace(/'/g, "\\'") %>');<% } %>" <% if (user) { %>data-user-id="<%= user.id %>"<% } %>>
 <div class="site-bg site-bg--<%= (siteBackground && siteBackground.mode) || 'particles' %>" aria-hidden="true">
   <div class="site-bg-gradient"></div>
   <div class="site-bg-vignette"></div>

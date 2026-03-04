@@ -327,7 +327,7 @@
     gap: 30px;
     margin-bottom: 40px;
     padding: 30px;
-    background: rgba(14, 22, 34, 0.008);
+    background: rgb(14 22 34 / max(0.008, calc(var(--site-card-opacity, 0.012) - 0.004)));
     border-radius: 16px;
     border: 1px solid rgba(226, 246, 255, 0.42);
     box-shadow:
@@ -624,7 +624,7 @@
   /* CARTE GAUCHE SUCCÈS */
   .xp-left-card {
     flex: 0 0 140px;
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     border: 1px solid rgba(226, 246, 255, 0.42);
     border-radius: 12px;
     padding: 14px 12px;
@@ -658,7 +658,7 @@
   /* BARRE XP DROITE */
   .xp-progress-section {
     flex: 1;
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     padding: 14px 18px;
     border-radius: 12px;
     border: 1px solid rgba(226, 246, 255, 0.42);
@@ -675,7 +675,7 @@
   .badges-section,
   .detail-card,
   .watch-stats-section .stat-card {
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     border: 1px solid rgba(226, 246, 255, 0.42);
     box-shadow:
       0 14px 34px rgba(0,0,0,.18),
@@ -819,7 +819,7 @@
   }
 
   .profil-card {
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     border: 1px solid rgba(226, 246, 255, 0.42);
     border-radius: 12px;
     padding: 24px;
@@ -838,7 +838,7 @@
   }
 
   .profil-card:hover {
-    background: rgba(14, 22, 34, 0.02);
+    background: rgb(14 22 34 / min(0.22, calc(var(--site-card-opacity, 0.012) + 0.008)));
     border-color: rgba(236, 250, 255, 0.56);
   }
 
@@ -891,7 +891,7 @@
 
   /* BADGES */
   .badges-section {
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     border: 1px solid rgba(226, 246, 255, 0.42);
     border-radius: 12px;
     padding: 24px;
@@ -964,7 +964,7 @@
   .xp-modal-content {
     position: relative;
     isolation: isolate;
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
     border: 1px solid rgba(226, 246, 255, 0.42);
     border-radius: 16px;
     padding: 28px;
@@ -1196,7 +1196,7 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 10px;
-    background: rgba(14, 22, 34, 0.012);
+    background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   }
 
   .detail-icon {
