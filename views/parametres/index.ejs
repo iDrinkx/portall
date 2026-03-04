@@ -1111,7 +1111,7 @@
             <div class="settings-field">
               <label for="siteCardOpacity"><%= t("settings.background.cardOpacity") %></label>
               <div class="settings-range-row">
-                <input id="siteCardOpacity" type="range" min="0.01" max="0.35" step="0.001" value="<%= siteBackground && siteBackground.cardOpacity != null ? siteBackground.cardOpacity : 0.012 %>">
+                <input id="siteCardOpacity" type="range" min="0.01" max="1" step="0.01" value="<%= siteBackground && siteBackground.cardOpacity != null ? siteBackground.cardOpacity : 0.012 %>">
                 <span class="settings-range-badge" id="siteCardOpacityValue"><%= Math.round(((siteBackground && siteBackground.cardOpacity != null ? siteBackground.cardOpacity : 0.012) * 100)) %>%</span>
               </div>
               <div class="settings-inline-note"><%= t("settings.background.cardOpacityHint") %></div>
@@ -1376,7 +1376,7 @@
     function getSiteCardOpacity() {
       const raw = Number.parseFloat(String((siteCardOpacity && siteCardOpacity.value) || "0.012"));
       if (!Number.isFinite(raw)) return 0.012;
-      return Math.min(0.35, Math.max(0.01, raw));
+      return Math.min(1, Math.max(0.01, raw));
     }
 
     function getSelectedSiteBackgroundUrl() {
@@ -1402,8 +1402,8 @@
       }
       if (siteBackgroundPreview) {
         siteBackgroundPreview.style.setProperty("--site-bg-preview-opacity", String(getSiteBackgroundOpacity()));
-        siteBackgroundPreview.style.setProperty("--site-bg-preview-card-opacity", String(Math.min(0.6, getSiteCardOpacity() + 0.23)));
-        siteBackgroundPreview.style.setProperty("--site-bg-preview-pill-opacity", String(Math.min(0.78, getSiteCardOpacity() + 0.55)));
+        siteBackgroundPreview.style.setProperty("--site-bg-preview-card-opacity", String(Math.min(1, getSiteCardOpacity() + 0.23)));
+        siteBackgroundPreview.style.setProperty("--site-bg-preview-pill-opacity", String(Math.min(1, getSiteCardOpacity() + 0.55)));
         const selectedUrl = getSelectedSiteBackgroundUrl();
         siteBackgroundPreview.style.setProperty("--site-bg-preview-image", selectedUrl ? "url('" + selectedUrl.replace(/'/g, "\\'") + "')" : "none");
       }
@@ -1883,9 +1883,9 @@
             siteCardOpacity.value = String(data.background.cardOpacity != null ? data.background.cardOpacity : cardOpacity);
           }
           document.body.style.setProperty("--site-card-opacity", String(data.background.cardOpacity != null ? data.background.cardOpacity : cardOpacity));
-          document.body.style.setProperty("--site-card-soft-opacity", String(data.background.cardOpacitySoft != null ? data.background.cardOpacitySoft : Math.min(0.58, cardOpacity + 0.21)));
-          document.body.style.setProperty("--site-card-elevated-opacity", String(data.background.cardOpacityElevated != null ? data.background.cardOpacityElevated : Math.min(0.6, cardOpacity + 0.23)));
-          document.body.style.setProperty("--site-card-input-opacity", String(data.background.cardOpacityInput != null ? data.background.cardOpacityInput : Math.min(0.72, cardOpacity + 0.35)));
+          document.body.style.setProperty("--site-card-soft-opacity", String(data.background.cardOpacitySoft != null ? data.background.cardOpacitySoft : Math.min(1, cardOpacity + 0.21)));
+          document.body.style.setProperty("--site-card-elevated-opacity", String(data.background.cardOpacityElevated != null ? data.background.cardOpacityElevated : Math.min(1, cardOpacity + 0.23)));
+          document.body.style.setProperty("--site-card-input-opacity", String(data.background.cardOpacityInput != null ? data.background.cardOpacityInput : Math.min(1, cardOpacity + 0.35)));
           renderSiteBackgroundPreview();
           siteBackgroundState.textContent = "<%= t('settings.background.saved') %>";
         } catch (err) {
