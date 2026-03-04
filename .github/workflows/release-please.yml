@@ -53,11 +53,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/plex-portal
+          tags: |
+            type=raw,value=latest
+            type=raw,value=v${{ needs.release.outputs.new_release_version }}
+
       - name: Build and push (versioned + latest)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/plex-portal:latest
-            ghcr.io/${{ github.repository_owner }}/plex-portal:v${{ needs.release.outputs.new_release_version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
