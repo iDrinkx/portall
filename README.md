@@ -9,7 +9,6 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 **📖 [Voir le CHANGELOG complet](./CHANGELOG.md)** pour l'historique des versions et fonctionnalités
 
-Les changements sont **automatiquement synchronisés** vers le dépôt Docker après chaque release.
 
 ---
 
@@ -54,7 +53,7 @@ docker compose up -d
 # Accès : https://plex-portal.votredomaine.com
 ```
 
-> Image Docker publique : `ghcr.io/idrinkx/plex-portal:latest`
+> Image Docker publique : `ghcr.io/<github-owner>/plex-portal:latest`
 
 ---
 
@@ -178,7 +177,7 @@ Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte s
 ```yaml
 services:
   plex-portal:
-    image: ghcr.io/idrinkx/plex-portal:latest
+    image: ghcr.io/<github-owner>/plex-portal:latest
     container_name: plex-portal
     ports:
       - "4000:3000"
@@ -292,7 +291,7 @@ Aucune configuration manuelle requise.
 
 ## Code source et contributions
 
-Le code source de Plex Portal n'est pas public. Seule l'image Docker officielle et la documentation sont disponibles.
+Le code source principal est ce dépôt GitHub.
 
 Pour toute suggestion ou bug, ouvrez une issue ou contactez l'auteur.
 
@@ -322,10 +321,8 @@ R : Placez votre `logo.png` dans le volume `./config:/config`.
 
 ## Contribution
 
-Les contributions publiques ne sont pas autorisées.
-
 Si vous souhaitez proposer une amélioration ou signaler un bug,
-merci d’ouvrir une issue ou de me contacter directement.
+ouvrez une issue ou proposez une pull request sur le dépôt principal.
 
 ---
 

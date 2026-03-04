@@ -70,7 +70,7 @@ Recommandé: 300x300px ou 400x400px
 
 2. **Configuration:**
    - Name: `plex-portal`
-   - Repository: `ghcr.io/idrinkx/plex-portal:latest`
+   - Repository: `ghcr.io/<github-owner>/plex-portal:latest`
 
 3. **Ports:**
    - Container Port: `3000`
@@ -98,7 +98,7 @@ version: '3.8'
 
 services:
   plex-portal:
-    image: ghcr.io/idrinkx/plex-portal:latest
+    image: ghcr.io/<github-owner>/plex-portal:latest
     container_name: plex-portal
     ports:
       - "3000:3000"
@@ -380,5 +380,5 @@ docker-compose up -d
 
 ## Code source et contributions
 
-Le code source de Plex Portal n'est pas public. Seule l'image Docker officielle et la documentation sont disponibles.
+Le code source principal de Plex Portal est ce dépôt GitHub.
 Pour toute suggestion ou bug, ouvrez une issue ou contactez l'auteur.

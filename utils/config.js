@@ -75,27 +75,31 @@ function applyRuntimeConfig(values = null) {
   });
 }
 
-function getEditableConfigValues() {
+function getEditableConfigValues(options = {}) {
+  const includeSecretValues = options.includeSecretValues !== false;
   const values = {};
   CONFIG_FIELDS.forEach(field => {
-    values[field.key] = getConfigValue(field.key, field.type === "boolean" ? "false" : "");
+    const rawValue = getConfigValue(field.key, field.type === "boolean" ? "false" : "");
+    values[field.key] = field.secret && !includeSecretValues ? "" : rawValue;
   });
   return values;
 }
 
-function getConfigSections() {
-  const values = getEditableConfigValues();
+function getConfigSections(options = {}) {
+  const includeSecretValues = options.includeSecretValues !== false;
+  const values = getEditableConfigValues({ includeSecretValues });
   const groups = new Map();
 
   CONFIG_FIELDS.forEach(field => {
     if (!groups.has(field.group)) groups.set(field.group, []);
+    const storedValue = getConfigValue(field.key, field.type === "boolean" ? "false" : "");
     const rawValue = values[field.key];
     groups.get(field.group).push({
       ...field,
       value: field.type === "boolean"
         ? (rawValue === "true" || rawValue === "1" ? "true" : "false")
         : rawValue,
-      configured: rawValue !== ""
+      configured: storedValue !== ""
     });
   });
 
@@ -122,6 +126,13 @@ function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
   CONFIG_FIELDS.forEach(field => {
     if (!Object.prototype.hasOwnProperty.call(input, field.key)) return;
     const normalized = normalizeValue(field, input[field.key]);
+    const existingValue = getConfigValue(field.key, "");
+
+    if (field.secret && normalized === "" && String(existingValue || "").trim()) {
+      values[field.key] = "";
+      return;
+    }
+
     values[field.key] = normalized;
 
     if (normalized === "") {

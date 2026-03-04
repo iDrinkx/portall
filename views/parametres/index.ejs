@@ -1191,6 +1191,7 @@
                           name="<%= field.key %>"
                           type="<%= field.secret ? 'password' : 'text' %>"
                           value="<%= field.value || '' %>"
+                          placeholder="<%= field.secret && field.configured ? 'Valeur deja configuree' : '' %>"
                           autocomplete="off"
                           spellcheck="false"
                         >
@@ -1734,6 +1735,10 @@
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error((data && (data.message || data.error)) || ("HTTP " + resp.status));
+          Array.from(configForm.querySelectorAll('input[type="password"]')).forEach(function (input) {
+            input.value = "";
+            input.placeholder = "Valeur deja configuree";
+          });
           configState.textContent = "Connexions enregistrees avec succes.";
         } catch (err) {
           configState.textContent = err.message || "Impossible d'enregistrer les connexions.";

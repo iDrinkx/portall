@@ -52,6 +52,6 @@ git commit -m "feat!: refonte complète du système d'authentification"
    - Mise à jour de `CHANGELOG.md`
    - Commit de release `chore(release): vX.Y.Z [skip ci]`
    - Création du tag `vX.Y.Z` et de la GitHub Release
-4. Le workflow Docker rebuilde et pousse `ghcr.io/idrinkx/plex-portal:vX.Y.Z` + `latest`
+4. Le workflow Docker rebuilde et pousse `ghcr.io/<github-owner>/plex-portal:vX.Y.Z` + `latest`
 
 > ⚡ **Aucune PR, aucune action manuelle requise.**

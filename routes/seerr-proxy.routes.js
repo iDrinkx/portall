@@ -62,13 +62,13 @@ async function grabSeerrCookie(authToken, res, username) {
       const cookieOpts = { path: "/", httpOnly: true, sameSite: "lax", secure: true };
       if (cookieDomain) cookieOpts.domain = cookieDomain;
       res.cookie("connect.sid", decodeURIComponent(value), cookieOpts);
-      logSSO.info(`Cookie rafraîchi pour ${username} (domain=${cookieDomain || "courant"})`);
+      logSSO.info(`Cookie Seerr rafraichi (domain=${cookieDomain || "courant"})`);
       return true;
     }
-    logSSO.warn(`connect.sid absent pour ${username}`);
+    logSSO.warn("connect.sid absent pour Seerr");
     return false;
   } catch (e) {
-    logSSO.warn(`Erreur pour ${username}:`, e.message);
+    logSSO.warn("Erreur Seerr SSO:", e.message);
     return false;
   }
 }

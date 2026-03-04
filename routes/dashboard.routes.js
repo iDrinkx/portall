@@ -2,6 +2,7 @@
 const router = express.Router();
 const fetch = require("node-fetch");
 const crypto = require("crypto");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 const log = require("../utils/logger");
 const logRomm = log.create("[RomM]");
 
@@ -301,14 +302,12 @@ function getCookieParentDomain(publicUrl) {
   return null;
 }
 
-function appendJellyfinAuthParams(publicUrl, accessToken, userId) {
+function buildJellyfinProxyUrl(publicUrl, basePath = "") {
   try {
     const u = new URL(publicUrl);
-    u.searchParams.set("api_key", accessToken);
-    if (userId) u.searchParams.set("userId", userId);
-    return u.toString();
+    return `${basePath}/jellyfin-proxy${u.pathname}${u.search}`;
   } catch (_) {
-    return publicUrl;
+    return `${basePath}/jellyfin-proxy/web/`;
   }
 }
 
@@ -423,12 +422,13 @@ async function authenticateJellyfin(username, password) {
   const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
   if (!jellyfinUrl || !username || !password) return null;
   try {
+    const deviceId = `plex-portal-${crypto.randomUUID()}`;
     const authResp = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "X-Emby-Authorization": `MediaBrowser Client="PlexPortal", Device="Web", DeviceId="plex-portal-${crypto.randomUUID()}", Version="1.0.0"`
+        "X-Emby-Authorization": `MediaBrowser Client="PlexPortal", Device="Web", DeviceId="${deviceId}", Version="1.0.0"`
       },
       body: JSON.stringify({ Username: username, Pw: password })
     });
@@ -437,7 +437,7 @@ async function authenticateJellyfin(username, password) {
     const accessToken = String(payload?.AccessToken || "").trim();
     const userId = String(payload?.User?.Id || "").trim();
     if (!accessToken) return null;
-    return { accessToken, userId };
+    return { accessToken, userId, deviceId };
   } catch (_) {
     return null;
   }
@@ -471,7 +471,7 @@ async function loginRommAndGetSessionCookies(username, password) {
     const hiddenFieldMatches = [...preflightHtml.matchAll(/<input[^>]*type=["']hidden["'][^>]*name=["']([^"']+)["'][^>]*value=["']([^"']*)["'][^>]*>/gi)];
     hiddenFields = Object.fromEntries(hiddenFieldMatches.map((m) => [m[1], m[2]]));
 
-    logRomm.info(`GET /login -> ${preflightResp.status} | form action: ${loginPostUrl} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
+    logRomm.info(`GET /login -> ${preflightResp.status} | cookies: ${preflightCookies.map(c => c.split("=")[0]).join(", ") || "none"}`);
     const csrfCookieInfo = findRommCsrfCookie(preflightCookies);
     const sessionCookieInfo = findRommSessionCookie(preflightCookies);
     const csrfCookie = csrfCookieInfo?.raw || "";
@@ -569,7 +569,7 @@ async function loginRommAndGetSessionCookies(username, password) {
       if (!sessionCookie) {
         const bodyPreview = await resp.text().catch(() => "");
         if (bodyPreview) {
-          logRomm.warn(`RomM login sans cookie session | extrait: ${bodyPreview.slice(0, 220).replace(/\s+/g, " ")}`);
+          logRomm.warn(`RomM login sans cookie session | content-type: ${contentType}`);
         } else {
           logRomm.warn(`RomM login sans cookie session | body vide | content-type: ${contentType}`);
         }
@@ -727,15 +727,21 @@ async function grabKomgaCookieForUser(res, sessionUser) {
   }
 }
 
-async function buildJellyfinAutoAuthUrlForUser(srcUrl, sessionUser) {
+async function refreshJellyfinSessionAuth(session, sessionUser) {
   const cred = getUserServiceCredential(sessionUser, "jellyfin");
-  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true, srcUrl };
+  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true };
   const auth = await authenticateJellyfin(cred.username, cred.password);
   if (!auth?.accessToken) {
     clearUserServiceCredential(sessionUser, "jellyfin");
-    return { ok: false, needsSetup: true, srcUrl };
+    return { ok: false, needsSetup: true };
   }
-  return { ok: true, needsSetup: false, srcUrl: appendJellyfinAuthParams(srcUrl, auth.accessToken, auth.userId) };
+  session.jellyfinAuth = {
+    accessToken: auth.accessToken,
+    userId: auth.userId,
+    deviceId: auth.deviceId,
+    refreshedAt: Date.now()
+  };
+  return { ok: true, needsSetup: false };
 }
 
 async function grabRommCookieForUser(res, sessionUser) {
@@ -796,6 +802,53 @@ function renderServiceConnectGate(res, req, serviceKey, cardTitle, errorMessage 
   });
 }
 
+function buildJellyfinAuthorizationHeader(jellyfinAuth) {
+  const token = String(jellyfinAuth?.accessToken || "").trim();
+  const deviceId = String(jellyfinAuth?.deviceId || "plex-portal-proxy").trim();
+  if (!token) return "";
+  return `MediaBrowser Token="${token}", Client="PlexPortal", Device="Web", DeviceId="${deviceId}", Version="1.0.0"`;
+}
+
+router.use("/jellyfin-proxy", requireAuth, async (req, res, next) => {
+  const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
+  if (!jellyfinUrl) {
+    return res.status(503).send("Jellyfin non configure cote serveur");
+  }
+
+  const existingAuth = req.session?.jellyfinAuth;
+  if (!existingAuth?.accessToken) {
+    const result = await refreshJellyfinSessionAuth(req.session, req.session.user);
+    if (!result.ok) {
+      return res.status(401).send("Connexion Jellyfin requise");
+    }
+  }
+
+  return createProxyMiddleware({
+    target: jellyfinUrl,
+    changeOrigin: true,
+    ws: true,
+    pathRewrite: { "^/jellyfin-proxy": "" },
+    cookieDomainRewrite: { "*": "" },
+    onProxyReq(proxyReq, proxyReqReq) {
+      const jellyfinAuth = proxyReqReq.session?.jellyfinAuth;
+      const token = String(jellyfinAuth?.accessToken || "").trim();
+      const userId = String(jellyfinAuth?.userId || "").trim();
+      const authHeader = buildJellyfinAuthorizationHeader(jellyfinAuth);
+      if (token) {
+        proxyReq.setHeader("X-Emby-Token", token);
+        proxyReq.setHeader("X-MediaBrowser-Token", token);
+      }
+      if (userId) {
+        proxyReq.setHeader("X-MediaBrowser-UserId", userId);
+      }
+      if (authHeader) {
+        proxyReq.setHeader("Authorization", authHeader);
+        proxyReq.setHeader("X-Emby-Authorization", authHeader);
+      }
+    }
+  })(req, res, next);
+});
+
 /* ===============================
    ?? CACHE MANAGER
 =============================== */
@@ -847,7 +900,7 @@ async function getWizarrSubscription(user) {
     const wizUser = list.find(u => norm(u.email) === plexEmail) || null;
 
     const result = computeSubscription(wizUser);
-    logWizarr.info(`${user.username} — ${result.label}${result.expiresAt ? ` (expire ${result.expiresAt})` : ''}`);
+    logWizarr.info(`Abonnement Wizarr calcule (${result.label})`);
     return result;
 
   } catch (err) {
@@ -1075,7 +1128,7 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     dashboardCustomHtmlPreviewBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardCustomHtmlRawMode: isDashboardCustomHtmlRawMode(),
-    configSections: getConfigSections(),
+    configSections: getConfigSections({ includeSecretValues: false }),
     dashboardCustomCards: customCardsResolved,
     availableDashboardColors: availableColors,
     dashboardIntegrationOptions: integrations
@@ -1636,8 +1689,8 @@ router.post("/api/admin/dashboard-html", requireAuth, requireAdmin, (req, res) =
 
 router.get("/api/admin/config", requireAuth, requireAdmin, (req, res) => {
   res.json({
-    sections: getConfigSections(),
-    values: getEditableConfigValues()
+    sections: getConfigSections({ includeSecretValues: false }),
+    values: getEditableConfigValues({ includeSecretValues: false })
   });
 });
 
@@ -1646,8 +1699,8 @@ router.post("/api/admin/config", requireAuth, requireAdmin, (req, res) => {
   log.create("[Admin]").info(`Connexions mises à jour par ${req.session.user.username}`);
   res.json({
     success: true,
-    sections: getConfigSections(),
-    values: getEditableConfigValues()
+    sections: getConfigSections({ includeSecretValues: false }),
+    values: getEditableConfigValues({ includeSecretValues: false })
   });
 });
 
@@ -1818,11 +1871,11 @@ router.get("/app-card/:id", requireAuth, async (req, res) => {
   }
   if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
     try {
-      const result = await buildJellyfinAutoAuthUrlForUser(srcUrl, req.session.user);
+      const result = await refreshJellyfinSessionAuth(req.session, req.session.user);
       if (!result.ok && result.needsSetup) {
         return renderServiceConnectGate(res, req, "jellyfin", card.title, "Connecte ton compte Jellyfin pour continuer");
       }
-      srcUrl = result.srcUrl || srcUrl;
+      srcUrl = buildJellyfinProxyUrl(srcUrl, req.basePath || "");
     } catch (_) {
       return renderServiceConnectGate(res, req, "jellyfin", card.title, "Connexion Jellyfin requise");
     }

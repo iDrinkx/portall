@@ -9,6 +9,10 @@ const { isUserAuthorized, getAuthorizedServerUsers, getServerOwnerId, getServerM
 const { checkWizarrAccess } = require("../utils/wizarr");
 const { getConfigSections, getConfigValue, getMissingRequiredConfigKeys, isSetupComplete, saveEditableConfig } = require("../utils/config");
 
+function getSafeUserLabel(user) {
+  return `user#${user?.id || "unknown"}`;
+}
+
 /**
  * Grab le cookie connect.sid de Seerr via le token Plex.
  * Même logique qu'Organizr sso-functions.php#L335.
@@ -175,7 +179,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     return res.redirect(req.basePath + "/?error=plex_unavailable");
   }
 
-  logAuth.info(`Connexion: ${user.username} <${user.email}> (ID ${user.id})`);
+  logAuth.info(`Connexion Plex reussie pour ${getSafeUserLabel(user)}`);
 
   // ── Vérification accès serveur (Plex) ──────────────────────────────────────────────
   // Plex est BLOQUANT (obligatoire pour le login)
@@ -193,11 +197,11 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
 
       if (ownerId && ownerId === userId) {
         isAdmin = true;
-        logAuth.info(`User ${userId} — propriétaire du serveur`);
+        logAuth.info(`Proprietaire du serveur detecte pour user#${userId}`);
       } else {
         const authorizedUsers = await getAuthorizedServerUsers(plexToken, machineId);
         if (!authorizedUsers.some(u => u.id === userId)) {
-          logAuth.warn(`Accès Plex refusé — ${user.username} (${userId}) absent du serveur`);
+          logAuth.warn(`Acces Plex refuse pour user#${userId}`);
           authorizedByPlex = false;
         }
       }
@@ -218,10 +222,10 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   } else {
     AppSettingQueries.set("admin_user_id", String(user.id));
     isAdmin = true;
-    logAuth.warn(`Aucun admin persiste — ${user.username} (${user.id}) defini comme admin principal`);
+    logAuth.warn(`Aucun admin persiste — ${getSafeUserLabel(user)} defini comme admin principal`);
   }
 
-  logAuth.info(`✅ Connecté: ${user.username} (${user.id})`);
+  logAuth.info(`Session ouverte pour ${getSafeUserLabel(user)}`);
 
   req.session.user = user;
   req.session.user.joinedAtTimestamp = user.joinedAt;
