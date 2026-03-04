@@ -24,6 +24,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Install dependencies
         run: npm install
@@ -32,7 +33,7 @@ jobs:
         id: semantic
         uses: cycjimmy/semantic-release-action@v3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   docker-release:
     needs: release
