@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   plex-portal:
-    build: .
+    image: ghcr.io/idrinkx/plex-portal:latest
     container_name: plex-portal
     ports:
       - "3000:3000"
