@@ -63,7 +63,7 @@ docker compose up -d
 # Accès : https://plex-portal.votredomaine.com
 ```
 
-> Image Docker publique : `ghcr.io/<github-owner>/plex-portal:latest`
+> Image Docker publique : `ghcr.io/idrinkx/plex-portal:latest`
 
 ---
 
@@ -193,7 +193,7 @@ Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte s
 ```yaml
 services:
   plex-portal:
-    image: ghcr.io/<github-owner>/plex-portal:latest
+    image: ghcr.io/idrinkx/plex-portal:latest
     container_name: plex-portal
     ports:
       - "4000:3000"
