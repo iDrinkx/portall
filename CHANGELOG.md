@@ -1,3 +1,25 @@
+## <small>1.35.2 (2026-03-05)</small>
+
+* Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([e1bdb66](https://github.com/iDrinkx/plex-portal/commit/e1bdb66))
+* Merge pull request #47 from iDrinkx/iDrinkx-patch-1 ([2662741](https://github.com/iDrinkx/plex-portal/commit/2662741)), closes [#47](https://github.com/iDrinkx/plex-portal/issues/47)
+* Merge pull request #48 from iDrinkx/develop ([9b97c5a](https://github.com/iDrinkx/plex-portal/commit/9b97c5a)), closes [#48](https://github.com/iDrinkx/plex-portal/issues/48)
+* Remove main heading from README ([0c9b834](https://github.com/iDrinkx/plex-portal/commit/0c9b834))
+* Update logo image in README.md ([0271a3c](https://github.com/iDrinkx/plex-portal/commit/0271a3c))
+* style(readme): update logo image to new design ([a1e7c81](https://github.com/iDrinkx/plex-portal/commit/a1e7c81))
+* style(readme): update logo to new design and adjust alignment ([1f156f4](https://github.com/iDrinkx/plex-portal/commit/1f156f4))
+
+## <small>1.35.1 (2026-03-05)</small>
+
+* Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([f7f17f7](https://github.com/iDrinkx/plex-portal/commit/f7f17f7))
+* Merge branch 'main' into develop ([ce23981](https://github.com/iDrinkx/plex-portal/commit/ce23981))
+* Merge pull request #44 from iDrinkx/develop ([330afdd](https://github.com/iDrinkx/plex-portal/commit/330afdd)), closes [#44](https://github.com/iDrinkx/plex-portal/issues/44)
+* Merge pull request #45 from iDrinkx/main ([aa04ea7](https://github.com/iDrinkx/plex-portal/commit/aa04ea7)), closes [#45](https://github.com/iDrinkx/plex-portal/issues/45) [#44](https://github.com/iDrinkx/plex-portal/issues/44)
+* Merge pull request #46 from iDrinkx/develop ([21adddd](https://github.com/iDrinkx/plex-portal/commit/21adddd)), closes [#46](https://github.com/iDrinkx/plex-portal/issues/46)
+* chore: update dependencies ([61ee1d9](https://github.com/iDrinkx/plex-portal/commit/61ee1d9))
+* chore(dependencies): update @semantic-release/npm to version 13.1.5 and add overrides for tar ([b554829](https://github.com/iDrinkx/plex-portal/commit/b554829))
+* fix(dashboard): hide version badge when up to date ([c0e188d](https://github.com/iDrinkx/plex-portal/commit/c0e188d))
+* style(login): enhance responsiveness of login button for mobile devices ([6baeec5](https://github.com/iDrinkx/plex-portal/commit/6baeec5))
+
 ## 1.35.0 (2026-03-04)
 
 * Merge pull request #42 from iDrinkx/develop ([1143235](https://github.com/iDrinkx/plex-portal/commit/1143235)), closes [#42](https://github.com/iDrinkx/plex-portal/issues/42)
