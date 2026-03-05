@@ -39,6 +39,13 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 ---
 
+##  État des traductions
+
+- **Français** : `100%` (référence principale du projet)
+- **Anglais** : `~82%` (estimation actuelle de couverture UI)
+
+---
+
 ##  Démarrage rapide
 
 ### Prérequis
