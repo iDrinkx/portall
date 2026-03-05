@@ -1,3 +1,13 @@
+## <small>1.35.2 (2026-03-05)</small>
+
+* Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([e1bdb66](https://github.com/iDrinkx/plex-portal/commit/e1bdb66))
+* Merge pull request #47 from iDrinkx/iDrinkx-patch-1 ([2662741](https://github.com/iDrinkx/plex-portal/commit/2662741)), closes [#47](https://github.com/iDrinkx/plex-portal/issues/47)
+* Merge pull request #48 from iDrinkx/develop ([9b97c5a](https://github.com/iDrinkx/plex-portal/commit/9b97c5a)), closes [#48](https://github.com/iDrinkx/plex-portal/issues/48)
+* Remove main heading from README ([0c9b834](https://github.com/iDrinkx/plex-portal/commit/0c9b834))
+* Update logo image in README.md ([0271a3c](https://github.com/iDrinkx/plex-portal/commit/0271a3c))
+* style(readme): update logo image to new design ([a1e7c81](https://github.com/iDrinkx/plex-portal/commit/a1e7c81))
+* style(readme): update logo to new design and adjust alignment ([1f156f4](https://github.com/iDrinkx/plex-portal/commit/1f156f4))
+
 ## <small>1.35.1 (2026-03-05)</small>
 
 * Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([f7f17f7](https://github.com/iDrinkx/plex-portal/commit/f7f17f7))
