@@ -3,7 +3,6 @@
   <img src="./public/img/plex-portal.png" alt="Plex Portal Logo" width="280">
 </p>
 
-<h1 align="center">Plex Portal</h1>
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
