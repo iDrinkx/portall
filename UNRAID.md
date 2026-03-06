@@ -70,7 +70,7 @@ Recommandé: 300x300px ou 400x400px
 
 2. **Configuration:**
    - Name: `plex-portal`
-   - Repository: `ghcr.io/<github-owner>/plex-portal:latest`
+   - Repository: `ghcr.io/idrinkx/plex-portal:latest`
 
 3. **Ports:**
    - Container Port: `3000`

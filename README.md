@@ -3,6 +3,7 @@
   <img src="./public/img/plex-portal.png" alt="Plex Portal Logo" width="280">
 </p>
 
+Unofficial companion dashboard for Plex users.
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
@@ -39,6 +40,25 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 ---
 
+## Captures d'ecran
+
+![Dashboard](./public/img/screenshots/01-dashboard.png)
+![Profil](./public/img/screenshots/02-profil.png)
+![Succes](./public/img/screenshots/03-succes.png)
+![Repartition XP](./public/img/screenshots/04-repartition-xp.png)
+![Classement](./public/img/screenshots/05-classement.png)
+![Statistiques](./public/img/screenshots/06-statistiques.png)
+![Calendrier](./public/img/screenshots/07-calendrier.png)
+
+---
+
+##  État des traductions
+
+- **Français** : `100%` (référence principale du projet)
+- **Anglais** : `~82%` (estimation actuelle de couverture UI)
+
+---
+
 ##  Démarrage rapide
 
 ### Prérequis
@@ -56,7 +76,7 @@ docker compose up -d
 # Accès : https://plex-portal.votredomaine.com
 ```
 
-> Image Docker publique : `ghcr.io/<github-owner>/plex-portal:latest`
+> Image Docker publique : `ghcr.io/idrinkx/plex-portal:latest`
 
 ---
 
@@ -186,7 +206,7 @@ Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte s
 ```yaml
 services:
   plex-portal:
-    image: ghcr.io/<github-owner>/plex-portal:latest
+    image: ghcr.io/idrinkx/plex-portal:latest
     container_name: plex-portal
     ports:
       - "4000:3000"
@@ -347,10 +367,20 @@ ouvrez une issue ou proposez une pull request sur le dépôt principal.
 
 ## Licence
 
-Ce projet est propriétaire.
+Ce projet est distribué sous licence **GNU General Public License v3.0 (GPLv3)**.
 
-L'utilisation de l'image Docker officielle est autorisée pour un usage personnel ou interne uniquement.
+Vous pouvez utiliser, modifier et redistribuer ce projet conformément aux termes de la GPLv3.
 
-Toute modification, redistribution ou usage commercial est strictement interdit sans autorisation écrite de l'auteur.
+Toute redistribution d'une version modifiée doit rester sous GPLv3 et respecter les obligations de la licence.
+
+Ce logiciel est fourni sans garantie, dans les limites prévues par la GPLv3.
 
 Voir le fichier [LICENSE](LICENSE) pour plus d'informations.
+
+---
+
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or sponsored by Plex Inc.
+
+"Plex" is a trademark of Plex Inc.
