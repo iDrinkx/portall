@@ -39,6 +39,18 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 ---
 
+## Captures d'ecran
+
+![Dashboard](./public/img/screenshots/01-dashboard.png)
+![Profil](./public/img/screenshots/02-profil.png)
+![Succes](./public/img/screenshots/03-succes.png)
+![Repartition XP](./public/img/screenshots/04-repartition-xp.png)
+![Classement](./public/img/screenshots/05-classement.png)
+![Statistiques](./public/img/screenshots/06-statistiques.png)
+![Calendrier](./public/img/screenshots/07-calendrier.png)
+
+---
+
 ##  État des traductions
 
 - **Français** : `100%` (référence principale du projet)
@@ -363,3 +375,11 @@ Toute redistribution d'une version modifiée doit rester sous GPLv3 et respecter
 Ce logiciel est fourni sans garantie, dans les limites prévues par la GPLv3.
 
 Voir le fichier [LICENSE](LICENSE) pour plus d'informations.
+
+---
+
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or sponsored by Plex Inc.
+
+"Plex" is a trademark of Plex Inc.
