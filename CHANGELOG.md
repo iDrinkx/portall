@@ -1,3 +1,16 @@
+## <small>1.35.3 (2026-03-06)</small>
+
+* Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([b1f1420](https://github.com/iDrinkx/plex-portal/commit/b1f1420))
+* Merge branch 'main' into develop ([f748beb](https://github.com/iDrinkx/plex-portal/commit/f748beb))
+* Merge pull request #49 from iDrinkx/develop ([c02fe2e](https://github.com/iDrinkx/plex-portal/commit/c02fe2e)), closes [#49](https://github.com/iDrinkx/plex-portal/issues/49)
+* Refactor code structure for improved readability and maintainability ([473ed8b](https://github.com/iDrinkx/plex-portal/commit/473ed8b))
+* fix(docker): update service configuration to use pre-built Docker image ([8cce59e](https://github.com/iDrinkx/plex-portal/commit/8cce59e))
+* fix(docs): add English description to README for clarity ([5f28f6e](https://github.com/iDrinkx/plex-portal/commit/5f28f6e))
+* fix(docs): update Docker image reference to correct GitHub owner ([9de2019](https://github.com/iDrinkx/plex-portal/commit/9de2019))
+* fix(docs): update Docker repository reference to correct GitHub owner ([2c814ca](https://github.com/iDrinkx/plex-portal/commit/2c814ca))
+* fix(docs): update license information to reflect GPLv3 terms ([e3b9966](https://github.com/iDrinkx/plex-portal/commit/e3b9966))
+* docs(readme): add translation status section with coverage percentages ([d96a1ed](https://github.com/iDrinkx/plex-portal/commit/d96a1ed))
+
 ## <small>1.35.2 (2026-03-05)</small>
 
 * Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([e1bdb66](https://github.com/iDrinkx/plex-portal/commit/e1bdb66))
