@@ -27,3 +27,7 @@ logs
 # Autres
 README.md
 .github
+
+# Assets uniquement utilises par le README GitHub
+public/img/screenshots
+public/img/plex-portal.png
