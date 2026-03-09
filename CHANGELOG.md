@@ -1,3 +1,10 @@
+## 1.36.0 (2026-03-09)
+
+* Merge pull request #54 from iDrinkx/develop ([13154bf](https://github.com/iDrinkx/portall/commit/13154bf)), closes [#54](https://github.com/iDrinkx/portall/issues/54)
+* fix(docs): update logo in README for better branding ([68c2883](https://github.com/iDrinkx/portall/commit/68c2883))
+* fix(docs): update references from plex-portal to portall in README and Docker workflow ([1c39ec3](https://github.com/iDrinkx/portall/commit/1c39ec3))
+* feat(ci): enhance Docker workflow to include Docker Hub login and image tagging ([2afb3a0](https://github.com/iDrinkx/portall/commit/2afb3a0))
+
 ## <small>1.35.4 (2026-03-09)</small>
 
 * Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([7339c50](https://github.com/iDrinkx/portall/commit/7339c50))
