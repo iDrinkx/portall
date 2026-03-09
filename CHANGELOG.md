@@ -1,3 +1,8 @@
+## <small>1.36.4 (2026-03-09)</small>
+
+* Merge pull request #58 from iDrinkx/develop ([2ae5811](https://github.com/iDrinkx/portall/commit/2ae5811)), closes [#58](https://github.com/iDrinkx/portall/issues/58)
+* refactor(ci): simplify release workflow by removing unused outputs and docker-release job ([5905596](https://github.com/iDrinkx/portall/commit/5905596))
+
 ## <small>1.36.3 (2026-03-09)</small>
 
 * Merge pull request #57 from iDrinkx/develop ([e7dcde5](https://github.com/iDrinkx/portall/commit/e7dcde5)), closes [#57](https://github.com/iDrinkx/portall/issues/57)
