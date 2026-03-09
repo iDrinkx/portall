@@ -73,10 +73,10 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 ```bash
 # L'app détecte automatiquement le reverse proxy via X-Forwarded-*
 docker compose up -d
-# Accès : https://plex-portal.votredomaine.com
+# Accès : https://portall.votredomaine.com
 ```
 
-> Image Docker publique : `ghcr.io/idrinkx/plex-portal:latest`
+> Image Docker publique : `ghcr.io/idrinkx/portall:latest`
 
 ---
 
@@ -98,7 +98,7 @@ docker compose up -d
 ##  Structure du projet
 
 ```
-plex-portal/
+portall/
  Dockerfile
  docker-compose.yml
  server.js                           # Serveur Express principal
@@ -205,9 +205,9 @@ Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte s
 
 ```yaml
 services:
-  plex-portal:
-    image: ghcr.io/idrinkx/plex-portal:latest
-    container_name: plex-portal
+  portall:
+    image: ghcr.io/idrinkx/portall:latest
+    container_name: portall
     ports:
       - "4000:3000"
     environment:
@@ -218,7 +218,7 @@ services:
     networks:
       - proxy
     volumes:
-      - /chemin/appdata/plex-portal/config:/config
+      - /chemin/appdata/portall/config:/config
       - /chemin/appdata/tautulli:/tautulli-data
 
 networks:
@@ -232,14 +232,14 @@ networks:
 
 Plex Portal intègre Seerr (ex-Overseerr / Jellyseerr) via **SSO Organizr-style** :
 
-1. Au login Plex  plex-portal contacte Seerr en interne (`SEERR_URL`) et récupère le `connect.sid`
+1. Au login Plex  portall contacte Seerr en interne (`SEERR_URL`) et récupère le `connect.sid`
 2. Ce cookie est posé dans le browser avec `domain=.votredomaine.com` (sous-domaine parent commun)
 3. Navigation vers `/seerr`  iframe full-page chargée depuis `SEERR_PUBLIC_URL`
 4. Le browser envoie automatiquement le cookie  Seerr authentifié sans re-connexion
 
 **Prérequis :**
-- `SEERR_PUBLIC_URL` et l'URL de plex-portal doivent partager le même domaine parent
-  _(ex: `plex-portal.votredomaine.com` + `seerr.votredomaine.com`  parent `.votredomaine.com`)_
+- `SEERR_PUBLIC_URL` et l'URL de portall doivent partager le même domaine parent
+  _(ex: `portall.votredomaine.com` + `seerr.votredomaine.com`  parent `.votredomaine.com`)_
 - HTTPS obligatoire en production (cookie `secure: true`)
 - `SEERR_URL` et `SEERR_PUBLIC_URL` peuvent être renseignés depuis `Parametres > Connexions`
 
@@ -285,9 +285,9 @@ Aucun header X-Forwarded-*
 ### Derrière ngx proxy manager / Traefik
 ```
 X-Forwarded-Proto: https
-X-Forwarded-Host: plex-portal.votredomaine.com
+X-Forwarded-Host: portall.votredomaine.com
 X-Forwarded-Prefix: /
- https://plex-portal.votredomaine.com   (auto-détecté)
+ https://portall.votredomaine.com   (auto-détecté)
 ```
 
 Aucune configuration manuelle requise. 
@@ -297,7 +297,7 @@ Aucune configuration manuelle requise.
 ##  Sécurité
 
 -  Authentification via Plex OAuth uniquement (aucun mot de passe stocké)
--  Sessions HttpOnly, SameSite=Lax, nom personnalisé (`plex-portal.sid`)
+-  Sessions HttpOnly, SameSite=Lax, nom personnalisé (`portall.sid`)
 -  Support HTTPS via reverse proxy
 -  Whitelist optionnelle par serveur Plex (`PLEX_URL` + `PLEX_TOKEN`)
 -  Changez `SESSION_SECRET` en production : `openssl rand -hex 32`
@@ -330,7 +330,7 @@ Pour toute suggestion ou bug, ouvrez une issue ou contactez l'auteur.
 ##  Support & FAQ
 
 **Q : Que modifier pour passer du local à la production ?**
-R : Rien côté app. Configurez ngx proxy manager pour pointer vers plex-portal, les headers `X-Forwarded-*` sont auto-détectés.
+R : Rien côté app. Configurez ngx proxy manager pour pointer vers portall, les headers `X-Forwarded-*` sont auto-détectés.
 
 **Q : Seerr ne charge pas dans l'iframe ?**
 R : Vérifiez que `SEERR_PUBLIC_URL` et l'URL du portail partagent le même domaine parent (`.votredomaine.com`). HTTPS requis.
@@ -343,7 +343,7 @@ R : Placez votre `logo.png` dans le volume `./config:/config`.
 
 **Plus de questions ?**
 -  Consultez [SETUP.md](./SETUP.md) et [DOCKER.md](./DOCKER.md)
--  Logs : `docker compose logs -f plex-portal`
+-  Logs : `docker compose logs -f portall`
 -  Ouvrez une issue sur GitHub
 
 ---
