@@ -1,6 +1,6 @@
 ﻿
 <p align="center">
-  <img src="./public/img/portall-v2.png" alt="Plex Portal Logo" width="280">
+  <img src="https://raw.githubusercontent.com/idrinktv/portall/main/public/img/portall-v2.png" alt="Plex Portal Logo" width="280">
 </p>
 
 Tableau de bord compagnon non officiel pour les utilisateurs de Plex.
@@ -386,5 +386,5 @@ This project is not affiliated with, endorsed by, or sponsored by Plex Inc.
 "Plex" is a trademark of Plex Inc.
 
 <p align="center">
-  <img src="./public/img/portall-logo.png" alt="Plex Portal Logo" width="280">
+  <img src="https://raw.githubusercontent.com/idrinktv/portall/main/public/img/portall-logo.png" alt="Plex Portal Logo" width="280">
 </p>
