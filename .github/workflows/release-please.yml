@@ -14,9 +14,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
 
     steps:
       - name: Checkout
@@ -30,51 +27,6 @@ jobs:
         run: npm install
 
       - name: Run semantic-release
-        id: semantic
         uses: cycjimmy/semantic-release-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
-  docker-release:
-    needs: release
-    if: ${{ needs.release.outputs.new_release_published == 'true' }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: "main"
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME || secrets.IDRINKTV }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/portall
-            docker.io/${{ secrets.DOCKERHUB_USERNAME || secrets.IDRINKTV }}/portall
-          tags: |
-            type=raw,value=latest
-            type=raw,value=v${{ needs.release.outputs.new_release_version }}
-
-      - name: Build and push (versioned + latest)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
