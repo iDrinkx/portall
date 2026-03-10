@@ -502,8 +502,13 @@ router.get(/^\/seerr$/, requireAuth, ensureSeerrSession, (req, res) => {
 });
 
 router.use("/_next", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.use("/api/v1", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/sw.js", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/manifest.json", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/site.webmanifest", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/logo_full.svg", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/favicon.ico", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/apple-touch-icon.png", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 
 router.use((req, res, next) => {
   const path = req.path || "/";
