@@ -75,8 +75,7 @@ async function fetchSeerrSessionCookie(authToken, username) {
       return null;
     }
 
-    const rawValue = sidCookie.split(";")[0].replace("connect.sid=", "");
-    return rawValue || null;
+    return sidCookie.split(";")[0].replace("connect.sid=", "") || null;
   } catch (error) {
     logSeerr.warn(`Erreur SSO Seerr pour ${username}: ${error.message}`);
     return null;
@@ -107,33 +106,26 @@ function buildProxyPrefix(req) {
   return `${req.basePath || ""}/seerr`;
 }
 
-function escapeHtml(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function buildSeerrNavbarMarkup(req) {
   const basePath = req.basePath || "";
+  const isAdmin = !!req.session?.user?.isAdmin;
+
   return `
-<div id="plex-portal-seerr-navbar-inline" style="position:sticky;top:0;z-index:2147483647;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#111;border-bottom:1px solid rgba(255,255,255,.08);box-sizing:border-box;">
-  <a href="${basePath}/dashboard" style="display:flex;align-items:center;text-decoration:none;">
-    <img src="${basePath}/logo.png" alt="Portal" style="height:44px;width:auto;max-width:128px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(0,0,0,.5));">
+<div id="plex-portal-seerr-navbar" style="position:sticky;top:0;z-index:2147483647;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#111;border-bottom:1px solid rgba(255,255,255,.08);box-sizing:border-box;">
+  <a data-portal-link="1" href="${basePath}/dashboard" style="display:flex;align-items:center;text-decoration:none;">
+    <img data-portal-asset="1" src="${basePath}/logo.png" alt="Portal" style="height:44px;width:auto;max-width:128px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(0,0,0,.5));">
   </a>
-  <div style="display:flex;align-items:center;gap:30px;height:100%;">
-    <a href="${basePath}/dashboard" style="color:rgba(255,255,255,.95);text-decoration:none;font-weight:600;font-size:15px;">Dashboard 🏠</a>
-    <a href="${basePath}/profil" style="color:rgba(229,160,13,.9);text-decoration:none;font-weight:600;font-size:15px;">Profil 👤</a>
-    <a href="${basePath}/classement" style="color:rgba(59,130,246,.9);text-decoration:none;font-weight:600;font-size:15px;">Classement 🏆</a>
-    <a href="${basePath}/mes-stats" style="color:rgba(16,185,129,.9);text-decoration:none;font-weight:600;font-size:15px;">Statistiques 📊</a>
-    <a href="${basePath}/seerr" style="color:rgba(109,73,171,.95);text-decoration:none;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:6px;">Demandes <img src="${basePath}/img/seerr-icon.svg" alt="Seerr" style="width:16px;height:16px;object-fit:contain;border-radius:4px;"></a>
-    <a href="${basePath}/calendrier" style="color:rgba(239,68,68,.9);text-decoration:none;font-weight:600;font-size:15px;">Calendrier 🗓️</a>
-    ${req.session?.user?.isAdmin ? `<a href="${basePath}/parametres" style="color:rgba(203,213,225,.92);text-decoration:none;font-weight:600;font-size:15px;">Parametres ⚙️</a>` : ""}
+  <div style="display:flex;align-items:center;gap:30px;height:100%;overflow-x:auto;">
+    <a data-portal-link="1" href="${basePath}/dashboard" style="color:rgba(255,255,255,.95);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Dashboard</a>
+    <a data-portal-link="1" href="${basePath}/profil" style="color:rgba(229,160,13,.9);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Profil</a>
+    <a data-portal-link="1" href="${basePath}/classement" style="color:rgba(59,130,246,.9);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Classement</a>
+    <a data-portal-link="1" href="${basePath}/mes-stats" style="color:rgba(16,185,129,.9);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Statistiques</a>
+    <a data-portal-link="1" href="${basePath}/seerr" style="color:rgba(109,73,171,.95);text-decoration:none;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">Demandes <img data-portal-asset="1" src="${basePath}/img/seerr-icon.svg" alt="Seerr" style="width:16px;height:16px;object-fit:contain;border-radius:4px;"></a>
+    <a data-portal-link="1" href="${basePath}/calendrier" style="color:rgba(239,68,68,.9);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Calendrier</a>
+    ${isAdmin ? `<a data-portal-link="1" href="${basePath}/parametres" style="color:rgba(203,213,225,.92);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap;">Parametres</a>` : ""}
   </div>
   <div style="display:flex;align-items:center;gap:18px;">
-    <a href="${basePath}/logout" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:14px;border:1px solid rgba(241,163,64,.38);background:linear-gradient(135deg, rgba(190,116,34,.92), rgba(120,76,24,.9));color:#fff5e6;text-decoration:none;font-weight:700;box-shadow:0 16px 28px rgba(84,39,11,.35);">Deconnexion</a>
+    <a data-portal-link="1" href="${basePath}/logout" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:14px;border:1px solid rgba(241,163,64,.38);background:linear-gradient(135deg, rgba(190,116,34,.92), rgba(120,76,24,.9));color:#fff5e6;text-decoration:none;font-weight:700;white-space:nowrap;box-shadow:0 16px 28px rgba(84,39,11,.35);">Deconnexion</a>
   </div>
 </div>
 <div id="plex-portal-seerr-content">`;
@@ -181,19 +173,15 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   try {
     const html = htmlBuffer.toString("utf8");
     const proxyPrefix = buildProxyPrefix(req);
-    const proxyPrefixEscaped = proxyPrefix.replace(/"/g, "&quot;");
-    const baseHref = `${proxyPrefix}/`;
-    const portalNavbarMarkup = buildSeerrNavbarMarkup(req);
+    const navbarMarkup = buildSeerrNavbarMarkup(req);
     const clientPatch = `
-<base href="${baseHref}">
+<base href="${proxyPrefix}/">
 <style>
   html, body { min-height: 100%; background: #0f1117; }
   body { box-sizing: border-box; overflow-x: hidden; }
-  #plex-portal-seerr-content {
-    min-height: calc(100vh - 72px);
-  }
+  #plex-portal-seerr-content { min-height: calc(100vh - 72px); }
   @media (max-width: 768px) {
-    #plex-portal-seerr-navbar-inline {
+    #plex-portal-seerr-navbar {
       height: auto !important;
       min-height: 60px;
       padding: 10px 12px !important;
@@ -211,32 +199,14 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     return prefix + url;
   };
   const absolutize = (url) => {
-    try {
-      return new URL(url, location.origin);
-    } catch (_) {
-      return null;
-    }
+    try { return new URL(url, location.origin); } catch (_) { return null; }
   };
-
-  const wrapHistory = (method) => {
-    const original = history[method];
-    history[method] = function(state, title, url) {
-      return original.call(this, state, title, normalize(url));
-    };
-  };
-
-  try { wrapHistory("pushState"); } catch (_) {}
-  try { wrapHistory("replaceState"); } catch (_) {}
 
   try {
     const originalFetch = window.fetch;
     window.fetch = function(input, init) {
-      if (typeof input === "string") {
-        return originalFetch.call(this, normalize(input), init);
-      }
-      if (input instanceof Request) {
-        return originalFetch.call(this, new Request(normalize(input.url), input), init);
-      }
+      if (typeof input === "string") return originalFetch.call(this, normalize(input), init);
+      if (input instanceof Request) return originalFetch.call(this, new Request(normalize(input.url), input), init);
       return originalFetch.call(this, input, init);
     };
   } catch (_) {}
@@ -249,18 +219,9 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   } catch (_) {}
 
   document.addEventListener("click", (event) => {
-    const anchor = event.target.closest && event.target.closest("a[href^='/']");
-    if (!anchor) return;
-    const href = anchor.getAttribute("href");
-    if (!href || href.startsWith(prefix + "/")) return;
-    event.preventDefault();
-    event.stopPropagation();
-    location.href = normalize(href);
-  }, true);
-
-  document.addEventListener("click", (event) => {
     const anchor = event.target.closest && event.target.closest("a[href]");
     if (!anchor) return;
+    if (anchor.hasAttribute("data-portal-link")) return;
     const href = anchor.getAttribute("href");
     if (!href) return;
     const url = absolutize(href);
@@ -272,51 +233,54 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   }, true);
 
   const rewriteAnchors = () => {
-    if (!document.body) return;
-    document.querySelectorAll('a[href]').forEach((anchor) => {
-      const href = anchor.getAttribute('href');
+    document.querySelectorAll("a[href]").forEach((anchor) => {
+      if (anchor.hasAttribute("data-portal-link")) return;
+      const href = anchor.getAttribute("href");
       if (!href) return;
       const url = absolutize(href);
       if (!url || url.origin !== location.origin) return;
       if (!url.pathname.startsWith("/") || url.pathname.startsWith(prefix + "/")) return;
-      anchor.setAttribute('href', normalize(url.pathname + url.search + url.hash));
+      anchor.setAttribute("href", normalize(url.pathname + url.search + url.hash));
     });
-  };
-
-  const boot = () => {
-    rewriteAnchors();
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", rewriteAnchors, { once: true });
   } else {
-    boot();
+    rewriteAnchors();
   }
 
   try {
-    const observer = new MutationObserver(() => {
-      rewriteAnchors();
-    });
+    const observer = new MutationObserver(() => rewriteAnchors());
     observer.observe(document.documentElement, { childList: true, subtree: true });
   } catch (_) {}
 })();
 </script>`;
 
-  const withHeadPatch = html.includes("</head>")
-    ? html.replace("</head>", `${clientPatch}</head>`)
-    : `${clientPatch}${html}`;
+    const withHeadPatch = html.includes("</head>")
+      ? html.replace("</head>", `${clientPatch}</head>`)
+      : `${clientPatch}${html}`;
 
-  const withNavbar = withHeadPatch.includes("<body")
-    ? withHeadPatch
-      .replace(/<body([^>]*)>/i, `<body$1>${portalNavbarMarkup}`)
-      .replace(/<\/body>/i, `</div></body>`)
-    : `${portalNavbarMarkup}${withHeadPatch}`;
+    const withNavbar = withHeadPatch.includes("<body")
+      ? withHeadPatch
+        .replace(/<body([^>]*)>/i, `<body$1>${navbarMarkup}`)
+        .replace(/<\/body>/i, `</div></body>`)
+      : `${navbarMarkup}${withHeadPatch}`;
 
     return withNavbar
-      .replace(/(href|src|action)=("|')\/(?!\/)/gi, `$1=$2${proxyPrefixEscaped}/`)
+      .replace(/(href|src|action)=("|')\/(?!\/)/gi, `$1=$2${proxyPrefix}/`)
       .replace(/(["'])\/_next\//g, `$1${proxyPrefix}/_next/`)
       .replace(/(["'])\/images\//g, `$1${proxyPrefix}/images/`)
-      .replace(/(["'])\/api\/v1\//g, `$1${proxyPrefix}/api/v1/`);
+      .replace(/(["'])\/api\/v1\//g, `$1${proxyPrefix}/api/v1/`)
+      .replace(/(href|src)=("|')\/seerr\/dashboard(["'])/gi, `$1=$2/dashboard$3`)
+      .replace(/(href|src)=("|')\/seerr\/profil(["'])/gi, `$1=$2/profil$3`)
+      .replace(/(href|src)=("|')\/seerr\/classement(["'])/gi, `$1=$2/classement$3`)
+      .replace(/(href|src)=("|')\/seerr\/mes-stats(["'])/gi, `$1=$2/mes-stats$3`)
+      .replace(/(href|src)=("|')\/seerr\/calendrier(["'])/gi, `$1=$2/calendrier$3`)
+      .replace(/(href|src)=("|')\/seerr\/parametres(["'])/gi, `$1=$2/parametres$3`)
+      .replace(/(href|src)=("|')\/seerr\/logout(["'])/gi, `$1=$2/logout$3`)
+      .replace(/(href|src)=("|')\/seerr\/logo\.png(["'])/gi, `$1=$2/logo.png$3`)
+      .replace(/(href|src)=("|')\/seerr\/img\/seerr-icon\.svg(["'])/gi, `$1=$2/img/seerr-icon.svg$3`);
   } catch (error) {
     logSeerr.error(`Erreur rewriteHtmlForProxy: ${error.message}`);
     return htmlBuffer;
