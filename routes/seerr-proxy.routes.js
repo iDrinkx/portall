@@ -3,6 +3,8 @@ const fetch = require("node-fetch");
 const { createProxyMiddleware, responseInterceptor } = require("http-proxy-middleware");
 const log = require("../utils/logger");
 const { getConfigValue } = require("../utils/config");
+const { buildDashboardNavItems } = require("../utils/dashboard-builtins");
+const { getSiteLanguage, createTranslator } = require("../utils/i18n");
 
 const router = express.Router();
 const logSeerr = log.create("[Seerr Proxy]");
@@ -107,6 +109,52 @@ function buildProxyPrefix(req) {
   return `${req.basePath || ""}/seerr`;
 }
 
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildSeerrNavbarMarkup(req) {
+  const basePath = req.basePath || "";
+  const locale = getSiteLanguage();
+  const t = createTranslator(locale);
+  const items = buildDashboardNavItems(basePath, t);
+
+  const navLinks = [
+    `<a href="${basePath}/dashboard" class="nav-link nav-link-dashboard">${escapeHtml(t("nav.dashboard"))}&nbsp;🏠</a>`,
+    ...items.map((item) => {
+      const icon = item.kind === "image"
+        ? `<img src="${basePath}${item.iconSrc}" alt="${escapeHtml(item.iconAlt || item.label || "")}" class="nav-seerr-logo">`
+        : item.kind === "profile"
+          ? "👤"
+          : escapeHtml(item.icon || "");
+      return `<a href="${escapeHtml(item.href)}" class="nav-link ${escapeHtml(item.className || "")}">${escapeHtml(item.label)}&nbsp;${icon}</a>`;
+    })
+  ];
+
+  if (req.session?.user?.isAdmin) {
+    navLinks.push(`<a href="${basePath}/parametres" class="nav-link nav-link-settings">${escapeHtml(t("nav.settings"))}&nbsp;⚙️</a>`);
+  }
+
+  return `
+<nav class="plex-portal-seerr-navbar">
+  <a href="${basePath}/dashboard" class="plex-portal-seerr-brand">
+    <img class="plex-portal-seerr-brand-logo" src="${basePath}/logo.png" alt="Portal">
+  </a>
+  <div class="plex-portal-seerr-nav-center">
+    ${navLinks.join("")}
+  </div>
+  <div class="plex-portal-seerr-nav-right">
+    <a class="plex-portal-seerr-logout" href="${basePath}/logout">${escapeHtml(t("nav.logout"))}</a>
+  </div>
+</nav>
+<div id="plex-portal-seerr-content">`;
+}
+
 function applySeerrForwardedHeaders(proxyReq, req) {
   proxyReq.setHeader("X-Forwarded-Prefix", buildProxyPrefix(req));
   proxyReq.setHeader("X-Forwarded-Host", req.get("host") || "");
@@ -150,51 +198,134 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   const proxyPrefix = buildProxyPrefix(req);
   const proxyPrefixEscaped = proxyPrefix.replace(/"/g, "&quot;");
   const baseHref = `${proxyPrefix}/`;
-  const dashboardUrl = `${req.basePath || ""}/dashboard`;
+  const portalNavbarMarkup = buildSeerrNavbarMarkup(req);
   const clientPatch = `
 <base href="${baseHref}">
 <style>
-  :root { --plex-portal-seerr-topbar-height: 44px; }
+  :root {
+    --plex-portal-seerr-nav-height: 72px;
+    --plex-portal-seerr-line: rgba(255,255,255,0.08);
+  }
   html, body { min-height: 100%; background: #0f1117; }
   body { box-sizing: border-box; overflow-x: hidden; }
-  #plex-portal-seerr-topbar {
+  .plex-portal-seerr-navbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
     z-index: 2147483647;
-    height: var(--plex-portal-seerr-topbar-height);
-    padding: 0 16px;
-    background: #161b22;
-    border-bottom: 1px solid #30363d;
+    height: var(--plex-portal-seerr-nav-height);
+    min-height: var(--plex-portal-seerr-nav-height);
+    max-height: var(--plex-portal-seerr-nav-height);
+    padding: 0 24px;
+    background: #111;
+    border-bottom: 1px solid var(--plex-portal-seerr-line);
+    box-sizing: border-box;
   }
   #plex-portal-seerr-content {
-    min-height: calc(100vh - var(--plex-portal-seerr-topbar-height));
+    min-height: calc(100vh - var(--plex-portal-seerr-nav-height));
   }
-  #plex-portal-seerr-back {
+  .plex-portal-seerr-brand {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    text-decoration: none;
+    min-width: 0;
+  }
+  .plex-portal-seerr-brand-logo {
+    height: 44px;
+    width: auto;
+    max-width: 128px;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 0 6px rgba(0,0,0,.5));
+  }
+  .plex-portal-seerr-nav-center,
+  .plex-portal-seerr-nav-right {
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+  .plex-portal-seerr-nav-center {
+    gap: 30px;
+  }
+  .plex-portal-seerr-nav-right {
+    gap: 18px;
+  }
+  .plex-portal-seerr-navbar .nav-link {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    color: #c9d1d9;
+    height: 100%;
+    line-height: 1;
+    color: #bbb;
     text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 5px 12px;
-    border-radius: 6px;
-    border: 1px solid #30363d;
-    background: #21262d;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    font-weight: 600;
+    font-size: 15px;
+    position: relative;
+    transition: 0.2s ease;
   }
-  #plex-portal-seerr-back:hover {
-    background: #30363d;
-    border-color: #8b949e;
-    color: #f0f6fc;
+  .plex-portal-seerr-navbar .nav-link:hover { color: #fff; }
+  .plex-portal-seerr-navbar .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    transition: width 0.2s ease;
   }
-  #plex-portal-seerr-back svg { flex-shrink: 0; }
+  .plex-portal-seerr-navbar .nav-link:hover::after { width: 100%; }
+  .plex-portal-seerr-navbar .nav-link-dashboard { color: rgba(255, 255, 255, 0.95); }
+  .plex-portal-seerr-navbar .nav-link-dashboard:hover { color: #ffffff; }
+  .plex-portal-seerr-navbar .nav-link-dashboard::after { background: #ffffff; }
+  .plex-portal-seerr-navbar .nav-link-profil { color: rgba(229, 160, 13, 0.9); }
+  .plex-portal-seerr-navbar .nav-link-profil:hover { color: #ffcc40; }
+  .plex-portal-seerr-navbar .nav-link-profil::after { background: #e5a00d; }
+  .plex-portal-seerr-navbar .nav-link-classement { color: rgba(59, 130, 246, 0.9); }
+  .plex-portal-seerr-navbar .nav-link-classement:hover { color: #7db8ff; }
+  .plex-portal-seerr-navbar .nav-link-classement::after { background: #3B82F6; }
+  .plex-portal-seerr-navbar .nav-link-stats { color: rgba(16, 185, 129, 0.9); }
+  .plex-portal-seerr-navbar .nav-link-stats:hover { color: #34d399; }
+  .plex-portal-seerr-navbar .nav-link-stats::after { background: #10b981; }
+  .plex-portal-seerr-navbar .nav-link-demandes { color: rgba(109, 73, 171, 0.9); }
+  .plex-portal-seerr-navbar .nav-link-demandes:hover { color: #b48cf0; }
+  .plex-portal-seerr-navbar .nav-link-demandes::after { background: #6d49ab; }
+  .plex-portal-seerr-navbar .nav-link-calendrier { color: rgba(239, 68, 68, 0.9); }
+  .plex-portal-seerr-navbar .nav-link-calendrier:hover { color: #f87171; }
+  .plex-portal-seerr-navbar .nav-link-calendrier::after { background: #ef4444; }
+  .plex-portal-seerr-navbar .nav-link-settings { color: rgba(203, 213, 225, 0.92); }
+  .plex-portal-seerr-navbar .nav-link-settings:hover { color: #e2e8f0; }
+  .plex-portal-seerr-navbar .nav-link-settings::after { background: #cbd5e1; }
+  .plex-portal-seerr-logout {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 14px;
+    border: 1px solid rgba(241, 163, 64, 0.38);
+    background: linear-gradient(135deg, rgba(190, 116, 34, 0.92), rgba(120, 76, 24, 0.9));
+    color: #fff5e6;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 16px 28px rgba(84, 39, 11, 0.35);
+  }
+  .nav-seerr-logo {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    border-radius: 4px;
+  }
   @media (max-width: 768px) {
-    :root { --plex-portal-seerr-topbar-height: 36px; }
-    #plex-portal-seerr-topbar { padding: 0 10px; }
-    #plex-portal-seerr-back { font-size: 0.78rem; padding: 4px 9px; }
+    :root { --plex-portal-seerr-nav-height: 60px; }
+    .plex-portal-seerr-navbar { padding: 0 12px; }
+    .plex-portal-seerr-nav-center { gap: 16px; overflow-x: auto; }
+    .plex-portal-seerr-navbar .nav-link { font-size: 13px; white-space: nowrap; }
+    .plex-portal-seerr-brand-logo { height: 36px; max-width: 100px; }
+    .plex-portal-seerr-logout { padding: 9px 14px; font-size: 13px; }
   }
 </style>
 <script>
@@ -270,7 +401,6 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   const rewriteAnchors = () => {
     if (!document.body) return;
     document.querySelectorAll('a[href]').forEach((anchor) => {
-      if (anchor.id === 'plex-portal-seerr-back') return;
       const href = anchor.getAttribute('href');
       if (!href) return;
       const url = absolutize(href);
@@ -280,34 +410,7 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     });
   };
 
-  const ensureTopbar = () => {
-    if (!document.body) return;
-    if (document.getElementById("plex-portal-seerr-topbar")) return;
-
-    const topbar = document.createElement("div");
-    topbar.id = "plex-portal-seerr-topbar";
-    topbar.innerHTML = [
-      '<a href="' + dashboardUrl + '" id="plex-portal-seerr-back">',
-      '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">',
-      '<path fill-rule="evenodd" d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06z"/>',
-      '</svg>',
-      'Retour au portail',
-      '</a>'
-    ].join("");
-
-    const content = document.createElement("div");
-    content.id = "plex-portal-seerr-content";
-
-    while (document.body.firstChild) {
-      content.appendChild(document.body.firstChild);
-    }
-
-    document.body.appendChild(topbar);
-    document.body.appendChild(content);
-  };
-
   const boot = () => {
-    ensureTopbar();
     rewriteAnchors();
   };
 
@@ -319,7 +422,6 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
 
   try {
     const observer = new MutationObserver(() => {
-      ensureTopbar();
       rewriteAnchors();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -331,7 +433,13 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     ? html.replace("</head>", `${clientPatch}</head>`)
     : `${clientPatch}${html}`;
 
-  return withHeadPatch
+  const withNavbar = withHeadPatch.includes("<body")
+    ? withHeadPatch
+      .replace(/<body([^>]*)>/i, `<body$1>${portalNavbarMarkup}`)
+      .replace(/<\/body>/i, `</div></body>`)
+    : `${portalNavbarMarkup}${withHeadPatch}`;
+
+  return withNavbar
     .replace(/(href|src|action)=("|')\/(?!\/)/gi, `$1=$2${proxyPrefixEscaped}/`)
     .replace(/(["'])\/_next\//g, `$1${proxyPrefix}/_next/`)
     .replace(/(["'])\/images\//g, `$1${proxyPrefix}/images/`)
