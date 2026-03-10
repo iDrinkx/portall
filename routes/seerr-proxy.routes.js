@@ -118,31 +118,24 @@ function escapeHtml(value) {
 
 function buildSeerrNavbarMarkup(req) {
   const basePath = req.basePath || "";
-  const navLinks = [
-    `<a href="${basePath}/dashboard" class="nav-link nav-link-dashboard">Dashboard&nbsp;🏠</a>`,
-    `<a href="${basePath}/profil" class="nav-link nav-link-profil">Profil&nbsp;👤</a>`,
-    `<a href="${basePath}/classement" class="nav-link nav-link-classement">Classement&nbsp;🏆</a>`,
-    `<a href="${basePath}/mes-stats" class="nav-link nav-link-stats">Statistiques&nbsp;📊</a>`,
-    `<a href="${basePath}/seerr" class="nav-link nav-link-demandes">Demandes&nbsp;<img src="${basePath}/img/seerr-icon.svg" alt="Seerr" class="nav-seerr-logo"></a>`,
-    `<a href="${basePath}/calendrier" class="nav-link nav-link-calendrier">Calendrier&nbsp;🗓️</a>`
-  ];
-
-  if (req.session?.user?.isAdmin) {
-    navLinks.push(`<a href="${basePath}/parametres" class="nav-link nav-link-settings">Parametres&nbsp;⚙️</a>`);
-  }
-
   return `
-<nav class="plex-portal-seerr-navbar">
-  <a href="${basePath}/dashboard" class="plex-portal-seerr-brand">
-    <img class="plex-portal-seerr-brand-logo" src="${basePath}/logo.png" alt="Portal">
+<div id="plex-portal-seerr-navbar-inline" style="position:sticky;top:0;z-index:2147483647;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#111;border-bottom:1px solid rgba(255,255,255,.08);box-sizing:border-box;">
+  <a href="${basePath}/dashboard" style="display:flex;align-items:center;text-decoration:none;">
+    <img src="${basePath}/logo.png" alt="Portal" style="height:44px;width:auto;max-width:128px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(0,0,0,.5));">
   </a>
-  <div class="plex-portal-seerr-nav-center">
-    ${navLinks.join("")}
+  <div style="display:flex;align-items:center;gap:30px;height:100%;">
+    <a href="${basePath}/dashboard" style="color:rgba(255,255,255,.95);text-decoration:none;font-weight:600;font-size:15px;">Dashboard 🏠</a>
+    <a href="${basePath}/profil" style="color:rgba(229,160,13,.9);text-decoration:none;font-weight:600;font-size:15px;">Profil 👤</a>
+    <a href="${basePath}/classement" style="color:rgba(59,130,246,.9);text-decoration:none;font-weight:600;font-size:15px;">Classement 🏆</a>
+    <a href="${basePath}/mes-stats" style="color:rgba(16,185,129,.9);text-decoration:none;font-weight:600;font-size:15px;">Statistiques 📊</a>
+    <a href="${basePath}/seerr" style="color:rgba(109,73,171,.95);text-decoration:none;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:6px;">Demandes <img src="${basePath}/img/seerr-icon.svg" alt="Seerr" style="width:16px;height:16px;object-fit:contain;border-radius:4px;"></a>
+    <a href="${basePath}/calendrier" style="color:rgba(239,68,68,.9);text-decoration:none;font-weight:600;font-size:15px;">Calendrier 🗓️</a>
+    ${req.session?.user?.isAdmin ? `<a href="${basePath}/parametres" style="color:rgba(203,213,225,.92);text-decoration:none;font-weight:600;font-size:15px;">Parametres ⚙️</a>` : ""}
   </div>
-  <div class="plex-portal-seerr-nav-right">
-    <a class="plex-portal-seerr-logout" href="${basePath}/logout">Deconnexion</a>
+  <div style="display:flex;align-items:center;gap:18px;">
+    <a href="${basePath}/logout" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:14px;border:1px solid rgba(241,163,64,.38);background:linear-gradient(135deg, rgba(190,116,34,.92), rgba(120,76,24,.9));color:#fff5e6;text-decoration:none;font-weight:700;box-shadow:0 16px 28px rgba(84,39,11,.35);">Deconnexion</a>
   </div>
-</nav>
+</div>
 <div id="plex-portal-seerr-content">`;
 }
 
@@ -194,130 +187,19 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     const clientPatch = `
 <base href="${baseHref}">
 <style>
-  :root {
-    --plex-portal-seerr-nav-height: 72px;
-    --plex-portal-seerr-line: rgba(255,255,255,0.08);
-  }
   html, body { min-height: 100%; background: #0f1117; }
   body { box-sizing: border-box; overflow-x: hidden; }
-  .plex-portal-seerr-navbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 2147483647;
-    height: var(--plex-portal-seerr-nav-height);
-    min-height: var(--plex-portal-seerr-nav-height);
-    max-height: var(--plex-portal-seerr-nav-height);
-    padding: 0 24px;
-    background: #111;
-    border-bottom: 1px solid var(--plex-portal-seerr-line);
-    box-sizing: border-box;
-  }
   #plex-portal-seerr-content {
-    min-height: calc(100vh - var(--plex-portal-seerr-nav-height));
-  }
-  .plex-portal-seerr-brand {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    text-decoration: none;
-    min-width: 0;
-  }
-  .plex-portal-seerr-brand-logo {
-    height: 44px;
-    width: auto;
-    max-width: 128px;
-    object-fit: contain;
-    display: block;
-    filter: drop-shadow(0 0 6px rgba(0,0,0,.5));
-  }
-  .plex-portal-seerr-nav-center,
-  .plex-portal-seerr-nav-right {
-    display: flex;
-    align-items: center;
-    height: 100%;
-  }
-  .plex-portal-seerr-nav-center {
-    gap: 30px;
-  }
-  .plex-portal-seerr-nav-right {
-    gap: 18px;
-  }
-  .plex-portal-seerr-navbar .nav-link {
-    display: inline-flex;
-    align-items: center;
-    height: 100%;
-    line-height: 1;
-    color: #bbb;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 15px;
-    position: relative;
-    transition: 0.2s ease;
-  }
-  .plex-portal-seerr-navbar .nav-link:hover { color: #fff; }
-  .plex-portal-seerr-navbar .nav-link::after {
-    content: "";
-    position: absolute;
-    bottom: 16px;
-    left: 0;
-    width: 0%;
-    height: 2px;
-    transition: width 0.2s ease;
-  }
-  .plex-portal-seerr-navbar .nav-link:hover::after { width: 100%; }
-  .plex-portal-seerr-navbar .nav-link-dashboard { color: rgba(255, 255, 255, 0.95); }
-  .plex-portal-seerr-navbar .nav-link-dashboard:hover { color: #ffffff; }
-  .plex-portal-seerr-navbar .nav-link-dashboard::after { background: #ffffff; }
-  .plex-portal-seerr-navbar .nav-link-profil { color: rgba(229, 160, 13, 0.9); }
-  .plex-portal-seerr-navbar .nav-link-profil:hover { color: #ffcc40; }
-  .plex-portal-seerr-navbar .nav-link-profil::after { background: #e5a00d; }
-  .plex-portal-seerr-navbar .nav-link-classement { color: rgba(59, 130, 246, 0.9); }
-  .plex-portal-seerr-navbar .nav-link-classement:hover { color: #7db8ff; }
-  .plex-portal-seerr-navbar .nav-link-classement::after { background: #3B82F6; }
-  .plex-portal-seerr-navbar .nav-link-stats { color: rgba(16, 185, 129, 0.9); }
-  .plex-portal-seerr-navbar .nav-link-stats:hover { color: #34d399; }
-  .plex-portal-seerr-navbar .nav-link-stats::after { background: #10b981; }
-  .plex-portal-seerr-navbar .nav-link-demandes { color: rgba(109, 73, 171, 0.9); }
-  .plex-portal-seerr-navbar .nav-link-demandes:hover { color: #b48cf0; }
-  .plex-portal-seerr-navbar .nav-link-demandes::after { background: #6d49ab; }
-  .plex-portal-seerr-navbar .nav-link-calendrier { color: rgba(239, 68, 68, 0.9); }
-  .plex-portal-seerr-navbar .nav-link-calendrier:hover { color: #f87171; }
-  .plex-portal-seerr-navbar .nav-link-calendrier::after { background: #ef4444; }
-  .plex-portal-seerr-navbar .nav-link-settings { color: rgba(203, 213, 225, 0.92); }
-  .plex-portal-seerr-navbar .nav-link-settings:hover { color: #e2e8f0; }
-  .plex-portal-seerr-navbar .nav-link-settings::after { background: #cbd5e1; }
-  .plex-portal-seerr-logout {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 22px;
-    border-radius: 14px;
-    border: 1px solid rgba(241, 163, 64, 0.38);
-    background: linear-gradient(135deg, rgba(190, 116, 34, 0.92), rgba(120, 76, 24, 0.9));
-    color: #fff5e6;
-    text-decoration: none;
-    font-weight: 700;
-    box-shadow: 0 16px 28px rgba(84, 39, 11, 0.35);
-  }
-  .nav-seerr-logo {
-    width: 16px;
-    height: 16px;
-    object-fit: contain;
-    vertical-align: middle;
-    margin-right: 2px;
-    margin-bottom: 2px;
-    border-radius: 4px;
+    min-height: calc(100vh - 72px);
   }
   @media (max-width: 768px) {
-    :root { --plex-portal-seerr-nav-height: 60px; }
-    .plex-portal-seerr-navbar { padding: 0 12px; }
-    .plex-portal-seerr-nav-center { gap: 16px; overflow-x: auto; }
-    .plex-portal-seerr-navbar .nav-link { font-size: 13px; white-space: nowrap; }
-    .plex-portal-seerr-brand-logo { height: 36px; max-width: 100px; }
-    .plex-portal-seerr-logout { padding: 9px 14px; font-size: 13px; }
+    #plex-portal-seerr-navbar-inline {
+      height: auto !important;
+      min-height: 60px;
+      padding: 10px 12px !important;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
   }
 </style>
 <script>
