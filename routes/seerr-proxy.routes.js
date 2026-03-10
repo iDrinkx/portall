@@ -3,8 +3,6 @@ const fetch = require("node-fetch");
 const { createProxyMiddleware, responseInterceptor } = require("http-proxy-middleware");
 const log = require("../utils/logger");
 const { getConfigValue } = require("../utils/config");
-const { buildDashboardNavItems } = require("../utils/dashboard-builtins");
-const { getSiteLanguage, createTranslator } = require("../utils/i18n");
 
 const router = express.Router();
 const logSeerr = log.create("[Seerr Proxy]");
@@ -120,24 +118,17 @@ function escapeHtml(value) {
 
 function buildSeerrNavbarMarkup(req) {
   const basePath = req.basePath || "";
-  const locale = getSiteLanguage();
-  const t = createTranslator(locale);
-  const items = buildDashboardNavItems(basePath, t);
-
   const navLinks = [
-    `<a href="${basePath}/dashboard" class="nav-link nav-link-dashboard">${escapeHtml(t("nav.dashboard"))}&nbsp;🏠</a>`,
-    ...items.map((item) => {
-      const icon = item.kind === "image"
-        ? `<img src="${basePath}${item.iconSrc}" alt="${escapeHtml(item.iconAlt || item.label || "")}" class="nav-seerr-logo">`
-        : item.kind === "profile"
-          ? "👤"
-          : escapeHtml(item.icon || "");
-      return `<a href="${escapeHtml(item.href)}" class="nav-link ${escapeHtml(item.className || "")}">${escapeHtml(item.label)}&nbsp;${icon}</a>`;
-    })
+    `<a href="${basePath}/dashboard" class="nav-link nav-link-dashboard">Dashboard&nbsp;🏠</a>`,
+    `<a href="${basePath}/profil" class="nav-link nav-link-profil">Profil&nbsp;👤</a>`,
+    `<a href="${basePath}/classement" class="nav-link nav-link-classement">Classement&nbsp;🏆</a>`,
+    `<a href="${basePath}/mes-stats" class="nav-link nav-link-stats">Statistiques&nbsp;📊</a>`,
+    `<a href="${basePath}/seerr" class="nav-link nav-link-demandes">Demandes&nbsp;<img src="${basePath}/img/seerr-icon.svg" alt="Seerr" class="nav-seerr-logo"></a>`,
+    `<a href="${basePath}/calendrier" class="nav-link nav-link-calendrier">Calendrier&nbsp;🗓️</a>`
   ];
 
   if (req.session?.user?.isAdmin) {
-    navLinks.push(`<a href="${basePath}/parametres" class="nav-link nav-link-settings">${escapeHtml(t("nav.settings"))}&nbsp;⚙️</a>`);
+    navLinks.push(`<a href="${basePath}/parametres" class="nav-link nav-link-settings">Parametres&nbsp;⚙️</a>`);
   }
 
   return `
@@ -149,7 +140,7 @@ function buildSeerrNavbarMarkup(req) {
     ${navLinks.join("")}
   </div>
   <div class="plex-portal-seerr-nav-right">
-    <a class="plex-portal-seerr-logout" href="${basePath}/logout">${escapeHtml(t("nav.logout"))}</a>
+    <a class="plex-portal-seerr-logout" href="${basePath}/logout">Deconnexion</a>
   </div>
 </nav>
 <div id="plex-portal-seerr-content">`;
