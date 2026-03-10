@@ -179,7 +179,11 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
 <style>
   html, body { min-height: 100%; background: #0f1117; }
   body { box-sizing: border-box; overflow-x: hidden; }
-  #plex-portal-seerr-content { min-height: calc(100vh - 72px); }
+  #plex-portal-seerr-content {
+    min-height: calc(100vh - 72px);
+    padding-top: 72px;
+    box-sizing: border-box;
+  }
   @media (max-width: 768px) {
     #plex-portal-seerr-navbar {
       height: auto !important;
@@ -187,6 +191,10 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
       padding: 10px 12px !important;
       gap: 12px;
       flex-wrap: wrap;
+    }
+    #plex-portal-seerr-content {
+      min-height: calc(100vh - 60px);
+      padding-top: 60px;
     }
   }
 </style>
