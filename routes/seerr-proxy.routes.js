@@ -261,20 +261,56 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     document.body.style.paddingTop = offset + "px";
   };
 
+  const offsetPinnedSeerrElements = () => {
+    const nav = document.getElementById("plex-portal-seerr-navbar");
+    const content = document.getElementById("plex-portal-seerr-content");
+    if (!nav || !content) return;
+    const offset = nav.offsetHeight || 72;
+
+    const root = content.firstElementChild;
+    if (root) {
+      root.style.paddingTop = offset + "px";
+      root.style.boxSizing = "border-box";
+      root.style.minHeight = "calc(100vh - " + offset + "px)";
+    }
+
+    content.querySelectorAll("*").forEach((el) => {
+      const style = window.getComputedStyle(el);
+      if (!style) return;
+      const position = style.position;
+      if (position !== "fixed" && position !== "sticky") return;
+
+      const currentTop = parseFloat(style.top || "NaN");
+      if (!Number.isFinite(currentTop)) return;
+      if (currentTop > 4) return;
+
+      if (!el.dataset.portalOffsetApplied) {
+        el.dataset.portalOffsetApplied = "1";
+        el.dataset.portalOriginalTop = String(currentTop);
+      }
+
+      const originalTop = parseFloat(el.dataset.portalOriginalTop || "0");
+      el.style.top = (originalTop + offset) + "px";
+    });
+  };
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       rewriteAnchors();
       applyBodyOffset();
+      offsetPinnedSeerrElements();
     }, { once: true });
   } else {
     rewriteAnchors();
     applyBodyOffset();
+    offsetPinnedSeerrElements();
   }
 
   try {
     const observer = new MutationObserver(() => {
       rewriteAnchors();
       applyBodyOffset();
+      offsetPinnedSeerrElements();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
   } catch (_) {}
