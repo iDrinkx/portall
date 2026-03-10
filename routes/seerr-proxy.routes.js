@@ -126,15 +126,79 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   const proxyPrefix = buildProxyPrefix(req);
   const proxyPrefixEscaped = proxyPrefix.replace(/"/g, "&quot;");
   const baseHref = `${proxyPrefix}/`;
+  const dashboardUrl = `${req.basePath || ""}/dashboard`;
+  const topbarMarkup = `
+<div id="plex-portal-seerr-topbar">
+  <button type="button" id="plex-portal-seerr-back">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06z"/>
+    </svg>
+    Retour
+  </button>
+</div>`;
   const clientPatch = `
 <base href="${baseHref}">
+<style>
+  :root { --plex-portal-seerr-topbar-height: 44px; }
+  html { min-height: 100%; background: #0f1117; }
+  body {
+    min-height: 100vh;
+    padding-top: var(--plex-portal-seerr-topbar-height) !important;
+    box-sizing: border-box;
+  }
+  #plex-portal-seerr-topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: var(--plex-portal-seerr-topbar-height);
+    padding: 0 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+  }
+  #plex-portal-seerr-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #c9d1d9;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background: #21262d;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  #plex-portal-seerr-back:hover {
+    background: #30363d;
+    border-color: #8b949e;
+    color: #f0f6fc;
+  }
+  #plex-portal-seerr-back svg { flex-shrink: 0; }
+  @media (max-width: 768px) {
+    :root { --plex-portal-seerr-topbar-height: 36px; }
+    #plex-portal-seerr-topbar { padding: 0 10px; }
+    #plex-portal-seerr-back { font-size: 0.78rem; padding: 4px 9px; }
+  }
+</style>
 <script>
 (() => {
   const prefix = ${JSON.stringify(proxyPrefix)};
+  const dashboardUrl = ${JSON.stringify(dashboardUrl)};
   const normalize = (url) => {
     if (typeof url !== "string") return url;
     if (!url.startsWith("/") || url.startsWith("//") || url.startsWith(prefix + "/")) return url;
     return prefix + url;
+  };
+  const absolutize = (url) => {
+    try {
+      return new URL(url, location.origin);
+    } catch (_) {
+      return null;
+    }
   };
 
   const wrapHistory = (method) => {
@@ -163,21 +227,79 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     return originalOpen.call(this, method, normalize(url), ...rest);
   };
 
+  const originalAssign = window.location.assign.bind(window.location);
+  const originalReplace = window.location.replace.bind(window.location);
+  window.location.assign = function(url) {
+    return originalAssign(normalize(url));
+  };
+  window.location.replace = function(url) {
+    return originalReplace(normalize(url));
+  };
+
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest && event.target.closest("a[href^='/']");
     if (!anchor) return;
     const href = anchor.getAttribute("href");
     if (!href || href.startsWith(prefix + "/")) return;
-    anchor.setAttribute("href", normalize(href));
+    event.preventDefault();
+    event.stopPropagation();
+    location.href = normalize(href);
   }, true);
+
+  document.addEventListener("click", (event) => {
+    const anchor = event.target.closest && event.target.closest("a[href]");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (!href) return;
+    const url = absolutize(href);
+    if (!url || url.origin !== location.origin) return;
+    if (!url.pathname.startsWith("/") || url.pathname.startsWith(prefix + "/")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    location.href = normalize(url.pathname + url.search + url.hash);
+  }, true);
+
+  const rewriteAnchors = () => {
+    document.querySelectorAll('a[href]').forEach((anchor) => {
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+      const url = absolutize(href);
+      if (!url || url.origin !== location.origin) return;
+      if (!url.pathname.startsWith("/") || url.pathname.startsWith(prefix + "/")) return;
+      anchor.setAttribute('href', normalize(url.pathname + url.search + url.hash));
+    });
+  };
+
+  const bindBackButton = () => {
+    const backBtn = document.getElementById("plex-portal-seerr-back");
+    if (!backBtn || backBtn.dataset.bound === "1") return;
+    backBtn.dataset.bound = "1";
+    backBtn.addEventListener("click", () => {
+      if (document.referrer && document.referrer.startsWith(location.origin)) {
+        history.back();
+        return;
+      }
+      location.href = dashboardUrl;
+    });
+  };
+
+  bindBackButton();
+  rewriteAnchors();
+  document.addEventListener("DOMContentLoaded", bindBackButton);
+  document.addEventListener("DOMContentLoaded", rewriteAnchors);
+  const observer = new MutationObserver(() => rewriteAnchors());
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>`;
 
   const withHeadPatch = html.includes("</head>")
     ? html.replace("</head>", `${clientPatch}</head>`)
     : `${clientPatch}${html}`;
+  const withTopbar = withHeadPatch.includes("<body")
+    ? withHeadPatch.replace(/<body([^>]*)>/i, `<body$1>${topbarMarkup}`)
+    : `${topbarMarkup}${withHeadPatch}`;
 
-  return withHeadPatch
+  return withTopbar
     .replace(/(href|src|action)=("|')\/(?!\/)/gi, `$1=$2${proxyPrefixEscaped}/`)
     .replace(/(["'])\/_next\//g, `$1${proxyPrefix}/_next/`)
     .replace(/(["'])\/images\//g, `$1${proxyPrefix}/images/`)
