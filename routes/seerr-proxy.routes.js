@@ -266,6 +266,7 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   }, true);
 
   const rewriteAnchors = () => {
+    if (!document.body) return;
     document.querySelectorAll('a[href]').forEach((anchor) => {
       if (anchor.id === 'plex-portal-seerr-back') return;
       const href = anchor.getAttribute('href');
@@ -278,6 +279,7 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
   };
 
   const ensureTopbar = () => {
+    if (!document.body) return;
     if (document.getElementById("plex-portal-seerr-topbar")) return;
 
     const topbar = document.createElement("div");
@@ -302,10 +304,17 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     document.body.appendChild(content);
   };
 
-  ensureTopbar();
-  rewriteAnchors();
-  document.addEventListener("DOMContentLoaded", ensureTopbar);
-  document.addEventListener("DOMContentLoaded", rewriteAnchors);
+  const boot = () => {
+    ensureTopbar();
+    rewriteAnchors();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+
   const observer = new MutationObserver(() => {
     ensureTopbar();
     rewriteAnchors();
