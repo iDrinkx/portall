@@ -214,33 +214,28 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     };
   };
 
-  wrapHistory("pushState");
-  wrapHistory("replaceState");
+  try { wrapHistory("pushState"); } catch (_) {}
+  try { wrapHistory("replaceState"); } catch (_) {}
 
-  const originalFetch = window.fetch;
-  window.fetch = function(input, init) {
-    if (typeof input === "string") {
-      return originalFetch.call(this, normalize(input), init);
-    }
-    if (input instanceof Request) {
-      return originalFetch.call(this, new Request(normalize(input.url), input), init);
-    }
-    return originalFetch.call(this, input, init);
-  };
+  try {
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+      if (typeof input === "string") {
+        return originalFetch.call(this, normalize(input), init);
+      }
+      if (input instanceof Request) {
+        return originalFetch.call(this, new Request(normalize(input.url), input), init);
+      }
+      return originalFetch.call(this, input, init);
+    };
+  } catch (_) {}
 
-  const originalOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-    return originalOpen.call(this, method, normalize(url), ...rest);
-  };
-
-  const originalAssign = window.location.assign.bind(window.location);
-  const originalReplace = window.location.replace.bind(window.location);
-  window.location.assign = function(url) {
-    return originalAssign(normalize(url));
-  };
-  window.location.replace = function(url) {
-    return originalReplace(normalize(url));
-  };
+  try {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+      return originalOpen.call(this, method, normalize(url), ...rest);
+    };
+  } catch (_) {}
 
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest && event.target.closest("a[href^='/']");
@@ -315,11 +310,13 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
     boot();
   }
 
-  const observer = new MutationObserver(() => {
-    ensureTopbar();
-    rewriteAnchors();
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  try {
+    const observer = new MutationObserver(() => {
+      ensureTopbar();
+      rewriteAnchors();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (_) {}
 })();
 </script>`;
 
