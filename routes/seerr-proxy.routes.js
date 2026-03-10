@@ -205,7 +205,6 @@ function rewriteHtmlForProxy(htmlBuffer, req) {
 <script>
 (() => {
   const prefix = ${JSON.stringify(proxyPrefix)};
-  const dashboardUrl = ${JSON.stringify(dashboardUrl)};
   const normalize = (url) => {
     if (typeof url !== "string") return url;
     if (!url.startsWith("/") || url.startsWith("//") || url.startsWith(prefix + "/")) return url;
@@ -376,12 +375,15 @@ router.get(/^\/seerr$/, requireAuth, ensureSeerrSession, (req, res) => {
 
 router.use("/_next", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.use("/api/v1", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.use("/images", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/sw.js", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/manifest.json", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/site.webmanifest", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/logo_full.svg", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/favicon.ico", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 router.get("/apple-touch-icon.png", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/android-chrome-192x192.png", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
+router.get("/android-chrome-512x512.png", requireAuth, ensureSeerrSession, seerrRootAssetProxy);
 
 router.use((req, res, next) => {
   const path = req.path || "/";
