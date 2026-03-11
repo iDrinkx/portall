@@ -6,14 +6,44 @@ const fs = require('fs');
 const defaultDbPath = '/config/portall.db';
 const legacyDbName = ['plex', 'portal.db'].join('-');
 const legacyDbPath = path.join('/config', legacyDbName);
-let DB_PATH = process.env.DB_PATH || defaultDbPath;
-if (!process.env.DB_PATH && DB_PATH === defaultDbPath && !fs.existsSync(DB_PATH) && fs.existsSync(legacyDbPath)) {
-  try {
-    fs.renameSync(legacyDbPath, DB_PATH);
-  } catch (_) {
-    DB_PATH = legacyDbPath;
-  }
+const SQLITE_SIDECAR_SUFFIXES = ['-shm', '-wal'];
+
+function moveFileIfPresent(sourcePath, targetPath) {
+  if (!fs.existsSync(sourcePath) || fs.existsSync(targetPath)) return;
+  fs.renameSync(sourcePath, targetPath);
 }
+
+function removeFileIfPresent(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  fs.unlinkSync(filePath);
+}
+
+function migrateLegacyDatabaseFiles() {
+  if (process.env.DB_PATH) return process.env.DB_PATH;
+
+  if (!fs.existsSync(defaultDbPath) && fs.existsSync(legacyDbPath)) {
+    try {
+      fs.renameSync(legacyDbPath, defaultDbPath);
+      for (const suffix of SQLITE_SIDECAR_SUFFIXES) {
+        moveFileIfPresent(`${legacyDbPath}${suffix}`, `${defaultDbPath}${suffix}`);
+      }
+      return defaultDbPath;
+    } catch (_) {
+      return legacyDbPath;
+    }
+  }
+
+  if (fs.existsSync(defaultDbPath) && !fs.existsSync(legacyDbPath)) {
+    for (const suffix of SQLITE_SIDECAR_SUFFIXES) {
+      removeFileIfPresent(`${legacyDbPath}${suffix}`);
+    }
+  }
+
+  return defaultDbPath;
+}
+
+let DB_PATH = process.env.DB_PATH || defaultDbPath;
+if (DB_PATH === defaultDbPath) DB_PATH = migrateLegacyDatabaseFiles();
 const dataDir = path.dirname(DB_PATH);
 
 // Créer le répertoire config s'il n'existe pas
