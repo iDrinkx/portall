@@ -27,7 +27,66 @@
   <div class="site-particles" id="siteParticles"></div>
 </div>
 
-<%- include("partials/site-nav") %>
+<% if (user) { %>
+  <nav class="navbar">
+
+    <a href="<%= basePath %>/dashboard" class="brand">
+      <img class="brand-logo" src="<%= basePath %>/logo.png" alt="MonPlex"/>
+    </a>
+
+    <div class="nav-center desktop-menu">
+      <a href="<%= basePath %>/dashboard" class="nav-link nav-link-dashboard"><%= t("nav.dashboard") %>&nbsp;🏠</a>
+      <% (dashboardNavItems || []).forEach(function(item) { %>
+        <a href="<%= item.href %>" class="nav-link <%= item.className %>"><%= item.label %>&nbsp;<% if (item.kind === "image") { %><img src="<%= item.iconSrc %>" alt="<%= item.iconAlt %>" class="nav-seerr-logo"><% } else if (item.kind === "profile") { %>👤<% } else { %><%= item.icon %><% } %></a>
+      <% }) %>
+      <% (customNavCards || []).forEach(function(card) { %>
+        <a
+          href="<%= card.href %>"
+          class="nav-link nav-link-custom"
+          style="--custom-nav-base:<%= card.navColorBase %>;--custom-nav-hover:<%= card.navColorHover %>;--custom-nav-accent:<%= card.navColorAccent %>;"
+          <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
+        ><%= card.label %>&nbsp;<span class="nav-custom-icon"><% if ((card.integrationKey || "") === "komga_auto") { %><img src="<%= basePath %>/img/komga-icon.svg" alt="Komga" class="nav-custom-icon-logo"><% } else if ((card.integrationKey || "") === "jellyfin_auto") { %><img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="nav-custom-icon-logo"><% } else if ((card.integrationKey || "") === "romm_auto") { %><img src="<%= basePath %>/img/romm-icon.svg" alt="RomM" class="nav-custom-icon-logo"><% } else { %><%= card.icon %><% } %></span></a>
+      <% }) %>
+      <% if (user.isAdmin) { %>
+        <a href="<%= basePath %>/parametres" class="nav-link nav-link-settings"><%= t("nav.settings") %>&nbsp;⚙️</a>
+      <% } %>
+    </div>
+
+    <div class="nav-right desktop-menu">
+      <% if (navSubscriptionPillEnabled) { %>
+        <a href="<%= basePath %>/profil" class="nav-sub-pill" id="navSubPill">&#x2014;</a>
+      <% } %>
+      <a class="logout-btn" href="<%= basePath %>/logout"><%= t("nav.logout") %></a>
+    </div>
+
+    <% if (navSubscriptionPillEnabled) { %>
+      <a href="<%= basePath %>/profil" class="nav-sub-pill mobile-sub-pill" id="mobileSubPill">&#x2014;</a>
+    <% } %>
+    <div class="burger" id="burger">☰</div>
+
+  </nav>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="<%= basePath %>/dashboard" class="nav-link-dashboard"><%= t("nav.dashboard") %>&nbsp;🏠</a>
+    <% (dashboardNavItems || []).forEach(function(item) { %>
+      <a href="<%= item.href %>" class="<%= item.className %>"><%= item.label %>&nbsp;<% if (item.kind === "image") { %><img src="<%= item.iconSrc %>" alt="<%= item.iconAlt %>" class="nav-seerr-logo"><% } else if (item.kind === "profile") { %>👤<% } else { %><%= item.icon %><% } %></a>
+    <% }) %>
+    <% (customNavCards || []).forEach(function(card) { %>
+      <a
+        href="<%= card.href %>"
+        class="nav-link-custom-mobile"
+        style="--custom-nav-base:<%= card.navColorBase %>;--custom-nav-hover:<%= card.navColorHover %>;--custom-nav-accent:<%= card.navColorAccent %>;"
+        <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
+      ><%= card.label %>&nbsp;<span class="nav-custom-icon"><% if ((card.integrationKey || "") === "komga_auto") { %><img src="<%= basePath %>/img/komga-icon.svg" alt="Komga" class="nav-custom-icon-logo"><% } else if ((card.integrationKey || "") === "jellyfin_auto") { %><img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="nav-custom-icon-logo"><% } else if ((card.integrationKey || "") === "romm_auto") { %><img src="<%= basePath %>/img/romm-icon.svg" alt="RomM" class="nav-custom-icon-logo"><% } else { %><%= card.icon %><% } %></span></a>
+    <% }) %>
+    <% if (user.isAdmin) { %>
+      <a href="<%= basePath %>/parametres" class="nav-link-settings"><%= t("nav.settings") %> ⚙️</a>
+    <% } %>
+    <a href="<%= basePath %>/logout" class="logout-mobile"><%= t("nav.logout") %></a>
+  </div>
+<% } %>
 
 <main class="content<%= contentClass ? ' ' + contentClass : '' %>">
   <%- body %>
@@ -203,7 +262,80 @@
   });
 </script>
 
-<%- include("partials/site-nav-scripts") %>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const burger = document.getElementById("burger");
+    const mobileMenu = document.getElementById("mobileMenu");
+    const overlay = document.getElementById("overlay");
+
+    if (burger && mobileMenu && overlay) {
+      const openMenu = () => {
+        mobileMenu.classList.add("open");
+        overlay.classList.add("active");
+        document.body.style.overflow = "hidden";
+      };
+
+      const closeMenu = () => {
+        mobileMenu.classList.remove("open");
+        overlay.classList.remove("active");
+        document.body.style.overflow = "";
+      };
+
+      burger.addEventListener("click", () => {
+        if (mobileMenu.classList.contains("open")) closeMenu();
+        else openMenu();
+      });
+
+      overlay.addEventListener("click", closeMenu);
+
+      document.querySelectorAll(".mobile-menu a").forEach(link => {
+        link.addEventListener("click", closeMenu);
+      });
+    }
+  });
+
+  <% if (navSubscriptionPillEnabled) { %>
+  (function () {
+    const pill = document.getElementById('navSubPill');
+    const userId = document.body.getAttribute('data-user-id') || 'guest';
+    if (!pill) return;
+
+    const PILL_KEY = 'nav_pill_snap:' + userId;
+    const PILL_TTL = 24 * 60 * 60 * 1000;
+
+    function applyPill(data) {
+      const numMatch = data.daysLeft && String(data.daysLeft).match(/\d+/);
+      const text = data.status === 'unlimited' ? '\u221e'
+                 : numMatch ? numMatch[0] + '\u00a0jours'
+                 : data.label || '\u2014';
+      const cls = 'nav-sub-pill--' + (data.status || 'loading');
+      [pill, document.getElementById('mobileSubPill')].forEach(el => {
+        if (!el) return;
+        el.textContent = text;
+        el.className = el.className.replace(/\bnav-sub-pill--\S+/g, '');
+        el.classList.add(cls);
+      });
+    }
+
+    try {
+      const raw = localStorage.getItem(PILL_KEY);
+      if (raw) {
+        const snap = JSON.parse(raw);
+        if (snap.savedAt && Date.now() - snap.savedAt < PILL_TTL) applyPill(snap);
+      }
+    } catch (_) {}
+
+    fetch((window.APP_BASE_PATH || '') + '/api/subscription')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        applyPill(data);
+        try { localStorage.setItem(PILL_KEY, JSON.stringify({ ...data, savedAt: Date.now() })); } catch (_) {}
+      })
+      .catch(() => {});
+  })();
+  <% } %>
+</script>
 
 </body>
 </html>

@@ -293,6 +293,25 @@ app.get("/", (req, res) => {
   res.render("login", { error: req.query.error || null });
 });
 
+app.use((err, req, res, _next) => {
+  console.error("[HTTP] ❌ Unhandled error", {
+    method: req.method,
+    path: req.originalUrl || req.url,
+    message: err && err.message,
+    stack: err && err.stack
+  });
+
+  if (res.headersSent) return;
+
+  if ((req.path || "").startsWith("/api/")) {
+    return res.status(500).json({
+      error: "Internal Server Error"
+    });
+  }
+
+  return res.status(500).send("Internal Server Error");
+});
+
 /* =========================
    START
 ========================= */
