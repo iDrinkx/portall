@@ -212,6 +212,7 @@ app.use(async (req, res, next) => {
   res.locals.runtimeTextMap = getRuntimeTextMap(res.locals.locale);
   res.locals.customNavCards = [];
   res.locals.dashboardNavItems = [];
+  res.locals.contentClass = "";
   res.locals.navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   res.locals.siteBackground = getSiteBackgroundSettings();
   // Keep login unauthorized message aligned with admin-configured site name.
