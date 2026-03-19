@@ -7,6 +7,8 @@ on:
       - develop
     paths:
       - 'Dockerfile'
+      - '.dockerignore'
+      - 'package-lock.json'
       - 'README.md'
       - '.github/workflows/docker.yml'
       - 'public/**'
