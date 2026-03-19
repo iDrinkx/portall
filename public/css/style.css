@@ -530,6 +530,7 @@ body.site-bg-mode-custom .site-bg-image {
   max-width: none;
   margin: 0;
   padding: 0;
+  flex: 1 1 auto;
   min-height: 0;
   height: calc(var(--app-vh, 100vh) - var(--nav-h));
   display: flex;
@@ -537,8 +538,20 @@ body.site-bg-mode-custom .site-bg-image {
   overflow: hidden;
 }
 
+.html--iframe-page,
 .body--iframe-page {
+  height: var(--app-vh, 100vh);
+  min-height: var(--app-vh, 100vh);
   overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.body--iframe-page {
+  max-height: var(--app-vh, 100vh);
+}
+
+.body--iframe-page .content--iframe {
+  height: auto;
 }
 
 /* =========================
@@ -1530,7 +1543,7 @@ body.site-bg-mode-custom .site-bg-image {
 
   .content--iframe {
     padding: 0;
-    height: calc(var(--app-vh, 100vh) - var(--nav-h));
+    height: auto;
   }
 
   .dashboard-header {

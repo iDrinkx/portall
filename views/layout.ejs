@@ -102,6 +102,7 @@
 
     function syncIframePageState() {
       const iframePage = !!document.querySelector(".content--iframe");
+      document.documentElement.classList.toggle("html--iframe-page", iframePage);
       document.body.classList.toggle("body--iframe-page", iframePage);
     }
 
