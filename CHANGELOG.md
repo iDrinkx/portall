@@ -1,3 +1,42 @@
+## <small>1.36.4 (2026-03-09)</small>
+
+* Merge pull request #58 from iDrinkx/develop ([2ae5811](https://github.com/iDrinkx/portall/commit/2ae5811)), closes [#58](https://github.com/iDrinkx/portall/issues/58)
+* refactor(ci): simplify release workflow by removing unused outputs and docker-release job ([5905596](https://github.com/iDrinkx/portall/commit/5905596))
+
+## <small>1.36.3 (2026-03-09)</small>
+
+* Merge pull request #57 from iDrinkx/develop ([e7dcde5](https://github.com/iDrinkx/portall/commit/e7dcde5)), closes [#57](https://github.com/iDrinkx/portall/issues/57)
+* fix(ci): update Docker workflow to log in to Docker Hub and adjust image references ([6a14c80](https://github.com/iDrinkx/portall/commit/6a14c80))
+* fix(ci): update Docker workflow to refine tag handling for latest image version ([38542e2](https://github.com/iDrinkx/portall/commit/38542e2))
+
+## <small>1.36.2 (2026-03-09)</small>
+
+* Merge pull request #56 from iDrinkx/develop ([e981ee1](https://github.com/iDrinkx/portall/commit/e981ee1)), closes [#56](https://github.com/iDrinkx/portall/issues/56)
+* fix(ci): enable sha tag generation for branch events in Docker workflow ([cbc3d23](https://github.com/iDrinkx/portall/commit/cbc3d23))
+
+## <small>1.36.1 (2026-03-09)</small>
+
+* Merge pull request #55 from iDrinkx/develop ([e3039ab](https://github.com/iDrinkx/portall/commit/e3039ab)), closes [#55](https://github.com/iDrinkx/portall/issues/55)
+* fix(ci): update Docker workflow to handle release events and include tags for image versioning ([f3b01d6](https://github.com/iDrinkx/portall/commit/f3b01d6))
+* fix(ci): update Docker workflow to refine tag handling for default branch and versioning ([daaad90](https://github.com/iDrinkx/portall/commit/daaad90))
+
+## 1.36.0 (2026-03-09)
+
+* Merge pull request #54 from iDrinkx/develop ([13154bf](https://github.com/iDrinkx/portall/commit/13154bf)), closes [#54](https://github.com/iDrinkx/portall/issues/54)
+* fix(docs): update logo in README for better branding ([68c2883](https://github.com/iDrinkx/portall/commit/68c2883))
+* fix(docs): update references from plex-portal to portall in README and Docker workflow ([1c39ec3](https://github.com/iDrinkx/portall/commit/1c39ec3))
+* feat(ci): enhance Docker workflow to include Docker Hub login and image tagging ([2afb3a0](https://github.com/iDrinkx/portall/commit/2afb3a0))
+
+## <small>1.35.4 (2026-03-09)</small>
+
+* Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([7339c50](https://github.com/iDrinkx/portall/commit/7339c50))
+* Merge pull request #51 from iDrinkx/main ([20326d5](https://github.com/iDrinkx/portall/commit/20326d5)), closes [#51](https://github.com/iDrinkx/portall/issues/51)
+* Merge pull request #52 from iDrinkx/develop ([7a4b78f](https://github.com/iDrinkx/portall/commit/7a4b78f)), closes [#52](https://github.com/iDrinkx/portall/issues/52)
+* Refactor code structure for improved readability and maintainability ([8a2f356](https://github.com/iDrinkx/portall/commit/8a2f356))
+* Refactor code structure for improved readability and maintainability ([31686dd](https://github.com/iDrinkx/portall/commit/31686dd))
+* fix(docs): add assets to .dockerignore for README GitHub usage ([0c6bc5b](https://github.com/iDrinkx/portall/commit/0c6bc5b))
+* fix(docs): update English description in README for clarity ([8cc0a55](https://github.com/iDrinkx/portall/commit/8cc0a55))
+
 ## <small>1.35.3 (2026-03-06)</small>
 
 * Merge branch 'develop' of https://github.com/iDrinkx/plex-portal into develop ([b1f1420](https://github.com/iDrinkx/plex-portal/commit/b1f1420))

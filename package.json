@@ -1,7 +1,7 @@
 {
   "name": "portall",
   "license": "GPL-3.0-only",
-  "version": "1.35.3",
+  "version": "1.36.4",
   "main": "server.js",
   "engines": {
     "node": ">=24 <25"
