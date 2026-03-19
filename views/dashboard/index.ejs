@@ -303,6 +303,7 @@
 })();
 </script>
 
+<% if (user && user.isAdmin) { %>
 <!-- Version Footer & Changelog Modal (Dashboard only) -->
 <footer class="version-footer" id="versionFooter">
   <span class="version-number" id="versionNumber">v--</span>
@@ -388,10 +389,8 @@
     // Open modal on footer click
     versionFooter.addEventListener('click', () => {
       if (!changelogBody.querySelector('[data-loading="1"]')) {
-        // Already loaded, just show
         changelogModal.classList.add('active');
       } else {
-        // First load
         loadChangelog().then(() => {
           changelogModal.classList.add('active');
         });
@@ -417,3 +416,4 @@
     }
   })();
 </script>
+<% } %>
