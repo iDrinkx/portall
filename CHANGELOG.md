@@ -1,3 +1,12 @@
+## [1.38.1](https://github.com/iDrinkx/portall/compare/v1.38.0...v1.38.1) (2026-03-19)
+
+### Corrections de bugs
+
+* add FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 environment variable to workflows ([3da5cc2](https://github.com/iDrinkx/portall/commit/3da5cc21096b930ea8a2037f1acbda572cee8c43))
+* add server.js and config/middleware directories to workflow paths ([7c4eb76](https://github.com/iDrinkx/portall/commit/7c4eb762e30c522e9046a6f91ec4d5f13d110d67))
+* ensure DEBUG environment variable is strictly checked as 'true' ([45c0b61](https://github.com/iDrinkx/portall/commit/45c0b61b973026a8f4b8b29148e69e3e3e19bf14))
+* update action versions in Docker and release workflows ([c7f4a6b](https://github.com/iDrinkx/portall/commit/c7f4a6b18498f94ea5d12d1889208ebd6658999c))
+
 ## 1.38.0 (2026-03-19)
 
 * Merge branch 'main' into develop ([a071ccb](https://github.com/iDrinkx/portall/commit/a071ccb))
