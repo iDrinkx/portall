@@ -832,18 +832,27 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-item__service-logo {
   display: block;
   width: auto;
-  height: 22px;
+  height: 24px;
   max-width: 110px;
   object-fit: contain;
+  object-position: left center;
 }
 
 .login-status-item__service-logo--plex {
-  transform: none;
+  height: 20px;
+  max-width: 64px;
+}
+
+.login-status-item__service-logo--seerr,
+.login-status-item__service-logo--komga {
+  height: 26px;
+  width: 26px;
+  max-width: 26px;
 }
 
 .login-status-item__service-logo--portall {
-  height: 24px;
-  max-width: 120px;
+  height: 28px;
+  max-width: 132px;
 }
 
 .login-status-item__state-block {

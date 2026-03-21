@@ -23,7 +23,7 @@
 
     if (values.includes("plex")) {
       return {
-        src: `${basePath}/img/plex-alt-light.svg`,
+        src: `${basePath}/img/plex.svg`,
         alt: "Plex",
         className: "login-status-item__service-logo login-status-item__service-logo--plex"
       };
@@ -33,7 +33,7 @@
       return {
         src: `${basePath}/img/seerr-icon.svg`,
         alt: "Seerr",
-        className: "login-status-item__service-logo"
+        className: "login-status-item__service-logo login-status-item__service-logo--seerr"
       };
     }
 
@@ -41,13 +41,13 @@
       return {
         src: `${basePath}/img/komga-icon.svg`,
         alt: "Komga",
-        className: "login-status-item__service-logo"
+        className: "login-status-item__service-logo login-status-item__service-logo--komga"
       };
     }
 
     if (values.includes("portall") || values.includes("site web")) {
       return {
-        src: `${basePath}/img/portall-logo.png`,
+        src: `${basePath}/portall-logo.png`,
         alt: "Portall",
         className: "login-status-item__service-logo login-status-item__service-logo--portall"
       };
