@@ -14,11 +14,12 @@ const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");
 const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase, DashboardCardQueries, AppSettingQueries } = require("./utils/database");  // 🗄️  Database initialization
-const { applyRuntimeConfig, isSetupComplete } = require("./utils/config");
+const { applyRuntimeConfig, isSetupComplete, getConfigValue } = require("./utils/config");
 const { initTautulliDatabase, getAllUserStatsFromTautulli } = require("./utils/tautulli-direct");  // 📊 Tautulli direct DB
 const { buildDashboardNavItems } = require("./utils/dashboard-builtins");
 const { getSiteLanguage, createTranslator, getRuntimeTextMap } = require("./utils/i18n");
 const { getSiteBackgroundSettings } = require("./utils/site-background");
+const { getPublicStatusPageSummary } = require("./utils/uptime-kuma");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -283,7 +284,7 @@ app.use("/", seeerrProxyRoutes);
 app.use("/", authRoutes);
 app.use("/", dashboardRoutes);
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   if (!isSetupComplete()) {
     return res.redirect((req.basePath || "") + "/setup");
   }
@@ -291,7 +292,21 @@ app.get("/", (req, res) => {
     const redirectUrl = req.basePath ? `${req.basePath}/dashboard` : "/dashboard";
     return res.redirect(redirectUrl);
   }
-  res.render("login", { error: req.query.error || null });
+
+  let uptimeKuma = null;
+  try {
+    uptimeKuma = await getPublicStatusPageSummary({
+      baseUrl: getConfigValue("UPTIME_KUMA_URL", ""),
+      slug: getConfigValue("UPTIME_KUMA_STATUS_PAGE_SLUG", "")
+    });
+  } catch (_) {
+    uptimeKuma = null;
+  }
+
+  res.render("login", {
+    error: req.query.error || null,
+    uptimeKuma
+  });
 });
 
 app.use((err, req, res, _next) => {

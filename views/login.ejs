@@ -1,4 +1,25 @@
-<div class="login-page">
+<%
+  const statusData = uptimeKuma && uptimeKuma.enabled && Array.isArray(uptimeKuma.services) && uptimeKuma.services.length
+    ? uptimeKuma
+    : null;
+  const issueCount = statusData
+    ? ((statusData.summary?.down || 0) + (statusData.summary?.pending || 0) + (statusData.summary?.maintenance || 0))
+    : 0;
+  const overallStatusLabel = statusData && statusData.overall === "operational"
+    ? t("login.status.allOperational")
+    : t("login.status.someIssues", { count: issueCount });
+  const lastUpdatedLabel = statusData && statusData.lastUpdatedAt
+    ? new Date(statusData.lastUpdatedAt).toLocaleString(locale === "en" ? "en-US" : "fr-FR")
+    : "";
+  const statusLabelMap = {
+    operational: t("login.status.operational"),
+    down: t("login.status.down"),
+    maintenance: t("login.status.maintenance"),
+    pending: t("login.status.pending")
+  };
+%>
+
+<div class="login-page<%= statusData ? ' login-page--with-status' : '' %>">
   <div class="login-logo">
     <img src="<%= basePath %>/logo.png" alt="MonPlex" />
   </div>
@@ -13,6 +34,61 @@
       <img src="<%= basePath %>/img/plex-alt-light.svg" alt="Plex" class="plex-btn-logo" />
     </a>
   </div>
+
+  <% if (statusData) { %>
+  <section class="login-status-panel" aria-labelledby="login-status-heading">
+    <div class="login-status-summary login-status-summary--<%= statusData.overall === 'operational' ? 'operational' : 'issues' %>">
+      <span class="login-status-summary__icon" aria-hidden="true"><%= statusData.overall === 'operational' ? '●' : '!' %></span>
+      <div class="login-status-summary__text">
+        <h2 id="login-status-heading"><%= overallStatusLabel %></h2>
+        <% if (statusData.description) { %>
+        <p><%= statusData.description %></p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="login-status-section">
+      <div class="login-status-section__header">
+        <h3><%= t("login.status.services") %></h3>
+      </div>
+
+      <div class="login-status-list">
+        <% statusData.services.forEach(service => { %>
+        <article class="login-status-item">
+          <div class="login-status-item__meta">
+            <% if (typeof service.uptimePercent === 'number' && Number.isFinite(service.uptimePercent)) { %>
+            <span class="login-status-item__uptime"><%= service.uptimePercent.toFixed(2).replace(/\.00$/, '') %>%</span>
+            <% } %>
+            <div class="login-status-item__title">
+              <strong><%= service.name %></strong>
+              <span class="login-status-item__state login-status-item__state--<%= service.status.className %>">
+                <%= statusLabelMap[service.status.className] || service.status.label %>
+              </span>
+            </div>
+            <% if (service.tags && service.tags.length) { %>
+            <div class="login-status-item__tags">
+              <% service.tags.slice(0, 3).forEach(tag => { %>
+              <span class="login-status-item__tag"><%= tag %></span>
+              <% }) %>
+            </div>
+            <% } %>
+          </div>
+
+          <div class="login-status-item__history" aria-hidden="true">
+            <% service.history.forEach(point => { %>
+            <span class="login-status-bar login-status-bar--<%= point.status.className %>"></span>
+            <% }) %>
+          </div>
+        </article>
+        <% }) %>
+      </div>
+    </div>
+
+    <% if (lastUpdatedLabel) { %>
+    <p class="login-status-updated"><%= t("login.status.updatedAt", { date: lastUpdatedLabel }) %></p>
+    <% } %>
+  </section>
+  <% } %>
 </div>
 
 <style>

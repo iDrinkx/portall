@@ -643,6 +643,238 @@ body.site-bg-mode-custom .site-bg-image {
   min-width: 240px;
 }
 
+.login-page--with-status {
+  justify-content: flex-start;
+  padding-top: 64px;
+  padding-bottom: 72px;
+}
+
+.login-status-panel {
+  width: min(960px, 100%);
+  padding: 34px 34px 28px;
+  border-radius: 26px;
+  background: rgba(8, 13, 21, 0.82);
+  border: 1px solid rgba(129, 157, 183, 0.16);
+  box-shadow: 0 30px 80px rgba(0,0,0,.24);
+  backdrop-filter: blur(8px) saturate(115%);
+  -webkit-backdrop-filter: blur(8px) saturate(115%);
+}
+
+.login-status-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  margin-bottom: 28px;
+  background: rgba(16, 23, 35, 0.95);
+  border: 1px solid rgba(136, 159, 184, 0.14);
+}
+
+.login-status-summary--operational {
+  box-shadow: inset 0 0 0 1px rgba(88, 224, 142, 0.08);
+}
+
+.login-status-summary--issues {
+  box-shadow: inset 0 0 0 1px rgba(255, 126, 126, 0.08);
+}
+
+.login-status-summary__icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.login-status-summary--operational .login-status-summary__icon {
+  color: #56e88d;
+  background: rgba(86, 232, 141, 0.12);
+}
+
+.login-status-summary--issues .login-status-summary__icon {
+  color: #ff8f8f;
+  background: rgba(255, 123, 123, 0.12);
+}
+
+.login-status-summary__text h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #eef6ff;
+}
+
+.login-status-summary__text p {
+  margin: 4px 0 0;
+  color: rgba(214, 227, 240, 0.72);
+  font-size: 13px;
+}
+
+.login-status-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.login-status-section__header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(226, 240, 255, 0.88);
+}
+
+.login-status-list {
+  display: grid;
+  gap: 16px;
+}
+
+.login-status-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 20px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(15, 22, 33, 0.92);
+  border: 1px solid rgba(122, 144, 170, 0.08);
+}
+
+.login-status-item__meta {
+  min-width: 0;
+}
+
+.login-status-item__uptime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #08110a;
+  background: linear-gradient(135deg, #5af097, #50db86);
+}
+
+.login-status-item__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-status-item__title strong {
+  font-size: 18px;
+  font-weight: 500;
+  color: #dbe6f3;
+}
+
+.login-status-item__state {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.login-status-item__state--operational {
+  color: #6af1a0;
+}
+
+.login-status-item__state--down {
+  color: #ff9292;
+}
+
+.login-status-item__state--maintenance {
+  color: #ffd36a;
+}
+
+.login-status-item__state--pending {
+  color: #8cc2ff;
+}
+
+.login-status-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.login-status-item__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #a9c8ff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.login-status-item__history {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.login-status-bar {
+  display: block;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(107, 126, 146, 0.2);
+}
+
+.login-status-bar--operational {
+  background: #58e08e;
+}
+
+.login-status-bar--down {
+  background: #ff7c7c;
+}
+
+.login-status-bar--maintenance {
+  background: #ffc85c;
+}
+
+.login-status-bar--pending {
+  background: #78b6ff;
+}
+
+.login-status-updated {
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(205, 219, 233, 0.58);
+}
+
+@media (max-width: 900px) {
+  .login-status-panel {
+    padding: 24px 20px;
+  }
+
+  .login-status-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-page--with-status {
+    padding-top: 40px;
+  }
+
+  .login-status-summary {
+    align-items: flex-start;
+  }
+
+  .login-status-item__title strong {
+    font-size: 16px;
+  }
+}
+
 /* =========================
    DASHBOARD
 ========================= */

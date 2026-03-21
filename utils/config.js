@@ -20,6 +20,9 @@ const CONFIG_FIELDS = [
   { key: "WIZARR_URL", label: "URL Wizarr", group: "Wizarr", type: "url" },
   { key: "WIZARR_API_KEY", label: "API key Wizarr", group: "Wizarr", type: "password", secret: true },
 
+  { key: "UPTIME_KUMA_URL", label: "URL Uptime Kuma", group: "Uptime Kuma", type: "url" },
+  { key: "UPTIME_KUMA_STATUS_PAGE_SLUG", label: "Slug page status", group: "Uptime Kuma", type: "text" },
+
   { key: "RADARR_URL", label: "URL Radarr", group: "Radarr", type: "url" },
   { key: "RADARR_API_KEY", label: "API key Radarr", group: "Radarr", type: "password", secret: true },
 
