@@ -62,7 +62,7 @@
             <% if (service.tags && service.tags.length) { %>
             <div class="login-status-item__tags">
               <% service.tags.slice(0, 3).forEach(tag => { %>
-              <span class="login-status-item__tag"><%= tag %></span>
+              <span class="login-status-item__tag" style="--tag-color: <%= tag.color %>;"><%= tag.name %></span>
               <% }) %>
             </div>
             <% } %>
@@ -76,7 +76,7 @@
             </div>
             <div class="login-status-item__timeline-meta">
               <span>1h</span>
-              <span><%= statusLabelMap[service.status.className] || service.status.label %></span>
+              <span><%= t("login.status.now") %></span>
             </div>
           </div>
         </article>
@@ -90,6 +90,13 @@
       data-uptime-updated-at
       data-iso="<%= statusData.lastUpdatedAt %>"
       data-label-prefix="<%= t('login.status.updatedAt', { date: '__DATE__' }) %>"
+    ></p>
+    <p
+      class="login-status-refresh"
+      data-uptime-refresh
+      data-fetched-at="<%= statusData.fetchedAt || '' %>"
+      data-refresh-ms="<%= statusData.refreshIntervalMs || 120000 %>"
+      data-label-prefix="<%= t('login.status.refreshIn', { time: '__TIME__' }) %>"
     ></p>
     <% } %>
   </section>
@@ -159,16 +166,42 @@
 <script>
   (function () {
     const updatedAtEl = document.querySelector("[data-uptime-updated-at]");
-    if (!updatedAtEl) return;
-
-    const iso = updatedAtEl.getAttribute("data-iso");
-    const labelPrefix = updatedAtEl.getAttribute("data-label-prefix") || "__DATE__";
-    const date = iso ? new Date(iso) : null;
-
-    if (!date || Number.isNaN(date.getTime())) return;
-
+    const refreshEl = document.querySelector("[data-uptime-refresh]");
     const pageLocale = "<%= locale === 'en' ? 'en-US' : 'fr-FR' %>";
-    const formatted = date.toLocaleString(pageLocale);
-    updatedAtEl.textContent = labelPrefix.replace("__DATE__", formatted);
+
+    if (updatedAtEl) {
+      const iso = updatedAtEl.getAttribute("data-iso");
+      const labelPrefix = updatedAtEl.getAttribute("data-label-prefix") || "__DATE__";
+      const date = iso ? new Date(iso) : null;
+
+      if (date && !Number.isNaN(date.getTime())) {
+        const formatted = date.toLocaleString(pageLocale);
+        updatedAtEl.textContent = labelPrefix.replace("__DATE__", formatted);
+      }
+    }
+
+    if (refreshEl) {
+      const fetchedAt = new Date(refreshEl.getAttribute("data-fetched-at") || "");
+      const refreshMs = Number(refreshEl.getAttribute("data-refresh-ms") || 120000);
+      const labelPrefix = refreshEl.getAttribute("data-label-prefix") || "__TIME__";
+
+      const render = function () {
+        if (Number.isNaN(fetchedAt.getTime()) || !Number.isFinite(refreshMs) || refreshMs <= 0) return;
+        const targetTs = fetchedAt.getTime() + refreshMs;
+        const remainingMs = Math.max(0, targetTs - Date.now());
+        const totalSeconds = Math.ceil(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const timeLabel = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+        refreshEl.textContent = labelPrefix.replace("__TIME__", timeLabel);
+
+        if (remainingMs <= 0) {
+          window.location.reload();
+        }
+      };
+
+      render();
+      window.setInterval(render, 1000);
+    }
   })();
 </script>

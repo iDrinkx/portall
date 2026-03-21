@@ -2,6 +2,7 @@ const fetch = require("node-fetch");
 
 const CACHE_TTL_MS = 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
+const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 const cache = new Map();
 
 function normalizeBaseUrl(value) {
@@ -9,7 +10,28 @@ function normalizeBaseUrl(value) {
 }
 
 function normalizeSlug(value) {
-  return String(value || "").trim().replace(/^\/+|\/+$/g, "");
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const parsed = new URL(raw);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const statusIndex = parts.findIndex(part => part.toLowerCase() === "status");
+    if (statusIndex >= 0 && parts[statusIndex + 1]) {
+      return String(parts[statusIndex + 1]).trim();
+    }
+    if (parts.length > 0) {
+      return String(parts[parts.length - 1]).trim();
+    }
+  } catch (_) {}
+
+  const cleaned = raw.replace(/^\/+|\/+$/g, "");
+  const statusMatch = cleaned.match(/(?:^|\/)status\/([^/]+)$/i);
+  if (statusMatch && statusMatch[1]) {
+    return String(statusMatch[1]).trim();
+  }
+
+  return cleaned;
 }
 
 function withTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -71,6 +93,43 @@ function buildHistoryBars(history, maxBars = 20) {
   return normalized;
 }
 
+function normalizeTagColor(rawColor, tagName = "") {
+  const color = String(rawColor || "").trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color)) {
+    return color;
+  }
+
+  const named = color.toLowerCase();
+  const namedMap = {
+    blue: "#3b82f6",
+    orange: "#fb923c",
+    red: "#ef4444",
+    green: "#10b981",
+    yellow: "#f59e0b",
+    purple: "#8b5cf6",
+    pink: "#ec4899",
+    cyan: "#06b6d4",
+    teal: "#14b8a6",
+    lime: "#84cc16",
+    indigo: "#6366f1",
+    gray: "#64748b",
+    grey: "#64748b"
+  };
+  if (namedMap[named]) return namedMap[named];
+
+  const tagKey = String(tagName || "").trim().toLowerCase();
+  const tagMap = {
+    portall: "#2563eb",
+    plex: "#fb923c",
+    seerr: "#7c3aed",
+    overseerr: "#7c3aed",
+    komga: "#10b981",
+    jellyfin: "#06b6d4",
+    romm: "#ef4444"
+  };
+  return tagMap[tagKey] || "#3b82f6";
+}
+
 async function fetchStatusPageData(baseUrl, slug) {
   const [pageRes, heartbeatRes] = await Promise.all([
     withTimeout(`${baseUrl}/api/status-page/${encodeURIComponent(slug)}`, {
@@ -126,7 +185,14 @@ function buildNormalizedStatus(pageData = {}, heartbeatData = {}) {
       const uptimeValue = Number(uptimeList[id]);
       const tags = Array.isArray(monitor.tags)
         ? monitor.tags
-            .map(tag => String(tag?.name || tag?.label || tag || "").trim())
+            .map(tag => {
+              const name = String(tag?.name || tag?.label || tag || "").trim();
+              if (!name) return null;
+              return {
+                name,
+                color: normalizeTagColor(tag?.color, name)
+              };
+            })
             .filter(Boolean)
         : [];
 
@@ -144,7 +210,7 @@ function buildNormalizedStatus(pageData = {}, heartbeatData = {}) {
         latestPing: latestHeartbeat?.ping ?? null,
         latestTime: latestHeartbeat?.time || null,
         tags,
-        history: buildHistoryBars(normalizedHistory, 20)
+        history: buildHistoryBars(normalizedHistory, 60)
       });
     });
   });
@@ -167,7 +233,8 @@ function buildNormalizedStatus(pageData = {}, heartbeatData = {}) {
       ? "operational"
       : (summary.total > 0 ? "issues" : "unknown"),
     lastUpdatedAt: latestUpdatedAt,
-    fetchedAt: new Date().toISOString()
+    fetchedAt: new Date().toISOString(),
+    refreshIntervalMs: REFRESH_INTERVAL_MS
   };
 }
 
