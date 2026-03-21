@@ -39,6 +39,22 @@ function normalizeHeartbeatEntry(entry) {
   };
 }
 
+function normalizeHeartbeatCollection(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeHeartbeatEntry).filter(Boolean);
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value)
+      .flatMap(item => normalizeHeartbeatCollection(item))
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 function sortHeartbeatsByTime(history = []) {
   return history
     .filter(Boolean)
@@ -349,9 +365,7 @@ async function fetchPrivateMonitorData(baseUrl, username, password) {
       const pushedHeartbeatList = heartbeatListResponse && typeof heartbeatListResponse === "object"
         ? heartbeatListResponse[heartbeatKey]
         : null;
-      const normalizedPushed = Array.isArray(pushedHeartbeatList)
-        ? pushedHeartbeatList.map(normalizeHeartbeatEntry).filter(Boolean)
-        : [];
+      const normalizedPushed = normalizeHeartbeatCollection(pushedHeartbeatList);
 
       try {
         const response = await emitAsync(socket, "getMonitorBeats", Number(monitorId), STATUS_DURATION_LOOKBACK_HOURS);
