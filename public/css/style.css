@@ -813,6 +813,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__headline strong {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 15px;
   font-weight: 600;
   color: #eef6ff;
@@ -839,6 +841,7 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-state {
   display: inline-flex;
   align-items: center;
+  margin-left: auto;
   gap: 8px;
   padding: 6px 10px;
   border-radius: 999px;
@@ -922,11 +925,6 @@ body.site-bg-mode-custom .site-bg-image {
 
   .login-status-item {
     padding: 14px;
-  }
-
-  .login-status-state {
-    width: 100%;
-    justify-content: center;
   }
 }
 
