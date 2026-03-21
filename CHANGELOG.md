@@ -1,3 +1,9 @@
+## [1.39.4](https://github.com/iDrinkx/portall/compare/v1.39.3...v1.39.4) (2026-03-21)
+
+### Corrections de bugs
+
+* fuseau horraire kuma ([89921c6](https://github.com/iDrinkx/portall/commit/89921c6fea2eb475aa9d52a1c4cbdb1e828843e0))
+
 ## [1.39.3](https://github.com/iDrinkx/portall/compare/v1.39.2...v1.39.3) (2026-03-21)
 
 ### Corrections de bugs
