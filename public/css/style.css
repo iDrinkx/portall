@@ -805,27 +805,27 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__headline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 4px;
 }
 
 .login-status-item__headline strong {
-  flex: 1 1 auto;
   min-width: 0;
   font-size: 15px;
   font-weight: 600;
   color: #eef6ff;
+  line-height: 1.25;
 }
 
 .login-status-item__state-block {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
-  margin-left: auto;
+  gap: 3px;
+  min-width: max-content;
 }
 
 .login-status-item__tags {
@@ -836,9 +836,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__since {
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.1;
   text-align: right;
-  color: rgba(205, 219, 233, 0.62);
+  color: rgba(205, 219, 233, 0.54);
 }
 
 .login-status-item__tag {
@@ -950,7 +951,6 @@ body.site-bg-mode-custom .site-bg-image {
   }
 
   .login-status-item__state-block {
-    width: 100%;
     align-items: flex-end;
   }
 }

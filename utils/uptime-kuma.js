@@ -3,6 +3,7 @@ const { io } = require("socket.io-client");
 const CACHE_TTL_MS = 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const STATUS_DURATION_LOOKBACK_HOURS = 24 * 30;
 const cache = new Map();
 
 function normalizeBaseUrl(value) {
@@ -330,6 +331,17 @@ async function fetchPrivateMonitorData(baseUrl, username, password) {
       if (monitorId == null) return null;
 
       const heartbeatKey = String(monitorId);
+      try {
+        const response = await emitAsync(socket, "getMonitorBeats", Number(monitorId), STATUS_DURATION_LOOKBACK_HOURS);
+        const raw = Array.isArray(response) ? response : (response?.data || response?.beats || []);
+        const normalizedRaw = raw.map(normalizeHeartbeatEntry).filter(Boolean);
+        if (normalizedRaw.length > 0) {
+          return [String(monitorId), normalizedRaw];
+        }
+      } catch (_) {
+        // Fall back to the pushed snapshot if the detailed beats query fails.
+      }
+
       const pushedHeartbeatList = heartbeatListResponse && typeof heartbeatListResponse === "object"
         ? heartbeatListResponse[heartbeatKey]
         : null;
@@ -337,13 +349,7 @@ async function fetchPrivateMonitorData(baseUrl, username, password) {
         return [heartbeatKey, pushedHeartbeatList.map(normalizeHeartbeatEntry).filter(Boolean)];
       }
 
-      try {
-        const response = await emitAsync(socket, "getMonitorBeats", Number(monitorId), 1);
-        const raw = Array.isArray(response) ? response : (response?.data || response?.beats || []);
-        return [String(monitorId), raw.map(normalizeHeartbeatEntry).filter(Boolean)];
-      } catch (_) {
-        return [String(monitorId), []];
-      }
+      return [String(monitorId), []];
     }));
 
     return {
