@@ -1,3 +1,40 @@
+## [1.39.0](https://github.com/iDrinkx/portall/compare/v1.38.1...v1.39.0) (2026-03-21)
+
+### Nouvelles fonctionnalites
+
+* kuma ([a32ced4](https://github.com/iDrinkx/portall/commit/a32ced4360ad2fdb29224c64643ad95368f700ab))
+
+### Corrections de bugs
+
+* ajouts logo ([80a0ee2](https://github.com/iDrinkx/portall/commit/80a0ee2135f08ec8733404bad19373244c665197))
+* ajsutement etiquette logo kuma ([99e1f4e](https://github.com/iDrinkx/portall/commit/99e1f4eac97f851d511f55908f6ac54b3f70e3f6))
+* ajustement kuma ([0389da8](https://github.com/iDrinkx/portall/commit/0389da84e80737cfa8f9c7fe4868e2f9ec6e9938))
+* alignement uptime ([3046461](https://github.com/iDrinkx/portall/commit/3046461f51f96cc8fe4f9dcfdfcd22767aa457b4))
+* apparence kuma ([761b067](https://github.com/iDrinkx/portall/commit/761b0676a73e5e74c4add5ac43d42574ecb0d2cf))
+* bulle temps ([5823ba3](https://github.com/iDrinkx/portall/commit/5823ba3c99d4deb63d3e14965234bbc2b777b4bb))
+* carte kuma liquid glass ([29a6b6f](https://github.com/iDrinkx/portall/commit/29a6b6f54c1bae9550d890418c5db365ac40fcc2))
+* couleur maintenance ([d0ccbb3](https://github.com/iDrinkx/portall/commit/d0ccbb3c76c6b224f59d2423fd85b5b1dcddc9ba))
+* durée aliigement ([868dd9a](https://github.com/iDrinkx/portall/commit/868dd9ab9af23518666980c49440e95bc99f087e))
+* etiquettes kuma ([81e504a](https://github.com/iDrinkx/portall/commit/81e504a8cbe1c6f1c04be5fe46d071cad8b1a227))
+* etiquettes kuma ([b72ce7d](https://github.com/iDrinkx/portall/commit/b72ce7db5fb56c60e15f4bf52c1c061f7c26633f))
+* exclusion logo ([4b2cc21](https://github.com/iDrinkx/portall/commit/4b2cc210949c8109850518c480bc83740678a3bd))
+* fuseau horraire kuma ([8226e1a](https://github.com/iDrinkx/portall/commit/8226e1aba5bcff3ed6ffc69609c9fc349c1c5de4))
+* kuma api error ([65e9798](https://github.com/iDrinkx/portall/commit/65e97981803468b804af9c0da64f037508ae3e55))
+* kuma error ([6014e97](https://github.com/iDrinkx/portall/commit/6014e9764b9c56c9c74725c65f8c9e8f40cf7512))
+* kuma pourcentage ([84597ea](https://github.com/iDrinkx/portall/commit/84597ea8d9f9296ce4208c97911203b1fc37529c))
+* kuma update ([f897fa4](https://github.com/iDrinkx/portall/commit/f897fa4f700921ac2e720a4ffa537df91b32bae1))
+* kuma via api ([5a7ba6b](https://github.com/iDrinkx/portall/commit/5a7ba6b8a1f72764df64d7faec62cc98bf98c34a))
+* logo kuma add ([ff0785e](https://github.com/iDrinkx/portall/commit/ff0785e5dd5c5239611df5a9c2b800d85dcab9fb))
+* logo plex ([76f78f6](https://github.com/iDrinkx/portall/commit/76f78f658815d454e4368e67ae03124b2be3e096))
+* logo taille ([fd2037a](https://github.com/iDrinkx/portall/commit/fd2037a581ea8549c94fda1741d64e2eda8251a5))
+* message kuma ([0ba185a](https://github.com/iDrinkx/portall/commit/0ba185adfca4b567725d9c66eb16ed7d4e7dbe0b))
+* mobile version kuma ([8a75a65](https://github.com/iDrinkx/portall/commit/8a75a658a773db5be7a07870fbef251d6b55073a))
+* simplification kuma ([d641f32](https://github.com/iDrinkx/portall/commit/d641f32c2356c65ec947e9ec21eb8178dcf33992))
+* taille logo ([c18c4a6](https://github.com/iDrinkx/portall/commit/c18c4a6c6a9175e25200709a9dbd54acdb89a66f))
+* taille logs kuma ([eebcd00](https://github.com/iDrinkx/portall/commit/eebcd001c2c9cb73ad10b117dca6cd2d7500968c))
+* test de fix kuma api ([9927e55](https://github.com/iDrinkx/portall/commit/9927e55794dfc80983c151f7f4846a680c2e7ed4))
+* uptime kuma durée ([944cec6](https://github.com/iDrinkx/portall/commit/944cec65648d3cb7897555355766bba717f473df))
+
 ## [1.38.1](https://github.com/iDrinkx/portall/compare/v1.38.0...v1.38.1) (2026-03-19)
 
 ### Corrections de bugs
