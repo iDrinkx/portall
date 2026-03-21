@@ -715,25 +715,29 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-summary__icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 900;
   flex-shrink: 0;
+  font-family: system-ui, sans-serif;
 }
 
-.login-status-summary--operational .login-status-summary__icon {
-  color: #65e39d;
-  background: transparent;
+.login-status-summary__icon--operational {
+  color: #0b1a10;
+  background: #61e39d;
+  box-shadow: 0 0 0 3px rgba(97, 227, 157, 0.14);
 }
 
-.login-status-summary--issues .login-status-summary__icon {
-  color: #ff8f8f;
-  background: rgba(255, 123, 123, 0.12);
+.login-status-summary__icon--issues {
+  color: #121212;
+  background: #ffab45;
+  box-shadow: 0 0 0 3px rgba(255, 171, 69, 0.14);
 }
 
 .login-status-summary__text h2 {
@@ -828,6 +832,27 @@ body.site-bg-mode-custom .site-bg-image {
   font-weight: 800;
   color: #08110a;
   background: linear-gradient(135deg, #5af097, #50db86);
+}
+
+.login-status-item__uptime--operational {
+  color: #08110a;
+  background: linear-gradient(135deg, #5af097, #50db86);
+}
+
+.login-status-item__uptime--maintenance,
+.login-status-item__uptime--pending {
+  color: #1d1204;
+  background: linear-gradient(135deg, #ffb44a, #ff9a2f);
+}
+
+.login-status-item__uptime--down {
+  color: #22090c;
+  background: linear-gradient(135deg, #ff8d8d, #ff6262);
+}
+
+.login-status-item__uptime--unknown {
+  color: #dbe6f3;
+  background: linear-gradient(135deg, #607087, #485769);
 }
 
 .login-status-item__headline strong {

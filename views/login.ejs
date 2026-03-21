@@ -3,9 +3,13 @@
   const issueCount = statusData
     ? ((statusData.summary?.down || 0) + (statusData.summary?.pending || 0) + (statusData.summary?.maintenance || 0))
     : 0;
-  const overallStatusLabel = statusData && statusData.overall === "operational"
-    ? t("login.status.allOperational")
-    : t("login.status.someIssues", { count: issueCount });
+  const overallStatusLabel = !statusData
+    ? ""
+    : (statusData.overall === "operational"
+        ? t("login.status.allOperational")
+        : ((statusData.summary?.down || 0) > 0
+            ? t("login.status.majorOutage")
+            : t("login.status.someIssues")));
 %>
 
 <div class="login-page<%= statusData ? ' login-page--with-status' : '' %>">
@@ -27,11 +31,12 @@
   <% if (statusData) { %>
   <section class="login-status-panel" aria-labelledby="login-status-heading">
     <div class="login-status-summary login-status-summary--<%= statusData.overall === 'operational' ? 'operational' : 'issues' %>">
-      <% if (statusData.overall === "operational") { %>
-      <span class="login-status-summary__icon" aria-hidden="true">&#10003;</span>
-      <% } else { %>
-      <span class="login-status-summary__icon" aria-hidden="true">!</span>
-      <% } %>
+      <span
+        class="login-status-summary__icon login-status-summary__icon--<%= statusData.overall === 'operational' ? 'operational' : 'issues' %>"
+        aria-hidden="true"
+      >
+        <%= statusData.overall === "operational" ? "✓" : "!" %>
+      </span>
       <div class="login-status-summary__text">
         <h2 id="login-status-heading"><%= overallStatusLabel %></h2>
         <% if (statusData.description) { %>
@@ -67,7 +72,7 @@
           <div class="login-status-item__meta">
             <div class="login-status-item__headline">
               <% if (typeof service.uptimePercent === "number" && Number.isFinite(service.uptimePercent)) { %>
-              <span class="login-status-item__uptime"><%= service.uptimePercent.toFixed(2).replace(/\.00$/, "") %>%</span>
+              <span class="login-status-item__uptime login-status-item__uptime--<%= service.status.className %>"><%= service.uptimePercent.toFixed(2).replace(/\.00$/, "") %>%</span>
               <% } %>
               <strong><%= service.name %></strong>
             </div>
