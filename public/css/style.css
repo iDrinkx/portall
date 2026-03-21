@@ -766,7 +766,7 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-list {
   display: grid;
   gap: 0;
-  padding: 10px 14px;
+  padding: 12px 22px 10px;
   border-radius: 14px;
   background: rgba(17, 26, 40, 0.38);
   border: 1px solid rgba(170, 201, 228, 0.05);
@@ -784,10 +784,10 @@ body.site-bg-mode-custom .site-bg-image {
 
 .login-status-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(500px, 48%);
-  gap: 30px;
-  align-items: center;
-  padding: 18px 10px;
+  grid-template-columns: minmax(240px, 34%) minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+  padding: 18px 0;
   border-bottom: 1px solid rgba(170, 201, 228, 0.04);
 }
 
@@ -824,7 +824,7 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__headline strong {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
   color: #d7e2ef;
 }
@@ -851,12 +851,13 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-item__timeline {
   min-width: 0;
   width: 100%;
+  padding-top: 4px;
 }
 
 .login-status-item__history {
   display: grid;
   grid-template-columns: repeat(60, minmax(0, 1fr));
-  gap: 5px;
+  gap: 4px;
   align-items: center;
   width: 100%;
 }
@@ -872,7 +873,7 @@ body.site-bg-mode-custom .site-bg-image {
 
 .login-status-bar {
   display: block;
-  height: 18px;
+  height: 16px;
   border-radius: 2px;
   background: rgba(107, 126, 146, 0.2);
 }
@@ -917,14 +918,14 @@ body.site-bg-mode-custom .site-bg-image {
   }
 
   .login-status-list {
-    padding: 8px 10px;
+    padding: 10px 14px;
   }
 
   .login-status-item {
     grid-template-columns: 1fr;
     gap: 14px;
-    padding-left: 6px;
-    padding-right: 6px;
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
