@@ -149,8 +149,6 @@ function buildNormalizedStatus(pageData = {}, heartbeatData = {}) {
     });
   });
 
-  services.sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
-
   const summary = services.reduce((acc, service) => {
     acc.total += 1;
     if (service.status.key === "up") acc.up += 1;

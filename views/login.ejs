@@ -8,9 +8,6 @@
   const overallStatusLabel = statusData && statusData.overall === "operational"
     ? t("login.status.allOperational")
     : t("login.status.someIssues", { count: issueCount });
-  const lastUpdatedLabel = statusData && statusData.lastUpdatedAt
-    ? new Date(statusData.lastUpdatedAt).toLocaleString(locale === "en" ? "en-US" : "fr-FR")
-    : "";
   const statusLabelMap = {
     operational: t("login.status.operational"),
     down: t("login.status.down"),
@@ -56,14 +53,11 @@
         <% statusData.services.forEach(service => { %>
         <article class="login-status-item">
           <div class="login-status-item__meta">
-            <% if (typeof service.uptimePercent === 'number' && Number.isFinite(service.uptimePercent)) { %>
-            <span class="login-status-item__uptime"><%= service.uptimePercent.toFixed(2).replace(/\.00$/, '') %>%</span>
-            <% } %>
-            <div class="login-status-item__title">
+            <div class="login-status-item__headline">
+              <% if (typeof service.uptimePercent === 'number' && Number.isFinite(service.uptimePercent)) { %>
+              <span class="login-status-item__uptime"><%= service.uptimePercent.toFixed(2).replace(/\.00$/, '') %>%</span>
+              <% } %>
               <strong><%= service.name %></strong>
-              <span class="login-status-item__state login-status-item__state--<%= service.status.className %>">
-                <%= statusLabelMap[service.status.className] || service.status.label %>
-              </span>
             </div>
             <% if (service.tags && service.tags.length) { %>
             <div class="login-status-item__tags">
@@ -74,18 +68,29 @@
             <% } %>
           </div>
 
-          <div class="login-status-item__history" aria-hidden="true">
-            <% service.history.forEach(point => { %>
-            <span class="login-status-bar login-status-bar--<%= point.status.className %>"></span>
-            <% }) %>
+          <div class="login-status-item__timeline">
+            <div class="login-status-item__history" aria-hidden="true">
+              <% service.history.forEach(point => { %>
+              <span class="login-status-bar login-status-bar--<%= point.status.className %>"></span>
+              <% }) %>
+            </div>
+            <div class="login-status-item__timeline-meta">
+              <span>1h</span>
+              <span><%= statusLabelMap[service.status.className] || service.status.label %></span>
+            </div>
           </div>
         </article>
         <% }) %>
       </div>
     </div>
 
-    <% if (lastUpdatedLabel) { %>
-    <p class="login-status-updated"><%= t("login.status.updatedAt", { date: lastUpdatedLabel }) %></p>
+    <% if (statusData.lastUpdatedAt) { %>
+    <p
+      class="login-status-updated"
+      data-uptime-updated-at
+      data-iso="<%= statusData.lastUpdatedAt %>"
+      data-label-prefix="<%= t('login.status.updatedAt', { date: '__DATE__' }) %>"
+    ></p>
     <% } %>
   </section>
   <% } %>
@@ -150,3 +155,20 @@
     }
   }
 </style>
+
+<script>
+  (function () {
+    const updatedAtEl = document.querySelector("[data-uptime-updated-at]");
+    if (!updatedAtEl) return;
+
+    const iso = updatedAtEl.getAttribute("data-iso");
+    const labelPrefix = updatedAtEl.getAttribute("data-label-prefix") || "__DATE__";
+    const date = iso ? new Date(iso) : null;
+
+    if (!date || Number.isNaN(date.getTime())) return;
+
+    const pageLocale = "<%= locale === 'en' ? 'en-US' : 'fr-FR' %>";
+    const formatted = date.toLocaleString(pageLocale);
+    updatedAtEl.textContent = labelPrefix.replace("__DATE__", formatted);
+  })();
+</script>
