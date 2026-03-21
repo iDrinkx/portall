@@ -1,3 +1,9 @@
+## [1.39.2](https://github.com/iDrinkx/portall/compare/v1.39.1...v1.39.2) (2026-03-21)
+
+### Corrections de bugs
+
+* temps kuma ([9aa2715](https://github.com/iDrinkx/portall/commit/9aa27153482ccdfedbec298666eaaf72ed6700c0))
+
 ## [1.39.1](https://github.com/iDrinkx/portall/compare/v1.39.0...v1.39.1) (2026-03-21)
 
 ### Corrections de bugs
