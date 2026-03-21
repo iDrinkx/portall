@@ -74,7 +74,7 @@
             <% if (service.tags && service.tags.length) { %>
             <div class="login-status-item__tags">
               <% service.tags.slice(0, 3).forEach(tag => { %>
-              <span class="login-status-item__tag" style="--tag-color: <%= tag.color %>;"><%= tag.name %></span>
+              <span class="login-status-item__tag" style="background-color: <%= tag.color %>;"><%= tag.name %></span>
               <% }) %>
             </div>
             <% } %>

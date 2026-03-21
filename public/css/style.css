@@ -652,7 +652,7 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-panel {
   width: min(960px, 100%);
   padding: 34px 34px 28px;
-  border-radius: 26px;
+  border-radius: 20px;
   background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   border: 1px solid rgba(226, 246, 255, 0.42);
   box-shadow:
@@ -768,8 +768,8 @@ body.site-bg-mode-custom .site-bg-image {
   gap: 0;
   padding: 12px 22px 10px;
   border-radius: 14px;
-  background: rgba(17, 26, 40, 0.38);
-  border: 1px solid rgba(170, 201, 228, 0.05);
+  background: transparent;
+  border: none;
 }
 
 .login-status-error {
@@ -787,8 +787,14 @@ body.site-bg-mode-custom .site-bg-image {
   grid-template-columns: minmax(240px, 34%) minmax(0, 1fr);
   gap: 26px;
   align-items: start;
-  padding: 18px 0;
-  border-bottom: 1px solid rgba(170, 201, 228, 0.04);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  background: rgba(17, 26, 40, 0.52);
+  border: 1px solid rgba(170, 201, 228, 0.08);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.10),
+    0 0 0 1px rgba(232, 248, 255, 0.04) inset;
 }
 
 .login-status-item--empty {
@@ -796,7 +802,7 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .login-status-item__meta {
@@ -841,7 +847,6 @@ body.site-bg-mode-custom .site-bg-image {
   align-items: center;
   padding: 3px 8px;
   border-radius: 999px;
-  background: var(--tag-color, #3b82f6);
   color: #edf4ff;
   font-size: 11px;
   font-weight: 600;
@@ -924,8 +929,8 @@ body.site-bg-mode-custom .site-bg-image {
   .login-status-item {
     grid-template-columns: 1fr;
     gap: 14px;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
 
