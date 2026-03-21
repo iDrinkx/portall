@@ -834,6 +834,7 @@ body.site-bg-mode-custom .site-bg-image {
   gap: 10px;
   min-height: 40px;
   flex-wrap: nowrap;
+  min-width: 136px;
 }
 
 .login-status-item__service-logo {
@@ -846,6 +847,7 @@ body.site-bg-mode-custom .site-bg-image {
   object-fit: contain;
   object-position: left center;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .login-status-item__service-logo--plex {
@@ -860,9 +862,14 @@ body.site-bg-mode-custom .site-bg-image {
   max-width: 34px;
 }
 
+.login-status-item__service-logo--komga {
+  transform: translateY(1px);
+}
+
 .login-status-item__service-logo--portall {
   height: 38px;
   max-width: 144px;
+  transform: translateY(1px);
 }
 
 .login-status-item__state-block {
@@ -900,6 +907,7 @@ body.site-bg-mode-custom .site-bg-image {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .login-status-state {
@@ -1002,6 +1010,11 @@ body.site-bg-mode-custom .site-bg-image {
   .login-status-item__service-logo {
     height: 30px;
     max-width: 112px;
+  }
+
+  .login-status-item__service-brand {
+    min-width: 118px;
+    gap: 8px;
   }
 
   .login-status-item__service-logo--plex {
