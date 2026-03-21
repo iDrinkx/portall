@@ -820,6 +820,14 @@ body.site-bg-mode-custom .site-bg-image {
   color: #eef6ff;
 }
 
+.login-status-item__state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .login-status-item__tags {
   display: flex;
   flex-wrap: wrap;
@@ -828,8 +836,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__since {
-  margin-top: 6px;
   font-size: 12px;
+  text-align: right;
   color: rgba(205, 219, 233, 0.62);
 }
 
@@ -847,7 +855,6 @@ body.site-bg-mode-custom .site-bg-image {
 .login-status-state {
   display: inline-flex;
   align-items: center;
-  margin-left: auto;
   gap: 8px;
   padding: 6px 10px;
   border-radius: 999px;
@@ -940,6 +947,11 @@ body.site-bg-mode-custom .site-bg-image {
 
   .login-status-item {
     padding: 14px;
+  }
+
+  .login-status-item__state-block {
+    width: 100%;
+    align-items: flex-end;
   }
 }
 

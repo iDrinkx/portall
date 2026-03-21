@@ -104,14 +104,16 @@
           <div class="login-status-item__meta">
             <div class="login-status-item__headline">
               <strong><%= service.name %></strong>
-              <span class="login-status-state login-status-state--<%= service.status.className %>">
-                <span class="login-status-state__dot" aria-hidden="true"></span>
-                <span><%= getServiceStateLabel(service.status.className) %></span>
-              </span>
+              <div class="login-status-item__state-block">
+                <span class="login-status-state login-status-state--<%= service.status.className %>">
+                  <span class="login-status-state__dot" aria-hidden="true"></span>
+                  <span><%= getServiceStateLabel(service.status.className) %></span>
+                </span>
+                <% if (service.statusChangedAt) { %>
+                <div class="login-status-item__since"><%= formatSince(service.statusChangedAt) %></div>
+                <% } %>
+              </div>
             </div>
-            <% if (service.statusChangedAt) { %>
-            <div class="login-status-item__since"><%= formatSince(service.statusChangedAt) %></div>
-            <% } %>
             <% if (service.tags && service.tags.length) { %>
             <div class="login-status-item__tags">
               <% service.tags.slice(0, 3).forEach(tag => { %>
