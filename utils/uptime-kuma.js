@@ -4,10 +4,86 @@ const CACHE_TTL_MS = 5 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const STATUS_DURATION_LOOKBACK_HOURS = 24 * 30;
+const KUMA_TIME_ZONE = "Europe/Paris";
 const cache = new Map();
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function getTimeZoneOffsetMs(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(date)
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+
+  return asUtc - date.getTime();
+}
+
+function parseKumaTime(value) {
+  if (value == null || value === "") return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "number") {
+    const asMs = value > 1e12 ? value : value * 1000;
+    const date = new Date(asMs);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const hasExplicitZone = /(?:[zZ]|[+\-]\d{2}:?\d{2})$/.test(raw);
+  const normalized = raw.replace(" ", "T");
+
+  if (hasExplicitZone) {
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (match) {
+    const [, year, month, day, hour, minute, second = "00"] = match;
+    const utcGuess = new Date(Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    ));
+    const offsetMs = getTimeZoneOffsetMs(utcGuess, KUMA_TIME_ZONE);
+    const parsed = new Date(utcGuess.getTime() - offsetMs);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const fallback = new Date(normalized);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
 }
 
 function getMonitorStatusMeta(statusCode) {
@@ -28,7 +104,7 @@ function normalizeHeartbeatEntry(entry) {
   if (!entry || typeof entry !== "object") return null;
 
   const timeValue = entry.time || entry.date || entry.created_at || entry.createdAt || null;
-  const time = timeValue ? new Date(timeValue) : null;
+  const time = parseKumaTime(timeValue);
 
   return {
     status: Number(entry.status),
