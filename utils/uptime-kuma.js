@@ -137,14 +137,57 @@ function waitForConnect(socket) {
 
 function emitAsync(socket, eventName, ...args) {
   return new Promise((resolve, reject) => {
-    socket.timeout(REQUEST_TIMEOUT_MS).emit(eventName, ...args, (err, response) => {
+    socket.timeout(REQUEST_TIMEOUT_MS).emit(eventName, ...args, (err, ...responses) => {
       if (err) {
         reject(err instanceof Error ? err : new Error(String(err || `Socket event ${eventName} failed`)));
         return;
       }
-      resolve(response);
+      resolve(responses.length <= 1 ? responses[0] : responses);
     });
   });
+}
+
+function toMonitorArray(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value
+      .flatMap(item => {
+        if (!item) return [];
+        if (Array.isArray(item)) return toMonitorArray(item);
+        if (typeof item === "object" && !("name" in item) && !("id" in item) && !("type" in item)) {
+          return toMonitorArray(item.monitorList || item.monitors || item.data || item.rows || item.list || item);
+        }
+        return [item];
+      })
+      .filter(item => item && typeof item === "object");
+  }
+
+  if (typeof value === "object") {
+    if (value.monitorList || value.monitors || value.data || value.rows || value.list) {
+      return toMonitorArray(value.monitorList || value.monitors || value.data || value.rows || value.list);
+    }
+
+    return Object.values(value)
+      .filter(item => item && typeof item === "object");
+  }
+
+  return [];
+}
+
+function normalizeMonitorRecord(monitor, index) {
+  if (!monitor || typeof monitor !== "object") return null;
+
+  const id = monitor.id ?? monitor.monitorID ?? monitor.monitorId ?? monitor.monitorID;
+  const name = String(monitor.name || monitor.title || "").trim();
+
+  if (id == null && !name) return null;
+
+  return {
+    ...monitor,
+    id: id != null ? id : `monitor-${index}`,
+    name: name || `Monitor ${id != null ? id : index + 1}`
+  };
 }
 
 async function fetchPrivateMonitorData(baseUrl, username, password) {
@@ -159,8 +202,8 @@ async function fetchPrivateMonitorData(baseUrl, username, password) {
     }
 
     const monitorListResponse = await emitAsync(socket, "getMonitorList");
-    const monitorListMap = monitorListResponse?.monitorList || monitorListResponse || {};
-    const monitors = Object.values(monitorListMap)
+    const monitors = toMonitorArray(monitorListResponse)
+      .map(normalizeMonitorRecord)
       .filter(Boolean)
       .filter(monitor => monitor.active !== false)
       .sort((a, b) => {
@@ -171,6 +214,10 @@ async function fetchPrivateMonitorData(baseUrl, username, password) {
         const idB = Number.isFinite(Number(b.id)) ? Number(b.id) : Number.MAX_SAFE_INTEGER;
         return idA - idB;
       });
+
+    if (monitors.length === 0) {
+      throw new Error("Uptime Kuma monitor list is empty or has an unexpected format");
+    }
 
     const beatEntries = await Promise.all(monitors.map(async monitor => {
       const monitorId = monitor?.id;
