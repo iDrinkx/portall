@@ -13,7 +13,22 @@ let tautulliDb = null;
 
 // ── Cache mémoire des rating_keys par collection (durée: 24h)
 const collectionCache = {};
+const traktListCache = {};
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+const TRAKT_LISTS = {
+  'potter-head': 'https://app.trakt.tv/users/machadodg/lists/wizarding-world',
+  'jurassic-survivor': 'https://app.trakt.tv/users/shaneleexcx1234/lists/jurassic-park-world-franchise',
+  'marvel-fan': 'https://trakt.tv/users/donxy/lists/marvel-cinematic-universe',
+  'black-knight': 'https://app.trakt.tv/users/feeltheduck/lists/star-wars-collection',
+  'tolkiendil': 'https://app.trakt.tv/users/bobbymarshal/lists/middle-earth',
+  'evolutionist': 'https://app.trakt.tv/lists/official/1531',
+  'agent-007': 'https://app.trakt.tv/users/maiki01/lists/james-bond-collection',
+  'fast-family': 'https://app.trakt.tv/users/babakhan23/lists/fast-furious-movie-collection',
+  'star-trek-universe': 'https://trakt.tv/users/gratiskeder/lists/star-trek',
+  'arrowverse': 'https://trakt.tv/users/dudeimtired/lists/arrowverse-collection',
+  'monsterverse': 'https://trakt.tv/users/pullsa/lists/the-monsterverse'
+};
 
 /**
  * 🗂️ Registry des collections Tautulli par achievement ID
@@ -28,7 +43,6 @@ const COLLECTION_KEYS = {
   'evolutionist': { ratingKey: 15344 },  // La Planète des Singes
   'agent-007':    { ratingKey: 4095 },   // James Bond 007
   'fast-family':  { ratingKey: 8607 },   // Fast and Furious
-  'charlots-forever': { ratingKey: 4090 }, // Les Charlots
   'star-trek-universe': { seriesRatingKey: 306622 }, // Star Trek Universe
   'arrowverse':   { seriesRatingKey: 306801 }, // Arrowverse
   'monsterverse': { movieRatingKey: 306783, seriesRatingKey: 306625 }, // MonsterVerse (films + séries)
@@ -74,6 +88,86 @@ async function getCollectionItems(collectionRatingKey) {
     return normalizedItems;
   } catch(e) {
     log.warn(`Collection ${collectionRatingKey}:`, e.message);
+    return null;
+  }
+}
+
+function getTraktApiListUrl(traktListUrl) {
+  if (!traktListUrl) return null;
+  try {
+    const parsed = new URL(traktListUrl);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+
+    if (parts[0] === 'users' && parts[2] === 'lists' && parts[1] && parts[3]) {
+      return `https://api.trakt.tv/users/${parts[1]}/lists/${parts[3]}/items`;
+    }
+
+    if (parts[0] === 'lists' && parts[1] === 'official' && parts[2]) {
+      return `https://api.trakt.tv/lists/${parts[2]}/items`;
+    }
+
+    if (parts[0] === 'lists' && parts[1]) {
+      return `https://api.trakt.tv/lists/${parts[1]}/items`;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function getTraktListItems(achievementId) {
+  const traktClientId = String(getConfigValue('TRAKT_CLIENT_ID', '') || '').trim();
+  const traktListUrl = TRAKT_LISTS[achievementId];
+  if (!traktClientId || !traktListUrl) return null;
+
+  const now = Date.now();
+  const cached = traktListCache[achievementId];
+  if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
+    return cached.items;
+  }
+
+  const apiUrl = getTraktApiListUrl(traktListUrl);
+  if (!apiUrl) return null;
+
+  try {
+    const items = [];
+    let page = 1;
+    const limit = 100;
+
+    while (page <= 10) {
+      const separator = apiUrl.includes('?') ? '&' : '?';
+      const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
+        headers: {
+          Accept: 'application/json',
+          'trakt-api-version': '2',
+          'trakt-api-key': traktClientId
+        }
+      });
+
+      if (!resp.ok) throw new Error(`Trakt API HTTP ${resp.status}`);
+
+      const payload = await resp.json();
+      const pageItems = Array.isArray(payload) ? payload : [];
+      if (!pageItems.length) break;
+
+      items.push(...pageItems);
+      if (pageItems.length < limit) break;
+      page += 1;
+    }
+
+    const normalized = items.map(item => {
+      if (item?.type === 'movie' && item.movie?.title) {
+        return { type: 'movie', title: item.movie.title, year: item.movie.year ?? null };
+      }
+      if (item?.type === 'show' && item.show?.title) {
+        return { type: 'show', title: item.show.title, year: item.show.year ?? null };
+      }
+      return null;
+    }).filter(Boolean);
+
+    traktListCache[achievementId] = { items: normalized, ts: now };
+    log.info(`Trakt ${achievementId}: ${normalized.length} éléments chargés`);
+    return normalized;
+  } catch (err) {
+    log.warn(`Trakt ${achievementId}:`, err.message);
     return null;
   }
 }
@@ -532,10 +626,22 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
   /**
    * Évalue un succès de type "toute la collection regardée".
-   * Priorité : API Tautulli (collection rating_key) → fallback titres LIKE.
+   * Priorité : liste Trakt → collection Plex/Tautulli locale → fallback titres LIKE.
    */
   const checkCollection = async (id, fallbackPatterns, minRequired = null) => {
     const conf = COLLECTION_KEYS[id];
+    const traktItems = await getTraktListItems(id);
+    if (traktItems && traktItems.length > 0) {
+      const traktMovies = traktItems.filter(item => item.type === 'movie');
+      if (traktMovies.length > 0) {
+        const row = countMoviesByTitleYear(traktMovies);
+        const required = minRequired ?? traktMovies.length;
+        const current = Math.min(row.cnt, required);
+        log.debug(`${id} (trakt films): ${current}/${required}`);
+        if (current >= required) return { date: fmt(row.last_stopped) || today, current, total: required };
+        return { date: null, current, total: required };
+      }
+    }
     // Essai via API Plex (titre+année, stable même après re-scans)
     if (conf?.ratingKey) {
       const movies = await getCollectionItems(conf.ratingKey);
@@ -562,17 +668,24 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   /**
    * Évalue un succès collection mixte films + séries.
    * Condition: films requis + séries requises (au moins un épisode/série).
+   * Priorité : liste Trakt → collections Plex/Tautulli locales → fallback.
    */
   const checkMixedCollection = async (id, movieFallbackPatterns = null, seriesFallbackPatterns = null, minMovies = null, minShows = null) => {
     const conf = COLLECTION_KEYS[id] || {};
     let movieItems = [];
     let showItems = [];
 
-    if (conf.movieRatingKey) {
+    const traktItems = await getTraktListItems(id);
+    if (traktItems && traktItems.length > 0) {
+      movieItems = traktItems.filter(i => i.type === 'movie');
+      showItems = traktItems.filter(i => i.type === 'show');
+    }
+
+    if (!movieItems.length && conf.movieRatingKey) {
       const items = await getCollectionItems(conf.movieRatingKey);
       movieItems = Array.isArray(items) ? items.filter(i => !i.type || i.type === 'movie') : [];
     }
-    if (conf.seriesRatingKey) {
+    if (!showItems.length && conf.seriesRatingKey) {
       const items = await getCollectionItems(conf.seriesRatingKey);
       showItems = Array.isArray(items) ? items.filter(i => !i.type || i.type === 'show') : [];
     }
@@ -686,14 +799,6 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
         // 🏎️ Fast Family — Toute la collection Fast and Furious
         case 'fast-family': {
           const r = await checkCollection(id, null, 10);
-          if (r.date) results[id] = r.date;
-          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
-          break;
-        }
-
-        // 🎭 Les Charlots Forever — Toute la collection Les Charlots
-        case 'charlots-forever': {
-          const r = await checkCollection(id, null, 15);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;

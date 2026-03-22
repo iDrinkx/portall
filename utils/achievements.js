@@ -527,21 +527,6 @@ const ACHIEVEMENTS = {
       xp: 2500
     },
     {
-      id: "charlots-forever",
-      name: "Les Charlots Forever",
-      icon: "🎭",
-      description: "A regardé toute la collection Les Charlots",
-      condition: (data) => false,
-      conditionText: "A regardé toute la collection Les Charlots",
-      getProgress: (data) => ({ current: 0, total: 15, percent: 0 }),
-      unlockedDate: null,
-      category: "collections",
-      isSecret: false,
-      revocable: true,
-      // Barème équilibré collections: 250 XP/film
-      xp: 3750
-    },
-    {
       id: "star-trek-universe",
       name: "Star Trek Universe",
       icon: "🖖",
