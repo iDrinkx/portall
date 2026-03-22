@@ -122,8 +122,7 @@ async function getTraktListItems(achievementId) {
       })
       .filter(Boolean);
 
-    const availableItems = await filterItemsAvailableInPlex(normalized);
-
+    const availableItems = normalized;
     traktListCache[achievementId] = { items: availableItems, ts: now };
     log.info(`Trakt ${achievementId}: ${availableItems.length}/${normalized.length} éléments disponibles sur Plex`);
     return availableItems;
@@ -251,7 +250,7 @@ function collectionTitleMatches(a, b, yearA = null, yearB = null) {
 
   const hasYears = Number.isFinite(Number(yearA)) && Number.isFinite(Number(yearB));
   if (hasYears && Number(yearA) !== Number(yearB)) {
-    return false;
+    return null;
   }
 
   if (rawA === rawB) return true;
@@ -400,12 +399,16 @@ async function getPlexLibraryIndex() {
     return plexLibraryIndexCache.promise;
   }
   if (plexLibraryIndexCache.failedAt && (now - plexLibraryIndexCache.failedAt) < 5 * 60 * 1000) {
+    log.warn('Index Plex collections: derniere tentative en echec, nouvelle tentative differee');
     return null;
   }
 
   const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
   const plexToken = getPreferredPlexServerToken();
-  if (!plexUrl || !plexToken) return null;
+  if (!plexUrl || !plexToken) {
+    log.warn('Index Plex collections: configuration Plex incomplete');
+    return null;
+  }
 
   plexLibraryIndexCache.promise = (async () => {
     try {
@@ -490,11 +493,11 @@ async function isItemAvailableInPlex(item) {
 
   const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
   const plexToken = getPreferredPlexServerToken();
-  if (!plexUrl || !plexToken) return false;
+  if (!plexUrl || !plexToken) return null;
 
   try {
     const index = await getPlexLibraryIndex();
-    if (!index) return false;
+    if (!index) return null;
 
     const itemIds = buildExternalIds(item?.ids || {});
     let available = false;
@@ -528,11 +531,23 @@ async function filterItemsAvailableInPlex(items) {
 
   const availableItems = [];
   for (const item of items) {
-    if (await isItemAvailableInPlex(item)) {
+    const availability = await isItemAvailableInPlex(item);
+    if (availability === null) return null;
+    if (availability) {
       availableItems.push(item);
     }
   }
   return availableItems;
+}
+
+function resetCollectionCaches() {
+  for (const key of Object.keys(traktListCache)) delete traktListCache[key];
+  for (const key of Object.keys(plexAvailabilityCache)) delete plexAvailabilityCache[key];
+  for (const key of Object.keys(traktListInflight)) delete traktListInflight[key];
+  plexLibraryIndexCache.items = null;
+  plexLibraryIndexCache.ts = 0;
+  plexLibraryIndexCache.failedAt = 0;
+  plexLibraryIndexCache.promise = null;
 }
 
 function getMovieCompletionSql(historyAlias = 'sh', metadataAlias = 'shm') {
@@ -938,8 +953,6 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const userFilter = plexUserId
     ? { clause: 'sh.user_id = ?', param: plexUserId }
     : { clause: 'LOWER(sh.user) = ?', param: norm };
-  const plexIndex = await getPlexLibraryIndex();
-
   /**
    * Compte les films regardés par l'utilisateur via une liste de {title, year}.
    * Le matching par titre+année est robuste aux re-scans Plex qui changent les GUIDs.
@@ -964,32 +977,17 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
         GROUP BY ${hasTableColumn('session_history_metadata', 'title') ? 'shm.title' : 'shm.id'}, shm.year
       `).all(userFilter.param);
 
-      const preparedMovies = movies.map(movie => {
-        const matchingEntries = Array.isArray(plexIndex)
-          ? getMatchingPlexEntriesForCollectionItem(plexIndex, movie)
-          : [];
-        const matchingRatingKeys = new Set(
-          matchingEntries
-            .map(entry => normalizeRatingKey(entry.ratingKey))
-            .filter(Boolean)
-        );
-        return {
-          movie,
-          movieTitles: [movie.plexTitle, movie.title].filter(Boolean),
-          movieIds: buildExternalIds(movie.ids || {}),
-          matchingEntries,
-          matchingRatingKeys
-        };
-      });
+      const preparedMovies = movies.map(movie => ({
+        movie,
+        movieTitles: [movie.plexTitle, movie.title].filter(Boolean),
+        movieIds: buildExternalIds(movie.ids || {})
+      }));
 
       let cnt = 0;
       let lastStopped = 0;
       for (const preparedMovie of preparedMovies) {
         const matched = watchedRows.find(row =>
           (
-            preparedMovie.matchingRatingKeys.size > 0 &&
-            [...getRowRatingKeys(row, 'movie')].some(key => preparedMovie.matchingRatingKeys.has(key))
-          ) || (
             preparedMovie.movieIds.size > 0 &&
             (
               [...preparedMovie.movieIds].some(id =>
@@ -1001,9 +999,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                   extractIdsFromRawGuidValue(row.grandparent_guid),
                   extractIdsFromRawGuidValue(row.grandparent_guids)
                 ).has(id)
-              ) ||
-              preparedMovie.matchingEntries
-                .some(entry => [...preparedMovie.movieIds].some(id => entry.ids?.has(id)))
+              )
             )
           ) || [row.raw_title, row.original_title, row.full_title, row.sort_title]
             .filter(Boolean)
@@ -1044,32 +1040,17 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
         GROUP BY ${hasTableColumn('session_history_metadata', 'grandparent_title') ? 'shm.grandparent_title' : 'shm.id'}
       `).all(userFilter.param);
 
-      const preparedShows = shows.map(show => {
-        const matchingEntries = Array.isArray(plexIndex)
-          ? getMatchingPlexEntriesForCollectionItem(plexIndex, show)
-          : [];
-        const matchingRatingKeys = new Set(
-          matchingEntries
-            .map(entry => normalizeRatingKey(entry.ratingKey))
-            .filter(Boolean)
-        );
-        return {
-          show,
-          showTitles: [show.plexTitle, show.title].filter(Boolean),
-          showIds: buildExternalIds(show.ids || {}),
-          matchingEntries,
-          matchingRatingKeys
-        };
-      });
+      const preparedShows = shows.map(show => ({
+        show,
+        showTitles: [show.plexTitle, show.title].filter(Boolean),
+        showIds: buildExternalIds(show.ids || {})
+      }));
 
       let cnt = 0;
       let lastStopped = 0;
       for (const preparedShow of preparedShows) {
         const matched = watchedRows.find(row =>
           (
-            preparedShow.matchingRatingKeys.size > 0 &&
-            [...getRowRatingKeys(row, 'show')].some(key => preparedShow.matchingRatingKeys.has(key))
-          ) || (
             preparedShow.showIds.size > 0 &&
             (
               [...preparedShow.showIds].some(id =>
@@ -1081,9 +1062,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                   extractIdsFromRawGuidValue(row.grandparent_guid),
                   extractIdsFromRawGuidValue(row.grandparent_guids)
                 ).has(id)
-              ) ||
-              preparedShow.matchingEntries
-                .some(entry => [...preparedShow.showIds].some(id => entry.ids?.has(id)))
+              )
             )
           ) || [row.raw_title, row.original_title, row.full_title, row.sort_title]
             .filter(Boolean)
@@ -2025,5 +2004,6 @@ module.exports = {
   getLastPlayedItem,
   getUserDetailedStats,
   getGlobalDetailedStats,
+  resetCollectionCaches,
   closeTautulliDatabase
 };
