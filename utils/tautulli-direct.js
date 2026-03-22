@@ -140,6 +140,15 @@ function getPlexAvailabilityCacheKey(item) {
   return `${item.type || 'unknown'}:${String(item.title || '').toLowerCase()}::${item.year || ''}`;
 }
 
+function getPreferredPlexServerToken() {
+  try {
+    const { AppSettingQueries } = require('./database');
+    const runtimeToken = String(AppSettingQueries.get('runtime_plex_cloud_token', '') || '').trim();
+    if (runtimeToken) return runtimeToken;
+  } catch (_) {}
+  return String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+}
+
 function normalizeCollectionTitle(value) {
   return String(value || '')
     .normalize('NFD')
@@ -199,7 +208,7 @@ async function getPlexLibraryIndex() {
   }
 
   const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
-  const plexToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+  const plexToken = getPreferredPlexServerToken();
   if (!plexUrl || !plexToken) return null;
 
   try {
@@ -267,12 +276,12 @@ async function isItemAvailableInPlex(item) {
   }
 
   const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
-  const plexToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+  const plexToken = getPreferredPlexServerToken();
   if (!plexUrl || !plexToken) return false;
 
   try {
     const index = await getPlexLibraryIndex();
-    if (!index) return true;
+    if (!index) return false;
 
     const available = index.has(cacheKey);
 
@@ -280,7 +289,7 @@ async function isItemAvailableInPlex(item) {
     return available;
   } catch (err) {
     log.warn(`Plex disponibilité ${title}:`, err.message);
-    return true;
+    return false;
   }
 }
 
