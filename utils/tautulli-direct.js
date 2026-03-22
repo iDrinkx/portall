@@ -30,7 +30,7 @@ const TRAKT_LISTS = {
   'tolkiendil': 'https://app.trakt.tv/users/bobbymarshal/lists/middle-earth',
   'evolutionist': 'https://app.trakt.tv/lists/official/1531',
   'agent-007': 'https://app.trakt.tv/users/maiki01/lists/james-bond-collection',
-  'fast-family': 'https://app.trakt.tv/users/babakhan23/lists/fast-furious-movie-collection',
+  'fast-family': 'https://app.trakt.tv/lists/official/the-fast-and-the-furious-collection',
   'star-trek-universe': 'https://trakt.tv/users/gratiskeder/lists/star-trek',
   'arrowverse': 'https://trakt.tv/users/dudeimtired/lists/arrowverse-collection',
   'monsterverse': 'https://trakt.tv/users/pullsa/lists/the-monsterverse'
