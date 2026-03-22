@@ -38,6 +38,8 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 ⚡ **Configuration Minimale** : Juste `SESSION_SECRET` en obligatoire
 
+🟢 **Carte Uptime Kuma sur la page de connexion** : Affichage compact des services avant login Plex via l'API privée Kuma
+
 ---
 
 ## Captures d'ecran
@@ -201,6 +203,29 @@ Variables de bootstrap typiques:
 
 Pour `komga_auto`, `jellyfin_auto` et `romm_auto`, chaque utilisateur connecte son compte une seule fois dans le portail.
 
+### Uptime Kuma sur la page de connexion
+
+portall peut afficher un résumé compact des services Uptime Kuma directement sur la page de connexion Plex.
+
+Configuration à renseigner dans `Parametres > Connexions` :
+
+- `UPTIME_KUMA_URL`
+- `UPTIME_KUMA_USERNAME`
+- `UPTIME_KUMA_PASSWORD`
+
+Comportement actuel :
+
+- récupération via l'API privée/socket Uptime Kuma
+- affichage avant connexion Plex
+- état compact par service (`En ligne`, `En attente`, `En maintenance`, `Hors ligne`)
+- support des logos Plex / Seerr / Komga / Portall dans la carte
+
+Important :
+
+- pour éviter les écarts de durée sur `Depuis ...`, il est recommandé d'utiliser la meme timezone sur tous les conteneurs
+- recommandation pratique : definir `TZ=UTC` sur les conteneurs `test` et `stable`
+- si vous choisissez `TZ=Europe/Paris`, utilisez exactement la meme valeur partout
+
 ### docker-compose.yml complet (exemple production)
 
 ```yaml
@@ -214,6 +239,7 @@ services:
       SESSION_SECRET: "change-me"
       NODE_ENV: "production"
       COOKIE_SECURE: "true"
+      TZ: "UTC"
     restart: unless-stopped
     networks:
       - proxy

@@ -45,6 +45,22 @@
       };
     }
 
+    if (values.includes("jellyfin")) {
+      return {
+        src: `${basePath}/img/jellyfin-icon.svg`,
+        alt: "Jellyfin",
+        className: "login-status-item__service-logo login-status-item__service-logo--jellyfin"
+      };
+    }
+
+    if (values.includes("romm")) {
+      return {
+        src: `${basePath}/img/romm-icon.svg`,
+        alt: "RomM",
+        className: "login-status-item__service-logo login-status-item__service-logo--romm"
+      };
+    }
+
     if (values.includes("portall") || values.includes("site web")) {
       return {
         src: `${basePath}/img/portall-logo.png`,

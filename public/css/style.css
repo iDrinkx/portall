@@ -860,7 +860,9 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-item__service-logo--seerr,
-.login-status-item__service-logo--komga {
+.login-status-item__service-logo--komga,
+.login-status-item__service-logo--jellyfin,
+.login-status-item__service-logo--romm {
   height: 34px;
   width: 44px;
   max-width: 44px;
@@ -1032,7 +1034,9 @@ body.site-bg-mode-custom .site-bg-image {
   }
 
   .login-status-item__service-logo--seerr,
-  .login-status-item__service-logo--komga {
+  .login-status-item__service-logo--komga,
+  .login-status-item__service-logo--jellyfin,
+  .login-status-item__service-logo--romm {
     height: 30px;
     width: 40px;
     max-width: 40px;
