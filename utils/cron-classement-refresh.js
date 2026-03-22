@@ -5,7 +5,7 @@ const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
 const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
-const { getAllWizarrUsers } = require('./wizarr');       // 🔑 Source de vérité
+const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');       // 🔑 Source de vérité
 const { getConfigValue } = require('./config');
 
 const logCR = log.create('[Classement-Refresh]');
@@ -85,6 +85,23 @@ function chooseBestClassementFallbackUsers() {
   };
 }
 
+function getPlexCloudToken() {
+  const runtimeToken = String(AppSettingQueriesSafe.get("runtime_plex_cloud_token", "") || "").trim();
+  if (runtimeToken) return runtimeToken;
+  return String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+}
+
+const AppSettingQueriesSafe = {
+  get(key, defaultValue = null) {
+    try {
+      const { AppSettingQueries } = require('./database');
+      return AppSettingQueries.get(key, defaultValue);
+    } catch (_) {
+      return defaultValue;
+    }
+  }
+};
+
 /**
  * 🔍 Valide les données calculées pour détecter les corruptions
  */
@@ -148,7 +165,7 @@ async function refreshClassementCache() {
     //   plexJoinedAtMap  : username → joined_at (secondes Unix)
     //   emailToUsername  : email    → plex username  ← pont Wizarr→Tautulli
     // ══════════════════════════════════════════════════════════════════
-    const plexToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+    const plexToken = getPlexCloudToken();
     const thumbMap        = {};
     const plexJoinedAtMap = {};
     const emailToUsername = {};  // 🔗 Corrélation email → plex username (fiable)
@@ -169,6 +186,8 @@ async function refreshClassementCache() {
           if (ownerTs > 0) plexJoinedAtMap[ownerKey] = ownerTs;
           if (od.email) emailToUsername[od.email.toLowerCase()] = od.username;
         }
+      } else {
+        logCR.debug(`⚠️  Plex API v2 cloud token refusé: HTTP ${ownerResp.status}`);
       }
     } catch (err) {
       logCR.debug(`⚠️  Plex API v2 failed: ${err.message}`);
@@ -182,21 +201,28 @@ async function refreshClassementCache() {
       });
       if (xmlResp.ok) {
         const xml = await xmlResp.text();
-        const userMatches = xml.match(/<User[^>]*>/g) || [];
+        const userBlocks = xml.match(/<User\b[\s\S]*?<\/User>/gi) || [];
+        const selfClosingUsers = xml.match(/<User\b[^>]*\/>/gi) || [];
+        const allUserEntries = userBlocks.length ? userBlocks : selfClosingUsers;
 
-        userMatches.forEach(tag => {
-          const usernameMatch = tag.match(/username="([^"]*)"/i) || tag.match(/title="([^"]*)"/i);
-          const thumbMatch    = tag.match(/thumb="([^"]*)"/i)    || tag.match(/avatar="([^"]*)"/i);
-          const joinedAtMatch = tag.match(/joined_at="([^"]*)"/i);
-          const emailMatch    = tag.match(/\bemail="([^"]*)"/i);
+        allUserEntries.forEach(block => {
+          const openTagMatch = block.match(/<User\b([^>]*)>/i) || block.match(/<User\b([^>]*)\/>/i);
+          const source = openTagMatch?.[1] ? `${openTagMatch[1]} ${block}` : block;
+          const usernameMatch = source.match(/username="([^"]*)"/i) || source.match(/title="([^"]*)"/i);
+          const thumbMatch    = source.match(/thumb="([^"]*)"/i)    || source.match(/avatar="([^"]*)"/i) || source.match(/photo="([^"]*)"/i);
+          const joinedAtMatch = source.match(/joined_at="([^"]*)"/i);
+          const emailMatch    = source.match(/\bemail="([^"]*)"/i);
 
           if (usernameMatch?.[1]) {
-            const name = usernameMatch[1].toLowerCase();
+            const rawUsername = usernameMatch[1];
+            const name = rawUsername.toLowerCase();
             if (thumbMatch?.[1])    { thumbMap[name] = thumbMatch[1]; thumbsFetched++; }
             if (joinedAtMatch?.[1]) { const ts = Number(joinedAtMatch[1]); if (ts > 0) plexJoinedAtMap[name] = ts; }
-            if (emailMatch?.[1])    { emailToUsername[emailMatch[1].toLowerCase()] = usernameMatch[1]; }
+            if (emailMatch?.[1])    { emailToUsername[emailMatch[1].toLowerCase()] = rawUsername; }
           }
         });
+      } else {
+        logCR.debug(`⚠️  Plex API XML cloud token refusé: HTTP ${xmlResp.status}`);
       }
     } catch (err) {
       logCR.debug(`⚠️  Plex API XML failed: ${err.message}`);
@@ -210,7 +236,19 @@ async function refreshClassementCache() {
     const wizarrUrl = String(getConfigValue('WIZARR_URL', '') || '').trim();
     const wizarrApiKey = String(getConfigValue('WIZARR_API_KEY', '') || '').trim();
     const wizarrConfigured = !!(wizarrUrl && wizarrApiKey);
-    let wizarrUsers = await getAllWizarrUsers(wizarrUrl, wizarrApiKey);
+    let wizarrUsers = [];
+    if (wizarrConfigured) {
+      const wizarrResult = await getAllWizarrUsersDetailed(wizarrUrl, wizarrApiKey);
+      wizarrUsers = wizarrResult.users || [];
+      if (!wizarrUsers.length) {
+        logCR.warn(`Wizarr indisponible/vide pour classement — ${wizarrResult.reason || 'raison inconnue'}`);
+      } else {
+        logCR.debug(`📋 Wizarr classement: ${wizarrUsers.length} users via ${wizarrResult.source}`);
+      }
+    } else {
+      logCR.debug('Wizarr désactivé — classement sans source Wizarr');
+      wizarrUsers = await getAllWizarrUsers(wizarrUrl, wizarrApiKey);
+    }
     const hadInitialWizarrUsers = wizarrUsers.length > 0;
 
     if (wizarrUsers.length > 0) {

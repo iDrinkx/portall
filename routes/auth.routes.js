@@ -233,6 +233,15 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   req.session.plexToken = authToken;
   delete req.session.pinId;
 
+  if (isAdmin && authToken) {
+    try {
+      AppSettingQueries.set("runtime_plex_cloud_token", authToken);
+      logAuth.info(`Token Plex cloud mis a jour pour l'admin (${getSafeUserLabel(user)})`);
+    } catch (err) {
+      logAuth.warn(`Impossible de persister le token Plex cloud: ${err.message}`);
+    }
+  }
+
   // 💾 Sauvegarder joinedAtTimestamp dans la DB pour cohérence XP/niveau avec classement
   try {
     UserQueries.upsert(
@@ -256,16 +265,31 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   res.redirect(req.basePath + "/dashboard");
 
   // ── Vérifications en ARRIÈRE-PLAN (ne bloquent pas le login) ────────────────────────
-  // Wizarr en arrière-plan - si elle échoue, on log juste un warning
-  checkWizarrAccess(user, getConfigValue("WIZARR_URL", ""), getConfigValue("WIZARR_API_KEY", ""))
-    .then(wizarrCheck => {
-      if (!wizarrCheck.authorized) {
-        logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
-      }
-    })
-    .catch(err => {
-      logAuth.warn(`Vérification Wizarr échouée — ${err.message}`);
-    });
+  // L'admin Plex est autorisé par définition et ne dépend pas de Wizarr.
+  if (!isAdmin) {
+    checkWizarrAccess(user, getConfigValue("WIZARR_URL", ""), getConfigValue("WIZARR_API_KEY", ""))
+      .then(wizarrCheck => {
+        if (!wizarrCheck.authorized) {
+          logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
+        }
+      })
+      .catch(err => {
+        logAuth.warn(`Vérification Wizarr échouée — ${err.message}`);
+      });
+  } else {
+    logAuth.info(`Vérification Wizarr ignorée pour admin Plex (${getSafeUserLabel(user)})`);
+  }
+
+  if (isAdmin) {
+    try {
+      const { refreshClassementCache } = require("../utils/cron-classement-refresh");
+      refreshClassementCache().catch(err => {
+        logAuth.warn(`Refresh classement post-login admin échoué: ${err.message}`);
+      });
+    } catch (err) {
+      logAuth.warn(`Impossible de lancer le refresh classement post-login: ${err.message}`);
+    }
+  }
 });
 
 router.get("/logout", (req, res) => {

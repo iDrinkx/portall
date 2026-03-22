@@ -237,6 +237,22 @@ function runMigrations() {
       )
     `);  // achievement_progress
 
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS collection_item_mappings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        achievement_id TEXT NOT NULL,
+        media_type TEXT NOT NULL,
+        trakt_key TEXT NOT NULL,
+        trakt_title TEXT,
+        trakt_year INTEGER,
+        matched_title TEXT,
+        matched_year INTEGER,
+        matched_guid TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(achievement_id, media_type, trakt_key)
+      )
+    `);  // collection_item_mappings
+
     // Table: app_settings - Réglages globaux administrateur
     db.exec(`
       CREATE TABLE IF NOT EXISTS app_settings (
@@ -726,12 +742,66 @@ const AchievementProgressQueries = {
     `).run(userId, achievementId, current, total);
   },
 
+  remove(userId, achievementId) {
+    const db = getDb();
+    return db.prepare(`
+      DELETE FROM achievement_progress WHERE user_id = ? AND achievement_id = ?
+    `).run(userId, achievementId);
+  },
+
   getForUser(userId) {
     const db = getDb();
     const rows = db.prepare(`
       SELECT achievement_id, current, total FROM achievement_progress WHERE user_id = ?
     `).all(userId);
     return Object.fromEntries(rows.map(r => [r.achievement_id, { current: r.current, total: r.total }]));
+  }
+};
+
+const CollectionItemMappingQueries = {
+  upsert({ achievementId, mediaType, traktKey, traktTitle = null, traktYear = null, matchedTitle = null, matchedYear = null, matchedGuid = null }) {
+    const db = getDb();
+    return db.prepare(`
+      INSERT INTO collection_item_mappings (
+        achievement_id, media_type, trakt_key, trakt_title, trakt_year, matched_title, matched_year, matched_guid, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(achievement_id, media_type, trakt_key) DO UPDATE SET
+        trakt_title = excluded.trakt_title,
+        trakt_year = excluded.trakt_year,
+        matched_title = excluded.matched_title,
+        matched_year = excluded.matched_year,
+        matched_guid = excluded.matched_guid,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(
+      achievementId,
+      mediaType,
+      traktKey,
+      traktTitle,
+      traktYear,
+      matchedTitle,
+      matchedYear,
+      matchedGuid
+    );
+  },
+
+  getForAchievement(achievementId, mediaType = null) {
+    const db = getDb();
+    const rows = mediaType
+      ? db.prepare(`
+          SELECT *
+          FROM collection_item_mappings
+          WHERE achievement_id = ? AND media_type = ?
+          ORDER BY trakt_key ASC
+        `).all(achievementId, mediaType)
+      : db.prepare(`
+          SELECT *
+          FROM collection_item_mappings
+          WHERE achievement_id = ?
+          ORDER BY media_type ASC, trakt_key ASC
+        `).all(achievementId);
+
+    return new Map(rows.map(row => [`${row.media_type}:${row.trakt_key}`, row]));
   }
 };
 
@@ -981,6 +1051,7 @@ module.exports = {
   DatabaseMaintenance,
   UserAchievementQueries,
   AchievementProgressQueries,
+  CollectionItemMappingQueries,
   AppSettingQueries,
   DashboardCardQueries,
   UserServiceCredentialQueries,

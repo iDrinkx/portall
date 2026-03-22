@@ -8,8 +8,8 @@
 
 const { getTautulliStats } = require("./tautulli");
 const { XP_SYSTEM } = require("./xp-system");
-const { ACHIEVEMENTS } = require("./achievements");
-const { UserAchievementQueries, UserQueries } = require("./database");
+const { ACHIEVEMENTS, getAchievementXp } = require("./achievements");
+const { UserAchievementQueries, UserQueries, AchievementProgressQueries } = require("./database");
 const { getConfigValue } = require("./config");
 const log = require("./logger");
 
@@ -138,6 +138,7 @@ async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHo
     try {
       const dbUser = UserQueries.getByUsername(username);
       const userUnlockedMap = dbUser ? UserAchievementQueries.getForUser(dbUser.id) : {};
+      const progressMap = dbUser ? AchievementProgressQueries.getForUser(dbUser.id) : {};
       const data = {
         totalHours: Number(totalHours || statsData.totalHours || 0),
         movieCount: Number(statsData.movieCount || 0),
@@ -150,7 +151,7 @@ async function calculateUserXp(username, joinedAtTimestamp = null, precomputedHo
       };
       const unlockedAchievements = ACHIEVEMENTS.getUnlocked(data, userUnlockedMap);
       badgeCount = unlockedAchievements.length;
-      achievementsXp = unlockedAchievements.reduce((sum, ach) => sum + (ach.xp || 0), 0);
+      achievementsXp = unlockedAchievements.reduce((sum, ach) => sum + getAchievementXp(ach, progressMap[ach.id]), 0);
     } catch (err) {
       logXP.debug(`⚠️  Achievements pour ${username}: ${err.message}`);
     }

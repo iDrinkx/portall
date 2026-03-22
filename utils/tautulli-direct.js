@@ -8,74 +8,759 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const log = require('./logger').create('[Tautulli DB]');
 const { getConfigValue } = require('./config');
+const { CollectionItemMappingQueries } = require('./database');
 
 let tautulliDb = null;
 
 // ── Cache mémoire des rating_keys par collection (durée: 24h)
-const collectionCache = {};
+const traktListCache = {};
+const tautulliSchemaCache = {};
+const plexAvailabilityCache = {};
+const traktListInflight = {};
+const plexLibraryIndexCache = { items: null, ts: 0, failedAt: 0, promise: null };
+const tautulliLibraryIndexCache = { items: null, ts: 0 };
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
+const COLLECTION_MOVIE_MIN_PERCENT = 50;
 
-/**
- * 🗂️ Registry des collections Tautulli par achievement ID
- * rating_key = identifiant Tautulli de la collection (visible dans l'URL /info?rating_key=...)
- */
-const COLLECTION_KEYS = {
-  'potter-head':  { ratingKey: 325490 }, // Wizarding World
-  'jurassic-survivor': { ratingKey: 12634 },  // Jurassic Park - Saga
-  'marvel-fan':   { ratingKey: 306781 }, // Marvel Cinematic Universe
-  'black-knight': { ratingKey: 14715 },  // Star Wars (7 films min)
-  'tolkiendil':   { ratingKey: 325498 }, // Middle Earth
-  'evolutionist': { ratingKey: 15344 },  // La Planète des Singes
-  'agent-007':    { ratingKey: 4095 },   // James Bond 007
-  'fast-family':  { ratingKey: 8607 },   // Fast and Furious
-  'charlots-forever': { ratingKey: 4090 }, // Les Charlots
-  'star-trek-universe': { seriesRatingKey: 306622 }, // Star Trek Universe
-  'arrowverse':   { seriesRatingKey: 306801 }, // Arrowverse
-  'monsterverse': { movieRatingKey: 306783, seriesRatingKey: 306625 }, // MonsterVerse (films + séries)
+const TRAKT_LISTS = {
+  'potter-head': 'https://app.trakt.tv/users/arachn0id/lists/wizarding-world',
+  'jurassic-survivor': 'https://app.trakt.tv/users/shaneleexcx1234/lists/jurassic-park-world-franchise',
+  'marvel-fan': 'https://app.trakt.tv/users/pygospa/lists/mcu-chronological-order',
+  'black-knight': 'https://app.trakt.tv/users/sonicwarrior/lists/star-wars-canon-timeline',
+  'tolkiendil': 'https://app.trakt.tv/users/bobbymarshal/lists/middle-earth',
+  'evolutionist': 'https://app.trakt.tv/lists/official/1531',
+  'agent-007': 'https://app.trakt.tv/users/maiki01/lists/james-bond-collection',
+  'fast-family': 'https://app.trakt.tv/users/coreyh047/lists/fast-and-furious',
+  'star-trek-universe': 'https://app.trakt.tv/users/nateynate87/lists/star-trek',
+  'arrowverse': 'https://trakt.tv/users/dudeimtired/lists/arrowverse-collection',
+  'monsterverse': 'https://trakt.tv/users/pullsa/lists/the-monsterverse'
 };
 
-// Seuil minimum pour black-knight sur la collection Star Wars
-const COLLECTION_MIN = {
-  'black-knight': 7,
-};
+function getTraktApiListUrl(traktListUrl) {
+  if (!traktListUrl) return null;
+  try {
+    const parsed = new URL(traktListUrl);
+    const parts = parsed.pathname.split('/').filter(Boolean);
 
-/**
- * Récupère les éléments d'une collection Plex sous forme {title, year, type}.
- * title+year est stable même si le rating_key ou le GUID change après ré-indexation.
- * Résultat mis en cache 24h.
- */
-async function getCollectionItems(collectionRatingKey) {
+    if (parts[0] === 'users' && parts[2] === 'lists' && parts[1] && parts[3]) {
+      return `https://api.trakt.tv/users/${parts[1]}/lists/${parts[3]}/items`;
+    }
+
+    if (parts[0] === 'lists' && parts[1] === 'official' && parts[2]) {
+      return `https://api.trakt.tv/lists/${parts[2]}/items`;
+    }
+
+    if (parts[0] === 'lists' && parts[1]) {
+      return `https://api.trakt.tv/lists/${parts[1]}/items`;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function getTraktListItems(achievementId) {
+  const traktClientId = String(getConfigValue('TRAKT_CLIENT_ID', '') || '').trim();
+  const traktListUrl = TRAKT_LISTS[achievementId];
+  if (!traktClientId || !traktListUrl) return null;
+
   const now = Date.now();
-  const cached = collectionCache[collectionRatingKey];
+  const cached = traktListCache[achievementId];
   if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
     return cached.items;
   }
+  if (traktListInflight[achievementId]) {
+    return traktListInflight[achievementId];
+  }
 
-  const PLEX_URL = getConfigValue('PLEX_URL');
-  const PLEX_TOKEN = getConfigValue('PLEX_TOKEN');
+  const apiUrl = getTraktApiListUrl(traktListUrl);
+  if (!apiUrl) return null;
 
-  if (!PLEX_URL || !PLEX_TOKEN) {
+  const loadPromise = (async () => {
+    try {
+    const items = [];
+    let page = 1;
+    const limit = 100;
+
+    while (page <= 10) {
+      const separator = apiUrl.includes('?') ? '&' : '?';
+      const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
+        headers: {
+          Accept: 'application/json',
+          'trakt-api-version': '2',
+          'trakt-api-key': traktClientId
+        }
+      });
+
+      if (!resp.ok) throw new Error(`Trakt API HTTP ${resp.status}`);
+
+      const payload = await resp.json();
+      const pageItems = Array.isArray(payload) ? payload : [];
+      if (!pageItems.length) break;
+
+      items.push(...pageItems);
+      if (pageItems.length < limit) break;
+      page += 1;
+    }
+
+    const normalized = items
+      .filter(isReleasedTraktItem)
+      .map(item => {
+        if (item?.type === 'movie' && item.movie?.title) {
+          return {
+            type: 'movie',
+            title: item.movie.title,
+            year: item.movie.year ?? null,
+            ids: buildExternalIds(item.movie.ids || {})
+          };
+        }
+        if (item?.type === 'show' && item.show?.title) {
+          return {
+            type: 'show',
+            title: item.show.title,
+            year: item.show.year ?? null,
+            ids: buildExternalIds(item.show.ids || {})
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const availableItems = await filterItemsAvailableInPlex(normalized);
+    if (availableItems === null) {
+      if (cached?.items?.length) {
+        log.warn(`Trakt ${achievementId}: inventaire local indisponible, reutilisation du dernier cache (${cached.items.length} elements)`);
+        return cached.items;
+      }
+      log.warn(`Trakt ${achievementId}: inventaire local indisponible, liste collection ignoree pour ce calcul`);
+      return null;
+    }
+    traktListCache[achievementId] = { items: availableItems, ts: now };
+    log.info(`Trakt ${achievementId}: ${availableItems.length}/${normalized.length} éléments disponibles sur Plex`);
+    return availableItems;
+    } catch (err) {
+    log.warn(`Trakt ${achievementId}: ${err.message}`);
+    if (cached?.items?.length) {
+      log.warn(`Trakt ${achievementId}: reutilisation du cache stale (${cached.items.length} elements)`);
+      return cached.items;
+    }
     return null;
+  } finally {
+    delete traktListInflight[achievementId];
+  }
+  })();
+
+  traktListInflight[achievementId] = loadPromise;
+  return loadPromise;
+}
+
+function getTableColumns(tableName) {
+  if (!tautulliDb) return [];
+  if (tautulliSchemaCache[tableName]) return tautulliSchemaCache[tableName];
+  try {
+    const rows = tautulliDb.prepare(`PRAGMA table_info(${tableName})`).all();
+    const columns = rows.map(row => row.name);
+    tautulliSchemaCache[tableName] = columns;
+    return columns;
+  } catch (_) {
+    tautulliSchemaCache[tableName] = [];
+    return [];
+  }
+}
+
+function hasTableColumn(tableName, columnName) {
+  return getTableColumns(tableName).includes(columnName);
+}
+
+function getPlexAvailabilityCacheKey(item) {
+  return `${item.type || 'unknown'}:${String(item.title || '').toLowerCase()}::${item.year || ''}`;
+}
+
+function buildExternalIds(itemIds = {}) {
+  const ids = new Set();
+  const imdb = String(itemIds?.imdb || '').trim();
+  const tmdb = itemIds?.tmdb;
+  const tvdb = itemIds?.tvdb;
+  const trakt = itemIds?.trakt;
+  if (imdb) ids.add(`imdb:${imdb.toLowerCase()}`);
+  if (tmdb !== undefined && tmdb !== null && `${tmdb}` !== '') ids.add(`tmdb:${tmdb}`);
+  if (tvdb !== undefined && tvdb !== null && `${tvdb}` !== '') ids.add(`tvdb:${tvdb}`);
+  if (trakt !== undefined && trakt !== null && `${trakt}` !== '') ids.add(`trakt:${trakt}`);
+  return ids;
+}
+
+function getTraktItemKey(item = {}) {
+  const ids = buildExternalIds(item.ids || {});
+  if (ids.size > 0) {
+    return [...ids].sort()[0];
+  }
+  return `${item.type || 'unknown'}:${item.year || 'na'}:${normalizeCollectionTitle(item.title || '')}`;
+}
+
+function extractPlexGuidIds(guidEntries = []) {
+  const ids = new Set();
+  const entries = Array.isArray(guidEntries) ? guidEntries : [guidEntries];
+  for (const entry of entries) {
+    const raw = String(entry?.id || entry || '').trim();
+    const match = raw.match(/^(imdb|tmdb|tvdb):\/\/(.+)$/i);
+    if (!match) continue;
+    ids.add(`${match[1].toLowerCase()}:${String(match[2]).toLowerCase()}`);
+  }
+  return ids;
+}
+
+function extractIdsFromRawGuidValue(rawValue) {
+  const ids = new Set();
+  const text = String(rawValue || '');
+  if (!text) return ids;
+
+  const patterns = [
+    /\b(imdb|tmdb|tvdb):\/\/([^"',|\s\]}]+)/gi,
+    /\b(imdb|tmdb|tvdb):([^"',|\s\]}]+)/gi
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      ids.add(`${String(match[1]).toLowerCase()}:${String(match[2]).toLowerCase()}`);
+    }
+  }
+
+  return ids;
+}
+
+function mergeIdSets(...sets) {
+  const merged = new Set();
+  for (const set of sets) {
+    if (!set) continue;
+    for (const value of set) merged.add(value);
+  }
+  return merged;
+}
+
+function extractRowGuidIds(row = {}) {
+  return mergeIdSets(
+    extractIdsFromRawGuidValue(row.guid),
+    extractIdsFromRawGuidValue(row.guids),
+    extractIdsFromRawGuidValue(row.parent_guid),
+    extractIdsFromRawGuidValue(row.parent_guids),
+    extractIdsFromRawGuidValue(row.grandparent_guid),
+    extractIdsFromRawGuidValue(row.grandparent_guids)
+  );
+}
+
+function normalizeRatingKey(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+}
+
+function isLikelyPlexServerToken(token) {
+  const value = String(token || '').trim();
+  return value.length >= 16;
+}
+
+function getTautulliServerTokenFallback() {
+  if (!tautulliDb) return '';
+  try {
+    const adminRow = tautulliDb.prepare(`
+      SELECT server_token
+      FROM users
+      WHERE server_token IS NOT NULL
+        AND TRIM(server_token) <> ''
+      ORDER BY is_admin DESC, CASE WHEN user_id = 0 THEN 1 ELSE 0 END ASC, username ASC
+      LIMIT 1
+    `).get();
+    return String(adminRow?.server_token || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function getPreferredPlexServerToken() {
+  const configuredToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+  if (isLikelyPlexServerToken(configuredToken)) return configuredToken;
+
+  const tautulliServerToken = getTautulliServerTokenFallback();
+  if (isLikelyPlexServerToken(tautulliServerToken)) return tautulliServerToken;
+
+  try {
+    const { AppSettingQueries } = require('./database');
+    const runtimeToken = String(AppSettingQueries.get('runtime_plex_cloud_token', '') || '').trim();
+    if (runtimeToken) return runtimeToken;
+  } catch (_) {}
+  return configuredToken || '';
+}
+
+function normalizeCollectionTitle(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(the|a|an|le|la|les|un|une|des|du|de)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getCollectionTitleTokens(value) {
+  return normalizeCollectionTitle(value)
+    .split(' ')
+    .map(token => token.trim())
+    .filter(token => token && token.length >= 2);
+}
+
+function collectionTitleMatches(a, b, yearA = null, yearB = null) {
+  const rawA = String(a || '').trim().toLowerCase();
+  const rawB = String(b || '').trim().toLowerCase();
+  if (!rawA || !rawB) return false;
+
+  const hasYears = Number.isFinite(Number(yearA)) && Number.isFinite(Number(yearB));
+  if (hasYears && Number(yearA) !== Number(yearB)) {
+    return false;
+  }
+
+  if (rawA === rawB) return true;
+
+  const normA = normalizeCollectionTitle(rawA);
+  const normB = normalizeCollectionTitle(rawB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+
+  if (hasYears) {
+    const shorter = normA.length <= normB.length ? normA : normB;
+    const longer = shorter === normA ? normB : normA;
+    if (
+      shorter.length >= 8 &&
+      (
+        longer.startsWith(`${shorter} `) ||
+        longer.startsWith(`${shorter}:`) ||
+        longer.startsWith(`${shorter} -`)
+      )
+    ) {
+      return true;
+    }
+
+    const tokensA = getCollectionTitleTokens(normA);
+    const tokensB = getCollectionTitleTokens(normB);
+    if (tokensA.length >= 3 && tokensB.length >= 3) {
+      const setA = new Set(tokensA);
+      const setB = new Set(tokensB);
+      const common = tokensA.filter(token => setB.has(token));
+      const overlap = common.length / Math.max(setA.size, setB.size);
+      if (common.length >= 3 && overlap >= 0.6) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function plexEntryTitleCandidates(entry = {}) {
+  return [
+    entry?.title,
+    entry?.originalTitle,
+    entry?.titleSort,
+    entry?.originalTitleSort
+  ].filter(Boolean);
+}
+
+function getSessionHistoryMetadataMovieTitleColumns(alias = 'shm') {
+  const columns = [];
+  if (hasTableColumn('session_history_metadata', 'title')) columns.push(`${alias}.title AS raw_title`);
+  if (hasTableColumn('session_history_metadata', 'original_title')) columns.push(`${alias}.original_title AS original_title`);
+  if (hasTableColumn('session_history_metadata', 'full_title')) columns.push(`${alias}.full_title AS full_title`);
+  if (hasTableColumn('session_history_metadata', 'sort_title')) columns.push(`${alias}.sort_title AS sort_title`);
+  return columns;
+}
+
+function getSessionHistoryMetadataShowTitleColumns(alias = 'shm') {
+  const columns = [];
+  if (hasTableColumn('session_history_metadata', 'grandparent_title')) columns.push(`${alias}.grandparent_title AS raw_title`);
+  if (hasTableColumn('session_history_metadata', 'original_title')) columns.push(`${alias}.original_title AS original_title`);
+  if (hasTableColumn('session_history_metadata', 'full_title')) columns.push(`${alias}.full_title AS full_title`);
+  if (hasTableColumn('session_history_metadata', 'sort_title')) columns.push(`${alias}.sort_title AS sort_title`);
+  return columns;
+}
+
+function getSessionHistoryMetadataGuidColumns(alias = 'shm') {
+  const columns = [];
+  if (hasTableColumn('session_history_metadata', 'guid')) columns.push(`${alias}.guid AS guid`);
+  if (hasTableColumn('session_history_metadata', 'guids')) columns.push(`${alias}.guids AS guids`);
+  if (hasTableColumn('session_history_metadata', 'grandparent_guid')) columns.push(`${alias}.grandparent_guid AS grandparent_guid`);
+  if (hasTableColumn('session_history_metadata', 'grandparent_guids')) columns.push(`${alias}.grandparent_guids AS grandparent_guids`);
+  if (hasTableColumn('session_history_metadata', 'parent_guid')) columns.push(`${alias}.parent_guid AS parent_guid`);
+  if (hasTableColumn('session_history_metadata', 'parent_guids')) columns.push(`${alias}.parent_guids AS parent_guids`);
+  return columns;
+}
+
+function getRowTitleCandidates(row = {}) {
+  return [row.raw_title, row.original_title, row.full_title, row.sort_title]
+    .filter(Boolean)
+    .map(value => String(value).trim())
+    .filter(Boolean);
+}
+
+function findMatchingPlexEntriesForWatchedRow(index = [], row = {}, mediaType = 'movie') {
+  const rowTitles = getRowTitleCandidates(row);
+  if (!rowTitles.length) return [];
+  return index.filter(entry =>
+    entry.type === mediaType &&
+    (entry.titles || [entry.title]).some(entryTitle =>
+      rowTitles.some(rowTitle => collectionTitleMatches(entryTitle, rowTitle, entry.year, row.year))
+    )
+  );
+}
+
+function getMatchingPlexEntriesForCollectionItem(index = [], item = {}) {
+  if (!Array.isArray(index) || !index.length || !item?.type) return [];
+
+  const itemIds = buildExternalIds(item.ids || {});
+  const matchingByIds = itemIds.size > 0
+    ? index.filter(entry =>
+        entry.type === item.type &&
+        [...itemIds].some(id => entry.ids?.has(id))
+      )
+    : [];
+  if (matchingByIds.length) return matchingByIds;
+
+  return index.filter(entry =>
+    entry.type === item.type &&
+    (entry.titles || [entry.title]).some(candidate =>
+      collectionTitleMatches(candidate, item.title, entry.year, item.year)
+    )
+  );
+}
+
+function getMatchingLocalEntriesForCollectionItem(index = [], item = {}, mapping = null) {
+  if (!Array.isArray(index) || !index.length || !item?.type) return [];
+
+  const mappedGuidIds = extractIdsFromRawGuidValue(mapping?.matched_guid);
+  const allIds = mergeIdSets(buildExternalIds(item.ids || {}), mappedGuidIds);
+  const idMatches = allIds.size > 0
+    ? index.filter(entry =>
+        entry.type === item.type &&
+        [...allIds].some(id => entry.ids?.has(id))
+      )
+    : [];
+  if (idMatches.length) return idMatches;
+
+  const titles = [
+    String(mapping?.matched_title || '').trim(),
+    String(item.title || '').trim()
+  ].filter(Boolean);
+
+  return index.filter(entry =>
+    entry.type === item.type &&
+    (entry.titles || [entry.title]).some(candidate =>
+      titles.some(title => collectionTitleMatches(candidate, title, entry.year, item.year))
+    )
+  );
+}
+
+function getTautulliLibraryIndex() {
+  if (!tautulliDb) return [];
+  const now = Date.now();
+  if (tautulliLibraryIndexCache.items && (now - tautulliLibraryIndexCache.ts) < COLLECTION_CACHE_TTL) {
+    return tautulliLibraryIndexCache.items;
   }
 
   try {
-    const url = `${PLEX_URL}/library/collections/${collectionRatingKey}/children?X-Plex-Token=${PLEX_TOKEN}`;
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-    const json = await resp.json();
-    const items = json?.MediaContainer?.Metadata || [];
-    // Extraire titre + année + type (movie/show)
-    const normalizedItems = items.map(item => ({
-      title: item.title,
-      year: item.year ?? null,
-      type: item.type || null,
-    })).filter(m => m.title);
-    collectionCache[collectionRatingKey] = { items: normalizedItems, ts: now };
-    log.debug(`Collection ${collectionRatingKey}: ${normalizedItems.length} éléments en cache`);
-    return normalizedItems;
-  } catch(e) {
-    log.warn(`Collection ${collectionRatingKey}:`, e.message);
+    const titleColumns = getSessionHistoryMetadataMovieTitleColumns('shm');
+    const showTitleColumns = getSessionHistoryMetadataShowTitleColumns('shm');
+    const guidColumns = getSessionHistoryMetadataGuidColumns('shm');
+    const sectionFilter = hasTableColumn('session_history', 'section_id')
+      ? `AND sh.section_id IN (
+          SELECT section_id
+          FROM library_sections
+          WHERE is_active = 1 AND deleted_section = 0 AND section_type IN ('movie', 'show')
+        )`
+      : '';
+
+    const movieRows = tautulliDb.prepare(`
+      SELECT ${[...titleColumns, ...guidColumns].join(', ')},
+             shm.year as year,
+             'movie' as item_type
+      FROM session_history_metadata shm
+      JOIN session_history sh ON sh.id = shm.id
+      WHERE sh.media_type = 'movie'
+        ${sectionFilter}
+      GROUP BY shm.rating_key
+    `).all();
+
+    const showRows = tautulliDb.prepare(`
+      SELECT ${[...showTitleColumns, ...guidColumns].join(', ')},
+             NULL as year,
+             'show' as item_type
+      FROM session_history_metadata shm
+      JOIN session_history sh ON sh.id = shm.id
+      WHERE sh.media_type = 'episode'
+        ${sectionFilter}
+      GROUP BY COALESCE(shm.grandparent_rating_key, shm.rating_key), COALESCE(shm.grandparent_title, shm.title)
+    `).all();
+
+    tautulliLibraryIndexCache.items = [...movieRows, ...showRows].map(row => ({
+      type: row.item_type,
+      year: row.year ?? null,
+      titles: getRowTitleCandidates(row),
+      ids: extractRowGuidIds(row)
+    }));
+    tautulliLibraryIndexCache.ts = now;
+    return tautulliLibraryIndexCache.items;
+  } catch (err) {
+    log.warn(`Index Tautulli collections: ${err.message}`);
+    return [];
+  }
+}
+
+function getRowRatingKeys(row = {}, mediaType = 'movie') {
+  if (mediaType === 'show') {
+    return mergeIdSets(
+      new Set([normalizeRatingKey(row.grandparent_rating_key)].filter(Boolean)),
+      new Set([normalizeRatingKey(row.parent_rating_key)].filter(Boolean)),
+      new Set([normalizeRatingKey(row.rating_key)].filter(Boolean))
+    );
+  }
+
+  return mergeIdSets(
+    new Set([normalizeRatingKey(row.rating_key)].filter(Boolean)),
+    new Set([normalizeRatingKey(row.parent_rating_key)].filter(Boolean))
+  );
+}
+
+function getSessionHistoryRatingKeyColumns(alias = 'sh') {
+  const columns = [];
+  if (hasTableColumn('session_history', 'rating_key')) columns.push(`${alias}.rating_key AS rating_key`);
+  if (hasTableColumn('session_history', 'grandparent_rating_key')) columns.push(`${alias}.grandparent_rating_key AS grandparent_rating_key`);
+  if (hasTableColumn('session_history', 'parent_rating_key')) columns.push(`${alias}.parent_rating_key AS parent_rating_key`);
+  return columns;
+}
+
+function isReleasedTraktItem(item) {
+  const rawDate = item?.type === 'movie'
+    ? item?.movie?.released
+    : item?.show?.first_aired;
+
+  if (!rawDate) return true;
+
+  const releaseTs = Date.parse(rawDate);
+  if (Number.isNaN(releaseTs)) return true;
+
+  return releaseTs <= Date.now();
+}
+
+async function getPlexLibraryIndex() {
+  const now = Date.now();
+  if (plexLibraryIndexCache.items && (now - plexLibraryIndexCache.ts) < COLLECTION_CACHE_TTL) {
+    return plexLibraryIndexCache.items;
+  }
+  if (plexLibraryIndexCache.promise) {
+    return plexLibraryIndexCache.promise;
+  }
+  if (plexLibraryIndexCache.failedAt && (now - plexLibraryIndexCache.failedAt) < 5 * 60 * 1000) {
+    log.warn('Index Plex collections: derniere tentative en echec, nouvelle tentative differee');
     return null;
   }
+
+  const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
+  const plexToken = getPreferredPlexServerToken();
+  if (!plexUrl || !plexToken) {
+    log.warn('Index Plex collections: configuration Plex incomplete');
+    return null;
+  }
+
+  plexLibraryIndexCache.promise = (async () => {
+    try {
+    const sectionsUrl = `${plexUrl}/library/sections?X-Plex-Token=${plexToken}`;
+    const sectionsResp = await fetch(sectionsUrl, { headers: { Accept: 'application/json' } });
+    if (!sectionsResp.ok) throw new Error(`sections HTTP ${sectionsResp.status}`);
+
+    const sections = (await sectionsResp.json())?.MediaContainer?.Directory || [];
+    const targetSections = sections.filter(section => section?.type === 'movie' || section?.type === 'show');
+    const indexedItems = [];
+
+    for (const section of targetSections) {
+      const type = section.type === 'show' ? 2 : 1;
+      let start = 0;
+      const size = 200;
+
+      while (true) {
+        const url = new URL(`${plexUrl}/library/sections/${section.key}/all`);
+        url.searchParams.set('type', String(type));
+        url.searchParams.set('includeGuids', '1');
+        url.searchParams.set('X-Plex-Container-Start', String(start));
+        url.searchParams.set('X-Plex-Container-Size', String(size));
+        url.searchParams.set('X-Plex-Token', plexToken);
+
+        const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+        if (!resp.ok) throw new Error(`section ${section.key} HTTP ${resp.status}`);
+
+        const metadata = (await resp.json())?.MediaContainer?.Metadata || [];
+        for (const entry of metadata) {
+          const titleCandidates = plexEntryTitleCandidates(entry).map(value => String(value || '').trim()).filter(Boolean);
+          const primaryTitle = titleCandidates[0];
+          if (!primaryTitle) continue;
+          const cacheKey = getPlexAvailabilityCacheKey({
+            type: section.type === 'show' ? 'show' : 'movie',
+            title: primaryTitle,
+            year: entry?.year ?? null
+          });
+          indexedItems.push({
+            cacheKey,
+            type: section.type === 'show' ? 'show' : 'movie',
+            title: primaryTitle,
+            titles: titleCandidates,
+            normalizedTitle: normalizeCollectionTitle(primaryTitle),
+            year: entry?.year ?? null,
+            ratingKey: normalizeRatingKey(entry?.ratingKey ?? entry?.rating_key),
+            ids: extractPlexGuidIds(entry?.Guid || entry?.Guids || [])
+          });
+        }
+
+        if (metadata.length < size) break;
+        start += size;
+      }
+    }
+
+    plexLibraryIndexCache.items = indexedItems;
+    plexLibraryIndexCache.ts = now;
+    plexLibraryIndexCache.failedAt = 0;
+    log.info(`Index Plex collections: ${indexedItems.length} éléments référencés`);
+    return indexedItems;
+  } catch (err) {
+    plexLibraryIndexCache.failedAt = now;
+    log.warn(`Index Plex collections: ${err.message}`);
+    return null;
+  } finally {
+    plexLibraryIndexCache.promise = null;
+  }
+  })();
+
+  return plexLibraryIndexCache.promise;
+}
+
+async function isItemAvailableInPlex(item) {
+  const title = String(item?.title || '').trim();
+  if (!title) return false;
+
+  const cacheKey = getPlexAvailabilityCacheKey(item);
+  const now = Date.now();
+  const cached = plexAvailabilityCache[cacheKey];
+  if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
+    return cached.available;
+  }
+
+  const plexUrl = String(getConfigValue('PLEX_URL', '') || '').trim();
+  const plexToken = getPreferredPlexServerToken();
+  if (!plexUrl || !plexToken) return null;
+
+  try {
+    const index = await getPlexLibraryIndex();
+    if (!index) return null;
+
+    const itemIds = buildExternalIds(item?.ids || {});
+    let available = false;
+
+    if (itemIds.size > 0) {
+      available = index.some(entry =>
+        entry.type === item.type &&
+        [...itemIds].some(id => entry.ids?.has(id))
+      );
+    }
+
+    if (!available) {
+      available = index.some(entry =>
+        entry.type === item.type &&
+        (entry.titles || [entry.title]).some(candidate =>
+          collectionTitleMatches(candidate, item.title, entry.year, item.year)
+        )
+      );
+    }
+
+    plexAvailabilityCache[cacheKey] = { available, ts: now };
+    return available;
+  } catch (err) {
+    log.warn(`Plex disponibilité ${title}:`, err.message);
+    return false;
+  }
+}
+
+async function filterItemsAvailableInPlex(items) {
+  if (!Array.isArray(items) || !items.length) return [];
+
+  const availableItems = [];
+  for (const item of items) {
+    const availability = await isItemAvailableInPlex(item);
+    if (availability === null) return null;
+    if (availability) {
+      availableItems.push(item);
+    }
+  }
+  return availableItems;
+}
+
+function resetCollectionCaches() {
+  for (const key of Object.keys(traktListCache)) delete traktListCache[key];
+  for (const key of Object.keys(plexAvailabilityCache)) delete plexAvailabilityCache[key];
+  for (const key of Object.keys(traktListInflight)) delete traktListInflight[key];
+  plexLibraryIndexCache.items = null;
+  plexLibraryIndexCache.ts = 0;
+  plexLibraryIndexCache.failedAt = 0;
+  plexLibraryIndexCache.promise = null;
+}
+
+function getMovieCompletionSql(historyAlias = 'sh', metadataAlias = 'shm') {
+  if (hasTableColumn('session_history', 'percent_complete')) {
+    return `COALESCE(${historyAlias}.percent_complete, 0) >= ${COLLECTION_MOVIE_MIN_PERCENT}`;
+  }
+
+  if (hasTableColumn('session_history', 'watched_status')) {
+    return `(
+      COALESCE(${historyAlias}.watched_status, 0) = 1
+      OR COALESCE(${historyAlias}.watched_status, 0) >= ${COLLECTION_MOVIE_MIN_PERCENT}
+      OR (
+        COALESCE(${historyAlias}.watched_status, 0) > 0
+        AND COALESCE(${historyAlias}.watched_status, 0) < 1
+        AND COALESCE(${historyAlias}.watched_status, 0) >= ${COLLECTION_MOVIE_MIN_PERCENT / 100}
+      )
+    )`;
+  }
+
+  if (hasTableColumn('session_history_metadata', 'duration')) {
+    return `CAST((${historyAlias}.stopped - ${historyAlias}.started) AS REAL) >= (
+      CASE
+        WHEN COALESCE(${metadataAlias}.duration, 0) > 100000 THEN ${metadataAlias}.duration / 1000.0
+        ELSE ${metadataAlias}.duration
+      END
+    ) * ${COLLECTION_MOVIE_MIN_PERCENT / 100}`;
+  }
+
+  return `${historyAlias}.stopped > ${historyAlias}.started`;
+}
+
+function isMovieWatchRowCompleted(row = {}) {
+  const percent = Number(row.percent_complete);
+  if (Number.isFinite(percent)) {
+    return percent >= COLLECTION_MOVIE_MIN_PERCENT;
+  }
+
+  const watchedStatus = Number(row.watched_status);
+  if (Number.isFinite(watchedStatus)) {
+    if (watchedStatus === 1 || watchedStatus >= COLLECTION_MOVIE_MIN_PERCENT) return true;
+    if (watchedStatus > 0 && watchedStatus < 1 && watchedStatus >= (COLLECTION_MOVIE_MIN_PERCENT / 100)) return true;
+  }
+
+  const duration = Number(row.duration);
+  const watchedSeconds = Number(row.watched_seconds);
+  const maxViewOffset = Number(row.max_view_offset);
+  if (Number.isFinite(duration) && duration > 0) {
+    const durationSeconds = duration > 100000 ? duration / 1000 : duration;
+    const required = durationSeconds * (COLLECTION_MOVIE_MIN_PERCENT / 100);
+    if (Number.isFinite(maxViewOffset) && maxViewOffset >= required) return true;
+    if (Number.isFinite(watchedSeconds) && watchedSeconds >= required) return true;
+  }
+
+  return Number(row.last_stopped || 0) > Number(row.first_started || 0);
 }
 
 /**
@@ -452,56 +1137,140 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const userFilter = plexUserId
     ? { clause: 'sh.user_id = ?', param: plexUserId }
     : { clause: 'LOWER(sh.user) = ?', param: norm };
+  const mappingCache = new Map();
 
-  /**
-   * Compte les films regardés par l'utilisateur via le titre (LIKE patterns).
-   * session_history_metadata = lookup rating_key, session_history = sessions user.
-   */
-  const countMoviesByLike = (patterns) => {
+  const getAchievementMappings = (achievementId) => {
+    if (mappingCache.has(achievementId)) return mappingCache.get(achievementId);
     try {
-      const orClauses = patterns.map(() => 'LOWER(shm.title) LIKE ?').join(' OR ');
-      const keys = tautulliDb.prepare(`
-        SELECT DISTINCT rating_key FROM session_history_metadata shm WHERE ${orClauses}
-      `).all(...patterns.map(p => p.toLowerCase()));
-      if (!keys.length) return { cnt: 0, last_stopped: null };
-      const ratingKeys = keys.map(k => k.rating_key);
-      const ph = ratingKeys.map(() => '?').join(', ');
-      const row = tautulliDb.prepare(`
-        SELECT COUNT(DISTINCT sh.rating_key) as cnt, MAX(sh.stopped) as last_stopped
-        FROM session_history sh
-        WHERE ${userFilter.clause} AND sh.stopped > sh.started
-          AND sh.media_type = 'movie' AND sh.rating_key IN (${ph})
-      `).get(userFilter.param, ...ratingKeys);
-      return row || { cnt: 0, last_stopped: null };
-    } catch(e) {
-      log.warn('countMoviesByLike:', e.message);
-      return { cnt: 0, last_stopped: null };
+      const mappings = CollectionItemMappingQueries.getForAchievement(achievementId);
+      mappingCache.set(achievementId, mappings);
+      return mappings;
+    } catch (err) {
+      log.warn(`Collection mappings ${achievementId}: ${err.message}`);
+      const empty = new Map();
+      mappingCache.set(achievementId, empty);
+      return empty;
     }
   };
 
+  const getItemMapping = (achievementId, item) => {
+    const mappings = getAchievementMappings(achievementId);
+    return mappings.get(`${item.type}:${getTraktItemKey(item)}`) || null;
+  };
+
+  const saveItemMapping = (achievementId, item, mediaType, row) => {
+    const traktKey = getTraktItemKey(item);
+    const matchedTitle = row.raw_title || row.original_title || row.full_title || row.sort_title || item.title || null;
+    const matchedYear = row.year ?? item.year ?? null;
+    const matchedGuid = mediaType === 'show'
+      ? String(row.grandparent_guid || row.grandparent_guids || row.guid || row.guids || '').trim()
+      : String(row.guid || row.guids || row.parent_guid || row.parent_guids || '').trim();
+
+    try {
+      CollectionItemMappingQueries.upsert({
+        achievementId,
+        mediaType,
+        traktKey,
+        traktTitle: item.title || null,
+        traktYear: item.year ?? null,
+        matchedTitle,
+        matchedYear,
+        matchedGuid: matchedGuid || null
+      });
+      getAchievementMappings(achievementId).set(`${mediaType}:${traktKey}`, {
+        achievement_id: achievementId,
+        media_type: mediaType,
+        trakt_key: traktKey,
+        trakt_title: item.title || null,
+        trakt_year: item.year ?? null,
+        matched_title: matchedTitle,
+        matched_year: matchedYear,
+        matched_guid: matchedGuid || null
+      });
+    } catch (err) {
+      log.warn(`Collection mapping save ${achievementId}: ${err.message}`);
+    }
+  };
   /**
    * Compte les films regardés par l'utilisateur via une liste de {title, year}.
    * Le matching par titre+année est robuste aux re-scans Plex qui changent les GUIDs.
    */
-  const countMoviesByTitleYear = (movies) => {
-    if (!movies || !movies.length) return { cnt: 0, last_stopped: null };
+  const countMoviesByTitleYear = (achievementId, movies) => {
+    if (!movies || !movies.length) return { cnt: 0, last_stopped: null, matchedItems: [], unmatchedItems: [] };
     try {
-      const orClauses = movies.map(() => '(LOWER(shm.title) = ? AND shm.year = ?)').join(' OR ');
-      const params = [userFilter.param, ...movies.flatMap(m => [m.title.toLowerCase(), m.year])];
-      const row = tautulliDb.prepare(`
-        SELECT COUNT(DISTINCT LOWER(shm.title) || COALESCE(shm.year,'')) as cnt,
-               MAX(sh.stopped) as last_stopped
+      const movieTitleColumns = getSessionHistoryMetadataMovieTitleColumns('shm');
+      const movieGuidColumns = getSessionHistoryMetadataGuidColumns('shm');
+      const movieRatingKeyColumns = getSessionHistoryRatingKeyColumns('sh');
+      const aggregateColumns = [
+        hasTableColumn('session_history', 'percent_complete') ? 'MAX(sh.percent_complete) as percent_complete' : null,
+        hasTableColumn('session_history', 'watched_status') ? 'MAX(sh.watched_status) as watched_status' : null,
+        hasTableColumn('session_history', 'view_offset') ? 'MAX(sh.view_offset) as max_view_offset' : null,
+        hasTableColumn('session_history_metadata', 'duration') ? 'MAX(shm.duration) as duration' : null,
+        'SUM(CASE WHEN sh.stopped > sh.started THEN (sh.stopped - sh.started) ELSE 0 END) as watched_seconds',
+        'MAX(sh.stopped) as last_stopped',
+        'MIN(sh.started) as first_started'
+      ].filter(Boolean);
+      const watchedRows = tautulliDb.prepare(`
+        SELECT ${[...movieTitleColumns, ...movieGuidColumns, ...movieRatingKeyColumns, ...aggregateColumns].join(', ')},
+               shm.year as year
         FROM session_history sh
         JOIN session_history_metadata shm ON sh.id = shm.id
         WHERE ${userFilter.clause}
           AND sh.stopped > sh.started
           AND sh.media_type = 'movie'
-          AND (${orClauses})
-      `).get(...params);
-      return row || { cnt: 0, last_stopped: null };
+        GROUP BY ${hasTableColumn('session_history_metadata', 'title') ? 'shm.title' : 'shm.id'}, shm.year
+      `).all(userFilter.param);
+
+      const preparedMovies = movies.map(movie => {
+        const mapping = getItemMapping(achievementId, movie);
+        const mappedTitle = String(mapping?.matched_title || '').trim();
+        const mappedGuidIds = extractIdsFromRawGuidValue(mapping?.matched_guid);
+        return {
+          movie,
+          movieTitles: [mappedTitle, movie.plexTitle, movie.title].filter(Boolean),
+          movieIds: mergeIdSets(buildExternalIds(movie.ids || {}), mappedGuidIds)
+        };
+      });
+
+      let cnt = 0;
+      let lastStopped = 0;
+      const matchedItems = [];
+      const unmatchedItems = [];
+      for (const preparedMovie of preparedMovies) {
+        const matched = watchedRows.find(row =>
+          (
+            preparedMovie.movieIds.size > 0 &&
+            (
+              [...preparedMovie.movieIds].some(id =>
+                mergeIdSets(
+                  extractIdsFromRawGuidValue(row.guid),
+                  extractIdsFromRawGuidValue(row.guids),
+                  extractIdsFromRawGuidValue(row.parent_guid),
+                  extractIdsFromRawGuidValue(row.parent_guids),
+                  extractIdsFromRawGuidValue(row.grandparent_guid),
+                  extractIdsFromRawGuidValue(row.grandparent_guids)
+                ).has(id)
+              )
+            )
+          ) || [row.raw_title, row.original_title, row.full_title, row.sort_title]
+            .filter(Boolean)
+            .some(candidate => preparedMovie.movieTitles.some(movieTitle =>
+              collectionTitleMatches(candidate, movieTitle, row.year, preparedMovie.movie.year)
+            ))
+        );
+        if (matched && isMovieWatchRowCompleted(matched)) {
+          cnt += 1;
+          lastStopped = Math.max(lastStopped, Number(matched.last_stopped || 0));
+          matchedItems.push(preparedMovie.movie.title);
+          saveItemMapping(achievementId, preparedMovie.movie, 'movie', matched);
+        } else {
+          unmatchedItems.push(preparedMovie.movie.title);
+        }
+      }
+      return { cnt, last_stopped: lastStopped || null, matchedItems, unmatchedItems };
     } catch(e) {
       log.warn('countMoviesByTitleYear:', e.message);
-      return { cnt: 0, last_stopped: null };
+      return { cnt: 0, last_stopped: null, matchedItems: [], unmatchedItems: movies.map(movie => movie.title).filter(Boolean) };
     }
   };
 
@@ -509,52 +1278,98 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
    * Compte les séries regardées par l'utilisateur via leurs titres (grandparent_title).
    * La règle est "au moins un épisode vu" par série.
    */
-  const countShowsByTitle = (shows) => {
-    if (!shows || !shows.length) return { cnt: 0, last_stopped: null };
+  const countShowsByTitle = (achievementId, shows) => {
+    if (!shows || !shows.length) return { cnt: 0, last_stopped: null, matchedItems: [], unmatchedItems: [] };
     try {
-      const placeholders = shows.map(() => '?').join(', ');
-      const row = tautulliDb.prepare(`
-        SELECT COUNT(DISTINCT LOWER(shm.grandparent_title)) as cnt,
+      const showTitleColumns = getSessionHistoryMetadataShowTitleColumns('shm');
+      const showGuidColumns = getSessionHistoryMetadataGuidColumns('shm');
+      const showRatingKeyColumns = getSessionHistoryRatingKeyColumns('sh');
+      const watchedRows = tautulliDb.prepare(`
+        SELECT ${[...showTitleColumns, ...showGuidColumns, ...showRatingKeyColumns].join(', ')},
                MAX(sh.stopped) as last_stopped
         FROM session_history sh
         JOIN session_history_metadata shm ON sh.id = shm.id
         WHERE ${userFilter.clause}
           AND sh.stopped > sh.started
           AND sh.media_type = 'episode'
-          AND LOWER(shm.grandparent_title) IN (${placeholders})
-      `).get(userFilter.param, ...shows.map(s => s.title.toLowerCase()));
-      return row || { cnt: 0, last_stopped: null };
+        GROUP BY ${hasTableColumn('session_history_metadata', 'grandparent_title') ? 'shm.grandparent_title' : 'shm.id'}
+      `).all(userFilter.param);
+
+      const preparedShows = shows.map(show => {
+        const mapping = getItemMapping(achievementId, show);
+        const mappedTitle = String(mapping?.matched_title || '').trim();
+        const mappedGuidIds = extractIdsFromRawGuidValue(mapping?.matched_guid);
+        return {
+          show,
+          showTitles: [mappedTitle, show.plexTitle, show.title].filter(Boolean),
+          showIds: mergeIdSets(buildExternalIds(show.ids || {}), mappedGuidIds)
+        };
+      });
+
+      let cnt = 0;
+      let lastStopped = 0;
+      const matchedItems = [];
+      const unmatchedItems = [];
+      for (const preparedShow of preparedShows) {
+        const matched = watchedRows.find(row =>
+          (
+            preparedShow.showIds.size > 0 &&
+            (
+              [...preparedShow.showIds].some(id =>
+                mergeIdSets(
+                  extractIdsFromRawGuidValue(row.guid),
+                  extractIdsFromRawGuidValue(row.guids),
+                  extractIdsFromRawGuidValue(row.parent_guid),
+                  extractIdsFromRawGuidValue(row.parent_guids),
+                  extractIdsFromRawGuidValue(row.grandparent_guid),
+                  extractIdsFromRawGuidValue(row.grandparent_guids)
+                ).has(id)
+              )
+            )
+          ) || [row.raw_title, row.original_title, row.full_title, row.sort_title]
+            .filter(Boolean)
+            .some(candidate => preparedShow.showTitles.some(showTitle =>
+              collectionTitleMatches(candidate, showTitle)
+            ))
+        );
+        if (matched) {
+          cnt += 1;
+          lastStopped = Math.max(lastStopped, Number(matched.last_stopped || 0));
+          matchedItems.push(preparedShow.show.title);
+          saveItemMapping(achievementId, preparedShow.show, 'show', matched);
+        } else {
+          unmatchedItems.push(preparedShow.show.title);
+        }
+      }
+      return { cnt, last_stopped: lastStopped || null, matchedItems, unmatchedItems };
     } catch(e) {
       log.warn('countShowsByTitle:', e.message);
-      return { cnt: 0, last_stopped: null };
+      return { cnt: 0, last_stopped: null, matchedItems: [], unmatchedItems: shows.map(show => show.title).filter(Boolean) };
     }
   };
 
   /**
    * Évalue un succès de type "toute la collection regardée".
-   * Priorité : API Tautulli (collection rating_key) → fallback titres LIKE.
+   * Source unique : liste Trakt.
    */
-  const checkCollection = async (id, fallbackPatterns, minRequired = null) => {
-    const conf = COLLECTION_KEYS[id];
-    // Essai via API Plex (titre+année, stable même après re-scans)
-    if (conf?.ratingKey) {
-      const movies = await getCollectionItems(conf.ratingKey);
-      if (movies && movies.length > 0) {
-        const row = countMoviesByTitleYear(movies);
-        const required = minRequired ?? movies.length;
+  const checkCollection = async (id, requiredCount = null) => {
+    const traktItems = await getTraktListItems(id);
+    if (traktItems && traktItems.length > 0) {
+      const traktMovies = traktItems.filter(item => item.type === 'movie');
+      if (traktMovies.length > 0) {
+        const row = countMoviesByTitleYear(id, traktMovies);
+        const required = requiredCount ?? traktMovies.length;
         const current = Math.min(row.cnt, required);
-        log.debug(`${id} (collection): ${current}/${required}`);
-        if (current >= required) return { date: fmt(row.last_stopped) || today, current, total: required };
-        return { date: null, current, total: required };
+        log.debug(`${id} (trakt films): ${current}/${required}`);
+        const details = {
+          matchedMovies: row.matchedItems || [],
+          unmatchedMovies: row.unmatchedItems || []
+        };
+        log.debug(`${id} detail: films vus [${details.matchedMovies.join(' | ')}]`);
+        log.debug(`${id} detail: films manquants [${details.unmatchedMovies.join(' | ')}]`);
+        if (current >= required) return { date: fmt(row.last_stopped) || today, current, total: required, details };
+        return { date: null, current, total: required, details };
       }
-    }
-    // Fallback : matching par titre LIKE
-    if (fallbackPatterns && minRequired) {
-      const row = countMoviesByLike(fallbackPatterns);
-      const current = Math.min(row.cnt, minRequired);
-      log.debug(`${id} (fallback titre): ${current}/${minRequired}`);
-      if (current >= minRequired) return { date: fmt(row.last_stopped) || today, current, total: minRequired };
-      return { date: null, current, total: minRequired };
     }
     return { date: null, current: 0, total: 0 };
   };
@@ -562,19 +1377,16 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   /**
    * Évalue un succès collection mixte films + séries.
    * Condition: films requis + séries requises (au moins un épisode/série).
+   * Source unique : liste Trakt.
    */
-  const checkMixedCollection = async (id, movieFallbackPatterns = null, seriesFallbackPatterns = null, minMovies = null, minShows = null) => {
-    const conf = COLLECTION_KEYS[id] || {};
+  const checkMixedCollection = async (id, minMovies = null, minShows = null) => {
     let movieItems = [];
     let showItems = [];
 
-    if (conf.movieRatingKey) {
-      const items = await getCollectionItems(conf.movieRatingKey);
-      movieItems = Array.isArray(items) ? items.filter(i => !i.type || i.type === 'movie') : [];
-    }
-    if (conf.seriesRatingKey) {
-      const items = await getCollectionItems(conf.seriesRatingKey);
-      showItems = Array.isArray(items) ? items.filter(i => !i.type || i.type === 'show') : [];
+    const traktItems = await getTraktListItems(id);
+    if (traktItems && traktItems.length > 0) {
+      movieItems = traktItems.filter(i => i.type === 'movie');
+      showItems = traktItems.filter(i => i.type === 'show');
     }
 
     const requiredMovies = minMovies ?? movieItems.length;
@@ -583,14 +1395,10 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
     let movieRow = { cnt: 0, last_stopped: null };
     let showRow = { cnt: 0, last_stopped: null };
 
-    if (movieItems.length > 0) {
-      movieRow = countMoviesByTitleYear(movieItems);
-    } else if (movieFallbackPatterns && requiredMovies > 0) {
-      movieRow = countMoviesByLike(movieFallbackPatterns);
-    }
+    if (movieItems.length > 0) movieRow = countMoviesByTitleYear(id, movieItems);
 
     if (showItems.length > 0) {
-      showRow = countShowsByTitle(showItems);
+      showRow = countShowsByTitle(id, showItems);
     }
 
     const currentMovies = Math.min(movieRow.cnt || 0, requiredMovies);
@@ -600,11 +1408,37 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
     const maxStopped = Math.max(movieRow.last_stopped || 0, showRow.last_stopped || 0);
 
     log.debug(`${id} (mixte): films ${currentMovies}/${requiredMovies}, séries ${currentShows}/${requiredShows}`);
+    log.debug(`${id} detail: films vus [${(movieRow.matchedItems || []).join(' | ')}]`);
+    log.debug(`${id} detail: films manquants [${(movieRow.unmatchedItems || []).join(' | ')}]`);
+    if (showItems.length > 0) {
+      log.debug(`${id} detail: series vues [${(showRow.matchedItems || []).join(' | ')}]`);
+      log.debug(`${id} detail: series manquantes [${(showRow.unmatchedItems || []).join(' | ')}]`);
+    }
 
     if (totalRequired > 0 && currentMovies >= requiredMovies && currentShows >= requiredShows) {
-      return { date: fmt(maxStopped) || today, current: totalCurrent, total: totalRequired };
+      return {
+        date: fmt(maxStopped) || today,
+        current: totalCurrent,
+        total: totalRequired,
+        details: {
+          matchedMovies: movieRow.matchedItems || [],
+          unmatchedMovies: movieRow.unmatchedItems || [],
+          matchedShows: showRow.matchedItems || [],
+          unmatchedShows: showRow.unmatchedItems || []
+        }
+      };
     }
-    return { date: null, current: totalCurrent, total: totalRequired };
+    return {
+      date: null,
+      current: totalCurrent,
+      total: totalRequired,
+      details: {
+        matchedMovies: movieRow.matchedItems || [],
+        unmatchedMovies: movieRow.unmatchedItems || [],
+        matchedShows: showRow.matchedItems || [],
+        unmatchedShows: showRow.unmatchedItems || []
+      }
+    };
   };
 
   log.debug(`Évaluation secrets pour ${norm}: [${toCheckIds.join(', ')}]`);
@@ -615,7 +1449,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🦕 Survivant du Parc — Toute la saga Jurassic
         case 'jurassic-survivor': {
-          const r = await checkCollection(id, ['%jurassic%'], 7);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -623,23 +1457,23 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // ⚡ Wizarding World — Collection Wizarding World
         case 'potter-head': {
-          const r = await checkCollection(id, ['%wizarding world%', 'harry potter%', '%fantastic beasts%'], 11);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
-        // 🦸 Marvel Fan — Toute la collection MCU
+        // 🦸 Marvel Fan — Films + séries de la collection Marvel
         case 'marvel-fan': {
-          const r = await checkCollection(id, ['%marvel%', '%avengers%']);
+          const r = await checkMixedCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
-        // 🧑‍⚖️ Maître Jedi — 7 films Star Wars minimum
+        // 🧑‍⚖️ Maître Jedi — Collection Star Wars disponible localement
         case 'black-knight': {
-          const r = await checkCollection(id, ['%star wars%'], COLLECTION_MIN['black-knight']);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -647,7 +1481,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 👑 Middle Earth — Collection Middle Earth
         case 'tolkiendil': {
-          const r = await checkCollection(id, ['%middle earth%', '%lord of the rings%', '%seigneur des anneaux%', '%hobbit%'], 6);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -655,7 +1489,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🐵 Évolutionniste — Trilogie Planète des Singes
         case 'evolutionist': {
-          const r = await checkCollection(id, ['%planet of the apes%', '%planète des singes%'], 4);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -663,13 +1497,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🦖 MonsterVerse — Collections films + séries
         case 'monsterverse': {
-          const r = await checkMixedCollection(
-            id,
-            ['%godzilla%', '%kong%', '%monsterverse%'],
-            ['%monarch%'],
-            null,
-            null
-          );
+          const r = await checkMixedCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -677,7 +1505,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🕴️ Agent 007 — Toute la collection James Bond 007
         case 'agent-007': {
-          const r = await checkCollection(id, null, 26);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -685,23 +1513,15 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🏎️ Fast Family — Toute la collection Fast and Furious
         case 'fast-family': {
-          const r = await checkCollection(id, null, 10);
+          const r = await checkCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
         }
 
-        // 🎭 Les Charlots Forever — Toute la collection Les Charlots
-        case 'charlots-forever': {
-          const r = await checkCollection(id, null, 15);
-          if (r.date) results[id] = r.date;
-          if (r.total > 0) progress[id] = { current: r.current, total: r.total };
-          break;
-        }
-
-        // 🖖 Star Trek Universe — Toutes les séries de la collection
+        // 🖖 Star Trek Universe — Films + séries de la collection
         case 'star-trek-universe': {
-          const r = await checkMixedCollection(id, null, null, 0, 9);
+          const r = await checkMixedCollection(id);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -709,7 +1529,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
         // 🏹 Arrowverse — Toutes les séries de la collection
         case 'arrowverse': {
-          const r = await checkMixedCollection(id, null, null, 0, 8);
+          const r = await checkMixedCollection(id, 0);
           if (r.date) results[id] = r.date;
           if (r.total > 0) progress[id] = { current: r.current, total: r.total };
           break;
@@ -1482,5 +2302,6 @@ module.exports = {
   getLastPlayedItem,
   getUserDetailedStats,
   getGlobalDetailedStats,
+  resetCollectionCaches,
   closeTautulliDatabase
 };

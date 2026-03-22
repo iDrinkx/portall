@@ -1,4 +1,29 @@
 // Système d'Achievements/Trophées
+const { getConfigValue } = require("./config");
+
+function areCollectionAchievementsEnabled() {
+  return String(getConfigValue("TRAKT_CLIENT_ID", "") || "").trim().length > 0;
+}
+
+function getCollectionsIfEnabled(collections) {
+  return areCollectionAchievementsEnabled() ? collections : [];
+}
+
+function getAchievementXp(achievement, progressEntry = null) {
+  if (!achievement) return 0;
+
+  if (achievement.category === "collections" && areCollectionAchievementsEnabled()) {
+    const total = Number(progressEntry?.total || 0);
+    if (total > 0) return total * 250;
+  }
+
+  return achievement.xp || 0;
+}
+
+function getDynamicCollectionProgress() {
+  return { current: 0, total: 0, percent: 0 };
+}
+
 const ACHIEVEMENTS = {
   // 🎁 TEMPORELS
   temporels: [
@@ -394,10 +419,10 @@ const ACHIEVEMENTS = {
       id: "marvel-fan",
       name: "Marvel Fan",
       icon: "🦸",
-      description: "A regardé toute la collection Marvel Cinematic Universe",
+      description: "A regardé toute la collection Marvel",
       condition: (data) => false,
-      conditionText: "A regardé toute la collection Marvel Cinematic Universe",
-      getProgress: (data) => ({ current: 0, total: 44, percent: 0 }),
+      conditionText: "A regardé toute la collection Marvel",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -409,10 +434,10 @@ const ACHIEVEMENTS = {
       id: "black-knight",
       name: "Maître Jedi",
       icon: "🧑‍⚖️",
-      description: "A regardé au moins 7 films de la saga Star Wars",
+      description: "A regardé toute la collection Star Wars",
       condition: (data) => false,
-      conditionText: "A regardé au moins 7 films de la saga Star Wars",
-      getProgress: (data) => ({ current: 0, total: 7, percent: 0 }),
+      conditionText: "A regardé toute la collection Star Wars",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -424,10 +449,10 @@ const ACHIEVEMENTS = {
       id: "jurassic-survivor",
       name: "Survivant du Parc",
       icon: "🦕",
-      description: "A survécu à tous les parcs — les 7 films Jurassic",
+      description: "A regardé toute la collection Jurassic",
       condition: (data) => false,
-      conditionText: "A survécu à tous les parcs — les 7 films Jurassic",
-      getProgress: (data) => ({ current: 0, total: 7, percent: 0 }),
+      conditionText: "A regardé toute la collection Jurassic",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -442,7 +467,7 @@ const ACHIEVEMENTS = {
       description: "A regardé toute la collection Wizarding World",
       condition: (data) => false,
       conditionText: "A regardé toute la collection Wizarding World",
-      getProgress: (data) => ({ current: 0, total: 11, percent: 0 }),
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -457,7 +482,7 @@ const ACHIEVEMENTS = {
       description: "A regardé toute la collection Middle Earth",
       condition: (data) => false,
       conditionText: "A regardé toute la collection Middle Earth",
-      getProgress: (data) => ({ current: 0, total: 6, percent: 0 }),
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -469,10 +494,10 @@ const ACHIEVEMENTS = {
       id: "evolutionist",
       name: "Évolutionniste",
       icon: "🐵",
-      description: "Fan de l'univers de la Planète des Singes",
+      description: "A regardé toute la collection La Planète des Singes",
       condition: (data) => false,
-      conditionText: "Fan de l'univers de la Planète des Singes",
-      getProgress: (data) => ({ current: 0, total: 4, percent: 0 }),
+      conditionText: "A regardé toute la collection La Planète des Singes",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -484,11 +509,11 @@ const ACHIEVEMENTS = {
       id: "monsterverse",
       name: "MonsterVerse",
       icon: "🦖",
-      description: "A regardé les films et séries de la collection MonsterVerse",
+      description: "A regardé toute la collection MonsterVerse",
       condition: (data) => false,
-      conditionText: "A regardé les films et séries de la collection MonsterVerse",
+      conditionText: "A regardé toute la collection MonsterVerse",
       // Fallback UI: 5 films + 2 séries = 7 éléments au total
-      getProgress: (data) => ({ current: 0, total: 7, percent: 0 }),
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -503,7 +528,7 @@ const ACHIEVEMENTS = {
       description: "A regardé toute la collection James Bond 007",
       condition: (data) => false,
       conditionText: "A regardé toute la collection James Bond 007",
-      getProgress: (data) => ({ current: 0, total: 26, percent: 0 }),
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -518,7 +543,7 @@ const ACHIEVEMENTS = {
       description: "A regardé toute la collection Fast and Furious",
       condition: (data) => false,
       conditionText: "A regardé toute la collection Fast and Furious",
-      getProgress: (data) => ({ current: 0, total: 10, percent: 0 }),
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -527,43 +552,28 @@ const ACHIEVEMENTS = {
       xp: 2500
     },
     {
-      id: "charlots-forever",
-      name: "Les Charlots Forever",
-      icon: "🎭",
-      description: "A regardé toute la collection Les Charlots",
-      condition: (data) => false,
-      conditionText: "A regardé toute la collection Les Charlots",
-      getProgress: (data) => ({ current: 0, total: 15, percent: 0 }),
-      unlockedDate: null,
-      category: "collections",
-      isSecret: false,
-      revocable: true,
-      // Barème équilibré collections: 250 XP/film
-      xp: 3750
-    },
-    {
       id: "star-trek-universe",
       name: "Star Trek Universe",
       icon: "🖖",
-      description: "A regardé toutes les séries de la collection Star Trek Universe",
+      description: "A regardé toute la collection Star Trek",
       condition: (data) => false,
-      conditionText: "A regardé toutes les séries de la collection Star Trek Universe",
-      getProgress: (data) => ({ current: 0, total: 9, percent: 0 }),
+      conditionText: "A regardé toute la collection Star Trek",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
       revocable: true,
-      // Barème équilibré collections: 250 XP/série
+      // Barème équilibré collections: calcul dynamique via progression
       xp: 2250
     },
     {
       id: "arrowverse",
       name: "Arrowverse",
       icon: "🏹",
-      description: "A regardé toutes les séries de la collection Arrowverse",
+      description: "A regardé toute la collection Arrowverse",
       condition: (data) => false,
-      conditionText: "A regardé toutes les séries de la collection Arrowverse",
-      getProgress: (data) => ({ current: 0, total: 8, percent: 0 }),
+      conditionText: "A regardé toute la collection Arrowverse",
+      getProgress: () => getDynamicCollectionProgress(),
       unlockedDate: null,
       category: "collections",
       isSecret: false,
@@ -637,7 +647,7 @@ const ACHIEVEMENTS = {
       ...this.films,
       ...this.series,
       ...this.mensuels,
-      ...this.collections,
+      ...getCollectionsIfEnabled(this.collections),
       ...this.secrets
     ];
   },
@@ -683,4 +693,4 @@ function hydrateAchievementTexts(achievement, serverName) {
     conditionText: replaceServerName(achievement.conditionText, serverName)
   };
 }
-module.exports = { ACHIEVEMENTS, hydrateAchievementTexts };
+module.exports = { ACHIEVEMENTS, hydrateAchievementTexts, areCollectionAchievementsEnabled, getAchievementXp };

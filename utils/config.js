@@ -19,6 +19,7 @@ const CONFIG_FIELDS = [
 
   { key: "WIZARR_URL", label: "URL Wizarr", group: "Wizarr", type: "url" },
   { key: "WIZARR_API_KEY", label: "API key Wizarr", group: "Wizarr", type: "password", secret: true },
+  { key: "TRAKT_CLIENT_ID", label: "Client ID Trakt", group: "Trakt", type: "password", secret: true },
 
   { key: "UPTIME_KUMA_URL", label: "URL Uptime Kuma", group: "Uptime Kuma", type: "url" },
   { key: "UPTIME_KUMA_USERNAME", label: "Identifiant Uptime Kuma", group: "Uptime Kuma", type: "text" },
@@ -162,11 +163,7 @@ function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
     values[field.key] = normalized;
     runtimeOverrides[field.key] = normalized;
 
-    if (normalized === "") {
-      AppSettingQueries.remove(settingKey(field.key));
-    } else {
-      AppSettingQueries.set(settingKey(field.key), normalized);
-    }
+    AppSettingQueries.set(settingKey(field.key), normalized);
   });
 
   if (markSetupComplete) {

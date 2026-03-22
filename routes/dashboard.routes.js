@@ -12,7 +12,7 @@ const { getSeerrStats } = require("../utils/seerr");
 const { getPlexJoinDate, getServerOwnerId } = require("../utils/plex");
 const { getRadarrCalendar, getSonarrCalendar } = require("../utils/radarr-sonarr");
 const { XP_SYSTEM } = require("../utils/xp-system");
-const { ACHIEVEMENTS, hydrateAchievementTexts } = require("../utils/achievements");
+const { ACHIEVEMENTS, hydrateAchievementTexts, areCollectionAchievementsEnabled, getAchievementXp } = require("../utils/achievements");
 const {
   UserAchievementQueries,
   UserQueries,
@@ -976,11 +976,11 @@ const logWizarr = log.create('[Wizarr]');
 
 async function getWizarrSubscription(user) {
   try {
-    const wizarrUrl = process.env.WIZARR_URL;
-    const apiKey = process.env.WIZARR_API_KEY;
+    const wizarrUrl = getConfigValue("WIZARR_URL", "");
+    const apiKey = getConfigValue("WIZARR_API_KEY", "");
 
     if (!wizarrUrl || !apiKey) {
-      logWizarr.warn('WIZARR_URL ou WIZARR_API_KEY manquant');
+      logWizarr.info('Wizarr désactivé — configuration vide');
       return computeSubscription(null);
     }
 
@@ -1069,10 +1069,11 @@ router.get("/profil", requireAuth, async (req, res) => {
       req.session.user.joinedAt || req.session.user.joinedAtTimestamp || null
     );
     const userUnlockedMap = dbUser ? UserAchievementQueries.getForUser(dbUser.id) : {};
+    const progressMap = dbUser ? AchievementProgressQueries.getForUser(dbUser.id) : {};
     const allAchievements = ACHIEVEMENTS.getAll();
     const unlockedAchievementIds = new Set(Object.keys(userUnlockedMap || {}));
     const unlockedAchievements = allAchievements.filter(a => unlockedAchievementIds.has(a.id));
-    const totalAchievementsXp = unlockedAchievements.reduce((sum, ach) => sum + (ach.xp || 0), 0);
+    const totalAchievementsXp = unlockedAchievements.reduce((sum, ach) => sum + getAchievementXp(ach, progressMap[ach.id]), 0);
 
     res.render("profil/index", {
       user: req.session.user,
@@ -1116,6 +1117,7 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 
 router.get("/succes", requireAuth, async (req, res) => {
   try {
+    const collectionsEnabled = areCollectionAchievementsEnabled();
     // ? Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
     //    se fait en arrière-plan via /api/badges-eval (appelé par le client)
     const achievementsByCategory = {
@@ -1124,9 +1126,10 @@ router.get("/succes", requireAuth, async (req, res) => {
       films:       { icon: "🎬", name: "Films",       achievements: ACHIEVEMENTS.films },
       series:      { icon: "📺", name: "Séries",      achievements: ACHIEVEMENTS.series },
       mensuels:    { icon: "📅", name: "Mensuels",    achievements: ACHIEVEMENTS.mensuels },
-      collections: { icon: "🎬", name: "Collections", achievements: ACHIEVEMENTS.collections },
+      collections: { icon: "🎬", name: "Collections", achievements: collectionsEnabled ? ACHIEVEMENTS.collections : [] },
       secrets:     { icon: "🔒", name: "Secrets",     achievements: ACHIEVEMENTS.secrets }
     };
+    if (!collectionsEnabled) delete achievementsByCategory.collections;
 
     const username   = req.session.user.username;
     const joinedAtTs = req.session.user.joinedAtTimestamp;
@@ -1153,6 +1156,7 @@ router.get("/succes", requireAuth, async (req, res) => {
     for (const category in achievementsByCategory) {
       achievementsByCategory[category].achievements = achievementsByCategory[category].achievements.map(a => ({
         ...hydrateAchievementTexts(a, res.locals.siteTitle),
+        xp: getAchievementXp(a, progressMap[a.id]),
         unlocked:     !!userUnlockedMap[a.id],
         unlockedDate: userUnlockedMap[a.id] || null
       }));
@@ -1256,6 +1260,7 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
+    const collectionsEnabled = areCollectionAchievementsEnabled();
     const username   = req.session.user.username;
     const joinedAtTs = req.session.user.joinedAtTimestamp;
     const today      = new Date().toLocaleDateString('fr-FR');
@@ -1272,8 +1277,8 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
 
     // 1. Stats Tautulli (rapide si DB directe prête)
     const stats = await getTautulliStats(
-      username, process.env.TAUTULLI_URL, process.env.TAUTULLI_API_KEY,
-      req.session.user.id, process.env.PLEX_URL, process.env.PLEX_TOKEN, joinedAtTs
+        username, getConfigValue("TAUTULLI_URL", ""), getConfigValue("TAUTULLI_API_KEY", ""),
+        req.session.user.id, getConfigValue("PLEX_URL", ""), getConfigValue("PLEX_TOKEN", ""), joinedAtTs
     );
     const data = {
       totalHours:   stats.watchStats?.totalHours   || 0,
@@ -1303,10 +1308,11 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
     }
 
     // 3. Collections + secrets Tautulli
-    const secretsToCheck = [...ACHIEVEMENTS.collections, ...ACHIEVEMENTS.secrets]
+    const collectionsToCheck = collectionsEnabled ? ACHIEVEMENTS.collections : [];
+    const secretsToCheck = [...collectionsToCheck, ...ACHIEVEMENTS.secrets]
       .filter(a => !a.isSecret && (!userUnlockedMap[a.id] || a.revocable)).map(a => a.id);
     const revocableUnlocked = new Set(
-      [...ACHIEVEMENTS.collections, ...ACHIEVEMENTS.secrets]
+      [...collectionsToCheck, ...ACHIEVEMENTS.secrets]
         .filter(a => a.revocable && userUnlockedMap[a.id]).map(a => a.id)
     );
     const newProgress = {};
@@ -1314,10 +1320,7 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
 
     if (secretsToCheck.length > 0 && isTautulliReady()) {
       try {
-        const evalResult = await Promise.race([
-          evaluateSecretAchievements(username, joinedAtTs, secretsToCheck, req.session.user.id),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('EVAL_TIMEOUT')), 5000))
-        ]);
+        const evalResult = await evaluateSecretAchievements(username, joinedAtTs, secretsToCheck, req.session.user.id);
         const { unlocked: evalUnlocked, progress: evalProgress } = evalResult;
         for (const [id, date] of Object.entries(evalUnlocked)) {
           if (dbUserId) try { UserAchievementQueries.unlock(dbUserId, id, date, 'auto'); } catch(e) {}
@@ -1335,11 +1338,16 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
             newProgress[id] = prog;
           }
         }
+        if (dbUserId) {
+          for (const id of secretsToCheck) {
+            if (evalProgress?.[id]) continue;
+            try { AchievementProgressQueries.remove(dbUserId, id); } catch(e) {}
+          }
+        }
         if (Object.keys(newlyUnlocked).length > 0)
           logBadges.info(`Débloqués pour ${username}:`, Object.keys(newlyUnlocked).join(', '));
       } catch (err) {
-        if (err.message === 'EVAL_TIMEOUT') logBadges.warn(`Timeout eval ${username}`);
-        else logBadges.error('badges-eval:', err.message);
+        logBadges.error('badges-eval:', err.message);
       }
     }
 
@@ -1383,11 +1391,11 @@ router.get("/api/stats", requireAuth, async (req, res) => {
       () => Promise.race([
         getTautulliStats(
           req.session.user.username,
-          process.env.TAUTULLI_URL,
-          process.env.TAUTULLI_API_KEY,
+          getConfigValue("TAUTULLI_URL", ""),
+          getConfigValue("TAUTULLI_API_KEY", ""),
           req.session.user.id,
-          process.env.PLEX_URL,
-          process.env.PLEX_TOKEN,
+          getConfigValue("PLEX_URL", ""),
+          getConfigValue("PLEX_TOKEN", ""),
           req.session.user.joinedAtTimestamp
         ),
         // Timeout après 10 secondes (au lieu de 30s)
@@ -1437,11 +1445,11 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
     // Maintenant récupérer les stats (doivent être en cache)
     const stats = await getTautulliStats(
       username,
-      process.env.TAUTULLI_URL,
-      process.env.TAUTULLI_API_KEY,
+      getConfigValue("TAUTULLI_URL", ""),
+      getConfigValue("TAUTULLI_API_KEY", ""),
       req.session.user.id,
-      process.env.PLEX_URL,
-      process.env.PLEX_TOKEN,
+      getConfigValue("PLEX_URL", ""),
+      getConfigValue("PLEX_TOKEN", ""),
       req.session.user.joinedAtTimestamp
     );
     
@@ -2012,8 +2020,8 @@ router.delete("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req,
    ?? NOW PLAYING
 =============================== */
 router.get("/api/now-playing", requireAuth, async (req, res) => {
-  const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN || "";
+  const plexUrl   = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   if (!plexUrl || !plexToken) return res.json({ playing: false });
 
   try {
@@ -2088,8 +2096,8 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
    On proxifie l'image côté serveur et on la renvoie au browser.
 =============================== */
 router.get("/api/plex-thumb", requireAuth, async (req, res) => {
-  const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN  || "";
+  const plexUrl   = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   const thumbPath = req.query.path;
   if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
 

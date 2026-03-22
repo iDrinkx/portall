@@ -66,8 +66,8 @@ function getCardSlug(card) {
 }
 
 async function getPlexServerName() {
-  const plexUrl = (process.env.PLEX_URL || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN || "";
+  const plexUrl = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   const cacheKey = `${plexUrl}::${plexToken}`;
   if (cachedPlexServerKey === cacheKey && cachedPlexServerName !== undefined) {
     return cachedPlexServerName;
@@ -476,14 +476,33 @@ app.listen(PORT, async () => {
   // Source de vérité: Wizarr (email + username + joinedAtTimestamp)
   console.log("[SETUP] 📋 Import automatique des users Wizarr en DB...");
   try {
-    const { getAllWizarrUsers } = require("./utils/wizarr");
+    const { getAllWizarrUsersDetailed, delay } = require("./utils/wizarr");
     const { UserQueries } = require("./utils/database");
+    const wizarrUrl = getConfigValue("WIZARR_URL");
+    const wizarrApiKey = getConfigValue("WIZARR_API_KEY");
+    if (!wizarrUrl || !wizarrApiKey) {
+      console.log("[SETUP] ℹ️  Wizarr désactivé — import ignoré");
+    } else {
+      let wizarrUsers = [];
+      let lastWizarrResult = null;
+      const maxAttempts = 3;
 
-    const wizarrUsers = await getAllWizarrUsers(
-      getConfigValue("WIZARR_URL"),
-      getConfigValue("WIZARR_API_KEY")
-    );
-    if (wizarrUsers.length > 0) {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        lastWizarrResult = await getAllWizarrUsersDetailed(wizarrUrl, wizarrApiKey);
+        wizarrUsers = lastWizarrResult.users || [];
+
+        if (wizarrUsers.length > 0) {
+          console.log(`[SETUP] ✅ Wizarr prêt (tentative ${attempt}/${maxAttempts}) via ${lastWizarrResult.source}`);
+          break;
+        }
+
+        console.warn(`[SETUP] ⚠️  Wizarr indisponible/vide (tentative ${attempt}/${maxAttempts}) — ${lastWizarrResult?.reason || "raison inconnue"}`);
+        if (attempt < maxAttempts) {
+          console.log("[SETUP] ⏳ Nouvelle tentative Wizarr dans 5 secondes...");
+          await delay(5000);
+        }
+      }
+      if (wizarrUsers.length > 0) {
       let upserted = 0;
       for (const wUser of wizarrUsers) {
         try {
@@ -493,9 +512,10 @@ app.listen(PORT, async () => {
           }
         } catch (_) {}
       }
-      console.log(`[SETUP] ✅ Import Wizarr: ${upserted}/${wizarrUsers.length} users synchronisés en DB`);
-    } else {
-      console.warn("[SETUP] ⚠️  Wizarr non configuré ou inaccessible — import ignoré");
+        console.log(`[SETUP] ✅ Import Wizarr: ${upserted}/${wizarrUsers.length} users synchronisés en DB`);
+      } else {
+        console.warn(`[SETUP] ⚠️  Import Wizarr ignoré après ${maxAttempts} tentatives — ${lastWizarrResult?.reason || "Wizarr non configuré ou inaccessible"}`);
+      }
     }
   } catch (err) {
     console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
