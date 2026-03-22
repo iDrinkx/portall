@@ -17,6 +17,7 @@ const tautulliSchemaCache = {};
 const plexAvailabilityCache = {};
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
 const COLLECTION_MOVIE_MIN_PERCENT = 50;
+let plexSearchEndpointCache = null;
 
 const TRAKT_LISTS = {
   'potter-head': 'https://app.trakt.tv/users/machadodg/lists/wizarding-world',
@@ -139,6 +140,40 @@ function getPlexAvailabilityCacheKey(item) {
   return `${item.type || 'unknown'}:${String(item.title || '').toLowerCase()}::${item.year || ''}`;
 }
 
+function buildPlexSearchCandidates(plexUrl, plexToken, item) {
+  const title = String(item?.title || '').trim();
+  const type = item?.type === 'show' ? 2 : 1;
+  const candidates = [];
+
+  const libraryAllUrl = new URL(`${plexUrl}/library/all`);
+  libraryAllUrl.searchParams.set('type', String(type));
+  libraryAllUrl.searchParams.set('title', title);
+  if (item?.year) libraryAllUrl.searchParams.set('year', String(item.year));
+  libraryAllUrl.searchParams.set('X-Plex-Token', plexToken);
+  candidates.push({
+    key: 'library-all',
+    url: libraryAllUrl.toString(),
+    extract: (json) => json?.MediaContainer?.Metadata || []
+  });
+
+  const hubsSearchUrl = new URL(`${plexUrl}/hubs/search/all`);
+  hubsSearchUrl.searchParams.set('query', title);
+  hubsSearchUrl.searchParams.set('limit', '20');
+  hubsSearchUrl.searchParams.set('includeCollections', '1');
+  hubsSearchUrl.searchParams.set('includeExternalMedia', '0');
+  hubsSearchUrl.searchParams.set('X-Plex-Token', plexToken);
+  candidates.push({
+    key: 'hubs-search-all',
+    url: hubsSearchUrl.toString(),
+    extract: (json) => {
+      const hubs = json?.MediaContainer?.Hub || [];
+      return hubs.flatMap(hub => hub?.Metadata || []);
+    }
+  });
+
+  return candidates;
+}
+
 function isReleasedTraktItem(item) {
   const rawDate = item?.type === 'movie'
     ? item?.movie?.released
@@ -168,20 +203,40 @@ async function isItemAvailableInPlex(item) {
   if (!plexUrl || !plexToken) return false;
 
   try {
-    const type = item.type === 'show' ? 2 : 1;
-    const searchUrl = new URL(`${plexUrl}/library/sections/all/search`);
-    searchUrl.searchParams.set('type', String(type));
-    searchUrl.searchParams.set('title', title);
-    if (item.year) searchUrl.searchParams.set('year', String(item.year));
-    searchUrl.searchParams.set('X-Plex-Token', plexToken);
+    const candidates = buildPlexSearchCandidates(plexUrl, plexToken, item);
+    const orderedCandidates = plexSearchEndpointCache
+      ? [
+          ...candidates.filter(candidate => candidate.key === plexSearchEndpointCache),
+          ...candidates.filter(candidate => candidate.key !== plexSearchEndpointCache)
+        ]
+      : candidates;
 
-    const resp = await fetch(searchUrl.toString(), {
-      headers: { Accept: 'application/json' }
-    });
+    let metadata = [];
+    let lastError = null;
 
-    if (!resp.ok) throw new Error(`Plex search HTTP ${resp.status}`);
+    for (const candidate of orderedCandidates) {
+      try {
+        const resp = await fetch(candidate.url, {
+          headers: { Accept: 'application/json' }
+        });
 
-    const metadata = (await resp.json())?.MediaContainer?.Metadata || [];
+        if (!resp.ok) {
+          lastError = new Error(`${candidate.key} HTTP ${resp.status}`);
+          continue;
+        }
+
+        const json = await resp.json();
+        metadata = candidate.extract(json);
+        plexSearchEndpointCache = candidate.key;
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = new Error(`${candidate.key} ${err.message}`);
+      }
+    }
+
+    if (lastError) throw lastError;
+
     const normalizedTitle = title.toLowerCase();
     const targetYear = item.year ?? null;
     const available = metadata.some(entry => {
