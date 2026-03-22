@@ -85,6 +85,23 @@ function chooseBestClassementFallbackUsers() {
   };
 }
 
+function getPlexCloudToken() {
+  const runtimeToken = String(AppSettingQueriesSafe.get("runtime_plex_cloud_token", "") || "").trim();
+  if (runtimeToken) return runtimeToken;
+  return String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+}
+
+const AppSettingQueriesSafe = {
+  get(key, defaultValue = null) {
+    try {
+      const { AppSettingQueries } = require('./database');
+      return AppSettingQueries.get(key, defaultValue);
+    } catch (_) {
+      return defaultValue;
+    }
+  }
+};
+
 /**
  * 🔍 Valide les données calculées pour détecter les corruptions
  */
@@ -148,7 +165,7 @@ async function refreshClassementCache() {
     //   plexJoinedAtMap  : username → joined_at (secondes Unix)
     //   emailToUsername  : email    → plex username  ← pont Wizarr→Tautulli
     // ══════════════════════════════════════════════════════════════════
-    const plexToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim();
+    const plexToken = getPlexCloudToken();
     const thumbMap        = {};
     const plexJoinedAtMap = {};
     const emailToUsername = {};  // 🔗 Corrélation email → plex username (fiable)
@@ -169,6 +186,8 @@ async function refreshClassementCache() {
           if (ownerTs > 0) plexJoinedAtMap[ownerKey] = ownerTs;
           if (od.email) emailToUsername[od.email.toLowerCase()] = od.username;
         }
+      } else {
+        logCR.debug(`⚠️  Plex API v2 cloud token refusé: HTTP ${ownerResp.status}`);
       }
     } catch (err) {
       logCR.debug(`⚠️  Plex API v2 failed: ${err.message}`);
@@ -202,6 +221,8 @@ async function refreshClassementCache() {
             if (emailMatch?.[1])    { emailToUsername[emailMatch[1].toLowerCase()] = rawUsername; }
           }
         });
+      } else {
+        logCR.debug(`⚠️  Plex API XML cloud token refusé: HTTP ${xmlResp.status}`);
       }
     } catch (err) {
       logCR.debug(`⚠️  Plex API XML failed: ${err.message}`);

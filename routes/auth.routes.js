@@ -233,6 +233,15 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   req.session.plexToken = authToken;
   delete req.session.pinId;
 
+  if (isAdmin && authToken) {
+    try {
+      AppSettingQueries.set("runtime_plex_cloud_token", authToken);
+      logAuth.info(`Token Plex cloud mis a jour pour l'admin (${getSafeUserLabel(user)})`);
+    } catch (err) {
+      logAuth.warn(`Impossible de persister le token Plex cloud: ${err.message}`);
+    }
+  }
+
   // 💾 Sauvegarder joinedAtTimestamp dans la DB pour cohérence XP/niveau avec classement
   try {
     UserQueries.upsert(
@@ -269,6 +278,17 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
       });
   } else {
     logAuth.info(`Vérification Wizarr ignorée pour admin Plex (${getSafeUserLabel(user)})`);
+  }
+
+  if (isAdmin) {
+    try {
+      const { refreshClassementCache } = require("../utils/cron-classement-refresh");
+      refreshClassementCache().catch(err => {
+        logAuth.warn(`Refresh classement post-login admin échoué: ${err.message}`);
+      });
+    } catch (err) {
+      logAuth.warn(`Impossible de lancer le refresh classement post-login: ${err.message}`);
+    }
   }
 });
 
