@@ -228,6 +228,7 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
     `${wizarrUrl}/api/users`,
   ];
   let lastError = null;
+  const attemptReasons = [];
 
   for (const url of apiUsersEndpoints) {
     try {
@@ -239,6 +240,7 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
       if (!resp.ok) {
         const body = await resp.text().catch(() => "");
         lastError = `HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`;
+        attemptReasons.push(lastError);
         continue;
       }
 
@@ -246,12 +248,15 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
       const list = normalizeList(payload);
       if (list.length > 0) {
         const filtered = list.map(mapUser).filter(u => u.username);
+        log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users)`);
         return { users: filtered, ok: true, reason: null, source: url };
       }
 
       lastError = `Réponse vide sur ${url}`;
+      attemptReasons.push(lastError);
     } catch (err) {
       lastError = `${url} — ${err.message}`;
+      attemptReasons.push(lastError);
     }
   }
 
@@ -271,7 +276,9 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
 
       if (!resp.ok) {
         const body = await resp.text().catch(() => "");
-        lastError = `HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`;
+        const v1Error = `HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`;
+        if (!lastError) lastError = v1Error;
+        attemptReasons.push(v1Error);
         break;
       }
 
@@ -288,7 +295,9 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
         if ((total !== null && users.length >= total) || page.length < take) hasMore = false;
       }
     } catch (err) {
-      lastError = `/api/v1/user — ${err.message}`;
+      const v1Error = `/api/v1/user — ${err.message}`;
+      if (!lastError) lastError = v1Error;
+      attemptReasons.push(v1Error);
       hasMore = false;
     }
   }
@@ -306,7 +315,7 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
   return {
     users: [],
     ok: false,
-    reason: lastError || 'Aucun utilisateur retourné par Wizarr',
+    reason: attemptReasons.length ? attemptReasons.join(' | ') : (lastError || 'Aucun utilisateur retourné par Wizarr'),
     source: 'none'
   };
 }

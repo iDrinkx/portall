@@ -976,8 +976,8 @@ const logWizarr = log.create('[Wizarr]');
 
 async function getWizarrSubscription(user) {
   try {
-    const wizarrUrl = process.env.WIZARR_URL;
-    const apiKey = process.env.WIZARR_API_KEY;
+    const wizarrUrl = getConfigValue("WIZARR_URL", "");
+    const apiKey = getConfigValue("WIZARR_API_KEY", "");
 
     if (!wizarrUrl || !apiKey) {
       logWizarr.warn('WIZARR_URL ou WIZARR_API_KEY manquant');
@@ -1272,8 +1272,8 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
 
     // 1. Stats Tautulli (rapide si DB directe prête)
     const stats = await getTautulliStats(
-      username, process.env.TAUTULLI_URL, process.env.TAUTULLI_API_KEY,
-      req.session.user.id, process.env.PLEX_URL, process.env.PLEX_TOKEN, joinedAtTs
+        username, getConfigValue("TAUTULLI_URL", ""), getConfigValue("TAUTULLI_API_KEY", ""),
+        req.session.user.id, getConfigValue("PLEX_URL", ""), getConfigValue("PLEX_TOKEN", ""), joinedAtTs
     );
     const data = {
       totalHours:   stats.watchStats?.totalHours   || 0,
@@ -1383,11 +1383,11 @@ router.get("/api/stats", requireAuth, async (req, res) => {
       () => Promise.race([
         getTautulliStats(
           req.session.user.username,
-          process.env.TAUTULLI_URL,
-          process.env.TAUTULLI_API_KEY,
+          getConfigValue("TAUTULLI_URL", ""),
+          getConfigValue("TAUTULLI_API_KEY", ""),
           req.session.user.id,
-          process.env.PLEX_URL,
-          process.env.PLEX_TOKEN,
+          getConfigValue("PLEX_URL", ""),
+          getConfigValue("PLEX_TOKEN", ""),
           req.session.user.joinedAtTimestamp
         ),
         // Timeout après 10 secondes (au lieu de 30s)
@@ -1437,11 +1437,11 @@ router.get("/api/stats-wait", requireAuth, async (req, res) => {
     // Maintenant récupérer les stats (doivent être en cache)
     const stats = await getTautulliStats(
       username,
-      process.env.TAUTULLI_URL,
-      process.env.TAUTULLI_API_KEY,
+      getConfigValue("TAUTULLI_URL", ""),
+      getConfigValue("TAUTULLI_API_KEY", ""),
       req.session.user.id,
-      process.env.PLEX_URL,
-      process.env.PLEX_TOKEN,
+      getConfigValue("PLEX_URL", ""),
+      getConfigValue("PLEX_TOKEN", ""),
       req.session.user.joinedAtTimestamp
     );
     
@@ -2012,8 +2012,8 @@ router.delete("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req,
    ?? NOW PLAYING
 =============================== */
 router.get("/api/now-playing", requireAuth, async (req, res) => {
-  const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN || "";
+  const plexUrl   = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   if (!plexUrl || !plexToken) return res.json({ playing: false });
 
   try {
@@ -2088,8 +2088,8 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
    On proxifie l'image côté serveur et on la renvoie au browser.
 =============================== */
 router.get("/api/plex-thumb", requireAuth, async (req, res) => {
-  const plexUrl   = (process.env.PLEX_URL   || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN  || "";
+  const plexUrl   = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   const thumbPath = req.query.path;
   if (!plexUrl || !plexToken || !thumbPath) return res.status(400).end();
 

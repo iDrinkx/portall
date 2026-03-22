@@ -66,8 +66,8 @@ function getCardSlug(card) {
 }
 
 async function getPlexServerName() {
-  const plexUrl = (process.env.PLEX_URL || "").replace(/\/$/, "");
-  const plexToken = process.env.PLEX_TOKEN || "";
+  const plexUrl = String(getConfigValue("PLEX_URL", "") || "").replace(/\/$/, "");
+  const plexToken = String(getConfigValue("PLEX_TOKEN", "") || "");
   const cacheKey = `${plexUrl}::${plexToken}`;
   if (cachedPlexServerKey === cacheKey && cachedPlexServerName !== undefined) {
     return cachedPlexServerName;

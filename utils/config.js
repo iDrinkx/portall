@@ -162,11 +162,7 @@ function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
     values[field.key] = normalized;
     runtimeOverrides[field.key] = normalized;
 
-    if (normalized === "") {
-      AppSettingQueries.remove(settingKey(field.key));
-    } else {
-      AppSettingQueries.set(settingKey(field.key), normalized);
-    }
+    AppSettingQueries.set(settingKey(field.key), normalized);
   });
 
   if (markSetupComplete) {
