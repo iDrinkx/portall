@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const log = require('./logger').create('[Wizarr]');
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -82,7 +83,15 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
   }
 
   try {
-    // Filtrer par email directement côté serveur Wizarr (plus rapide)
+    const debugContext = {
+      plexUsername: String(user?.username || '').trim() || null,
+      plexEmail: String(user?.email || '').trim() || null,
+      plexUserId: String(user?.id || '').trim() || null
+    };
+
+    let wizUser = null;
+
+    // Essai 1: filtre direct par email côté Wizarr
     const emailParam = encodeURIComponent(user.email);
     const resp = await fetch(`${wizarrUrl}/api/users?email=${emailParam}`, {
       headers: {
@@ -97,12 +106,54 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
 
     const payload = await resp.json();
     const list = Array.isArray(payload?.users) ? payload.users : [];
+    log.debug(`checkWizarrAccess direct email lookup`, {
+      ...debugContext,
+      directMatches: list.length
+    });
+    wizUser = list[0] || null;
 
-    if (!list.length) {
+    // Essai 2: fallback robuste sur la liste complète, avec plusieurs critères
+    if (!wizUser) {
+      const allUsers = await getAllWizarrUsers(wizarrUrl, apiKey);
+      const targetEmail = String(user.email || '').trim().toLowerCase();
+      const targetUsername = String(user.username || '').trim().toLowerCase();
+      const targetPlexId = String(user.id || '').trim();
+
+      log.debug(`checkWizarrAccess fallback scan`, {
+        ...debugContext,
+        wizarrUsers: allUsers.length,
+        sample: allUsers.slice(0, 5).map(entry => ({
+          username: entry?.username || null,
+          email: entry?.email || null,
+          plexUserId: entry?.plexUserId || null
+        }))
+      });
+
+      wizUser = allUsers.find(entry => {
+        const entryEmail = String(entry?.email || '').trim().toLowerCase();
+        const entryUsername = String(entry?.username || '').trim().toLowerCase();
+        const entryPlexId = String(entry?.plexUserId || '').trim();
+
+        return (
+          (targetEmail && entryEmail === targetEmail) ||
+          (targetUsername && entryUsername === targetUsername) ||
+          (targetPlexId && entryPlexId === targetPlexId)
+        );
+      }) || null;
+    }
+
+    if (!wizUser) {
+      log.warn(`checkWizarrAccess no match`, debugContext);
       return { authorized: false, reason: 'Utilisateur non trouvé dans Wizarr' };
     }
 
-    const wizUser = list[0]; // Premier résultat (email exact match)
+    log.info(`checkWizarrAccess match`, {
+      ...debugContext,
+      matchedUsername: wizUser.username || null,
+      matchedEmail: wizUser.email || null,
+      matchedPlexUserId: wizUser.plexUserId || null,
+      expires: wizUser.expires || null
+    });
 
     // Vérifier que l'abonnement est actif (illimité ou pas expiré)
     if (!wizUser.expires) {
