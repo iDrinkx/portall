@@ -256,16 +256,20 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   res.redirect(req.basePath + "/dashboard");
 
   // ── Vérifications en ARRIÈRE-PLAN (ne bloquent pas le login) ────────────────────────
-  // Wizarr en arrière-plan - si elle échoue, on log juste un warning
-  checkWizarrAccess(user, getConfigValue("WIZARR_URL", ""), getConfigValue("WIZARR_API_KEY", ""))
-    .then(wizarrCheck => {
-      if (!wizarrCheck.authorized) {
-        logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
-      }
-    })
-    .catch(err => {
-      logAuth.warn(`Vérification Wizarr échouée — ${err.message}`);
-    });
+  // L'admin Plex est autorisé par définition et ne dépend pas de Wizarr.
+  if (!isAdmin) {
+    checkWizarrAccess(user, getConfigValue("WIZARR_URL", ""), getConfigValue("WIZARR_API_KEY", ""))
+      .then(wizarrCheck => {
+        if (!wizarrCheck.authorized) {
+          logAuth.warn(`Accès Wizarr refusé — ${user.username}: ${wizarrCheck.reason}`);
+        }
+      })
+      .catch(err => {
+        logAuth.warn(`Vérification Wizarr échouée — ${err.message}`);
+      });
+  } else {
+    logAuth.info(`Vérification Wizarr ignorée pour admin Plex (${getSafeUserLabel(user)})`);
+  }
 });
 
 router.get("/logout", (req, res) => {
