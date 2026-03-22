@@ -1,3 +1,12 @@
+## [1.39.5](https://github.com/iDrinkx/portall/compare/v1.39.4...v1.39.5) (2026-03-22)
+
+### Corrections de bugs
+
+* classement ([3fa9950](https://github.com/iDrinkx/portall/commit/3fa9950f5fab90a175dd1a0a34916044edc28840))
+* kuma setting delete ([788c61f](https://github.com/iDrinkx/portall/commit/788c61f4f69ed5eb364448785f101c97f36d1fea))
+* kuma settings ([656ea5c](https://github.com/iDrinkx/portall/commit/656ea5c1e437d514c61216a621f96c65f67da75d))
+* logo supplementaire kuma ([196fdf7](https://github.com/iDrinkx/portall/commit/196fdf7e106a551a813c5d382f076c0958a106dd))
+
 ## [1.39.4](https://github.com/iDrinkx/portall/compare/v1.39.3...v1.39.4) (2026-03-21)
 
 ### Corrections de bugs
