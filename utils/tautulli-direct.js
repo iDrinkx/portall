@@ -618,6 +618,31 @@ function getMovieCompletionSql(historyAlias = 'sh', metadataAlias = 'shm') {
   return `${historyAlias}.stopped > ${historyAlias}.started`;
 }
 
+function isMovieWatchRowCompleted(row = {}) {
+  const percent = Number(row.percent_complete);
+  if (Number.isFinite(percent)) {
+    return percent >= COLLECTION_MOVIE_MIN_PERCENT;
+  }
+
+  const watchedStatus = Number(row.watched_status);
+  if (Number.isFinite(watchedStatus)) {
+    if (watchedStatus === 1 || watchedStatus >= COLLECTION_MOVIE_MIN_PERCENT) return true;
+    if (watchedStatus > 0 && watchedStatus < 1 && watchedStatus >= (COLLECTION_MOVIE_MIN_PERCENT / 100)) return true;
+  }
+
+  const duration = Number(row.duration);
+  const watchedSeconds = Number(row.watched_seconds);
+  const maxViewOffset = Number(row.max_view_offset);
+  if (Number.isFinite(duration) && duration > 0) {
+    const durationSeconds = duration > 100000 ? duration / 1000 : duration;
+    const required = durationSeconds * (COLLECTION_MOVIE_MIN_PERCENT / 100);
+    if (Number.isFinite(maxViewOffset) && maxViewOffset >= required) return true;
+    if (Number.isFinite(watchedSeconds) && watchedSeconds >= required) return true;
+  }
+
+  return Number(row.last_stopped || 0) > Number(row.first_started || 0);
+}
+
 /**
  * Initialiser la connexion à la DB Tautulli
  * En lecture seule pour éviter tout risque de corruption
@@ -1053,20 +1078,26 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const countMoviesByTitleYear = (achievementId, movies) => {
     if (!movies || !movies.length) return { cnt: 0, last_stopped: null, matchedItems: [], unmatchedItems: [] };
     try {
-      const completionSql = getMovieCompletionSql('sh', 'shm');
       const movieTitleColumns = getSessionHistoryMetadataMovieTitleColumns('shm');
       const movieGuidColumns = getSessionHistoryMetadataGuidColumns('shm');
       const movieRatingKeyColumns = getSessionHistoryRatingKeyColumns('sh');
+      const aggregateColumns = [
+        hasTableColumn('session_history', 'percent_complete') ? 'MAX(sh.percent_complete) as percent_complete' : null,
+        hasTableColumn('session_history', 'watched_status') ? 'MAX(sh.watched_status) as watched_status' : null,
+        hasTableColumn('session_history', 'view_offset') ? 'MAX(sh.view_offset) as max_view_offset' : null,
+        hasTableColumn('session_history_metadata', 'duration') ? 'MAX(shm.duration) as duration' : null,
+        'SUM(CASE WHEN sh.stopped > sh.started THEN (sh.stopped - sh.started) ELSE 0 END) as watched_seconds',
+        'MAX(sh.stopped) as last_stopped',
+        'MIN(sh.started) as first_started'
+      ].filter(Boolean);
       const watchedRows = tautulliDb.prepare(`
-        SELECT ${[...movieTitleColumns, ...movieGuidColumns, ...movieRatingKeyColumns].join(', ')},
-               shm.year as year,
-               MAX(sh.stopped) as last_stopped
+        SELECT ${[...movieTitleColumns, ...movieGuidColumns, ...movieRatingKeyColumns, ...aggregateColumns].join(', ')},
+               shm.year as year
         FROM session_history sh
         JOIN session_history_metadata shm ON sh.id = shm.id
         WHERE ${userFilter.clause}
           AND sh.stopped > sh.started
           AND sh.media_type = 'movie'
-          AND ${completionSql}
         GROUP BY ${hasTableColumn('session_history_metadata', 'title') ? 'shm.title' : 'shm.id'}, shm.year
       `).all(userFilter.param);
 
@@ -1107,7 +1138,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               collectionTitleMatches(candidate, movieTitle, row.year, preparedMovie.movie.year)
             ))
         );
-        if (matched) {
+        if (matched && isMovieWatchRowCompleted(matched)) {
           cnt += 1;
           lastStopped = Math.max(lastStopped, Number(matched.last_stopped || 0));
           matchedItems.push(preparedMovie.movie.title);
