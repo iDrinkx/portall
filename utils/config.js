@@ -65,6 +65,18 @@ function getStoredConfigMap() {
   return map;
 }
 
+function buildRuntimeConfigValues(overrides = {}) {
+  const values = {};
+  CONFIG_FIELDS.forEach(field => {
+    if (Object.prototype.hasOwnProperty.call(overrides, field.key)) {
+      values[field.key] = normalizeValue(field, overrides[field.key]);
+      return;
+    }
+    values[field.key] = getConfigValue(field.key, field.type === "boolean" ? "false" : "");
+  });
+  return values;
+}
+
 function getConfigValue(key, defaultValue = "") {
   let stored = null;
   try {
@@ -136,6 +148,7 @@ function isSetupComplete() {
 
 function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
   const values = {};
+  const runtimeOverrides = {};
 
   CONFIG_FIELDS.forEach(field => {
     if (!Object.prototype.hasOwnProperty.call(input, field.key)) return;
@@ -143,11 +156,11 @@ function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
     const existingValue = getConfigValue(field.key, "");
 
     if (field.secret && normalized === "" && String(existingValue || "").trim()) {
-      values[field.key] = "";
       return;
     }
 
     values[field.key] = normalized;
+    runtimeOverrides[field.key] = normalized;
 
     if (normalized === "") {
       AppSettingQueries.remove(settingKey(field.key));
@@ -160,7 +173,7 @@ function saveEditableConfig(input = {}, { markSetupComplete = false } = {}) {
     AppSettingQueries.setBool("setup_completed", true);
   }
 
-  applyRuntimeConfig(getEditableConfigValues());
+  applyRuntimeConfig(buildRuntimeConfigValues(runtimeOverrides));
   return values;
 }
 

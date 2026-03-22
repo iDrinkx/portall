@@ -1192,6 +1192,8 @@
                           type="<%= field.secret ? 'password' : 'text' %>"
                           value="<%= field.value || '' %>"
                           placeholder="<%= field.secret && field.configured ? 'Valeur deja configuree' : '' %>"
+                          data-configured="<%= field.configured ? 'true' : 'false' %>"
+                          data-dirty="false"
                           autocomplete="off"
                           spellcheck="false"
                         >
@@ -1719,10 +1721,31 @@
     });
 
     if (saveConfigBtn && configForm && configState) {
+      Array.from(configForm.querySelectorAll("input")).forEach(function (input) {
+        input.addEventListener("input", function () {
+          input.dataset.dirty = "true";
+        });
+      });
+
       saveConfigBtn.addEventListener("click", async function () {
         const payload = {};
-        new FormData(configForm).forEach(function (value, key) {
-          payload[key] = String(value || "").trim();
+        Array.from(configForm.querySelectorAll("input[name]")).forEach(function (input) {
+          const key = input.name;
+          const value = String(input.value || "").trim();
+          const isSecret = input.type === "password";
+          const wasConfigured = input.dataset.configured === "true";
+          const isDirty = input.dataset.dirty === "true";
+
+          if (isSecret) {
+            if (value) {
+              payload[key] = value;
+            } else if (wasConfigured && isDirty) {
+              payload[key] = "";
+            }
+            return;
+          }
+
+          payload[key] = value;
         });
 
         saveConfigBtn.disabled = true;
@@ -1737,7 +1760,14 @@
           if (!resp.ok) throw new Error((data && (data.message || data.error)) || ("HTTP " + resp.status));
           Array.from(configForm.querySelectorAll('input[type="password"]')).forEach(function (input) {
             input.value = "";
-            input.placeholder = "Valeur deja configuree";
+            const key = input.name;
+            const wasCleared = Object.prototype.hasOwnProperty.call(payload, key) && !payload[key];
+            input.dataset.configured = wasCleared ? "false" : "true";
+            input.dataset.dirty = "false";
+            input.placeholder = wasCleared ? "" : "Valeur deja configuree";
+          });
+          Array.from(configForm.querySelectorAll('input:not([type="password"])')).forEach(function (input) {
+            input.dataset.dirty = "false";
           });
           configState.textContent = "Connexions enregistrees avec succes.";
         } catch (err) {
