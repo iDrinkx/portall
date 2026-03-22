@@ -1260,6 +1260,7 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
+    const collectionsEnabled = areCollectionAchievementsEnabled();
     const username   = req.session.user.username;
     const joinedAtTs = req.session.user.joinedAtTimestamp;
     const today      = new Date().toLocaleDateString('fr-FR');
