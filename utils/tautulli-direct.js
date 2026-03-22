@@ -17,6 +17,7 @@ const traktListCache = {};
 const tautulliSchemaCache = {};
 const plexAvailabilityCache = {};
 const traktListInflight = {};
+const traktOfficialListIdCache = {};
 const plexLibraryIndexCache = { items: null, ts: 0, failedAt: 0, promise: null };
 const tautulliLibraryIndexCache = { items: null, ts: 0 };
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -30,31 +31,89 @@ const TRAKT_LISTS = {
   'tolkiendil': 'https://app.trakt.tv/users/bobbymarshal/lists/middle-earth',
   'evolutionist': 'https://app.trakt.tv/lists/official/1531',
   'agent-007': 'https://app.trakt.tv/users/maiki01/lists/james-bond-collection',
-  'fast-family': 'https://app.trakt.tv/users/coreyh047/lists/fast-and-furious',
-  'star-trek-universe': 'https://app.trakt.tv/users/nateynate87/lists/star-trek',
+  'fast-family': 'https://app.trakt.tv/lists/official/the-fast-and-the-furious-collection',
+  'star-trek-universe': 'https://app.trakt.tv/users/dgw/lists/star-trek-canon',
   'arrowverse': 'https://trakt.tv/users/dudeimtired/lists/arrowverse-collection',
   'monsterverse': 'https://trakt.tv/users/pullsa/lists/the-monsterverse'
 };
 
-function getTraktApiListUrl(traktListUrl) {
+async function resolveTraktOfficialListId(traktListUrl) {
   if (!traktListUrl) return null;
+  const cached = traktOfficialListIdCache[traktListUrl];
+  const now = Date.now();
+  if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
+    return cached.id;
+  }
+
+  try {
+    const response = await fetch(traktListUrl, { redirect: 'follow' });
+    if (!response.ok) {
+      throw new Error(`Trakt page HTTP ${response.status}`);
+    }
+
+    const redirectedUrl = new URL(response.url);
+    const redirectedParts = redirectedUrl.pathname.split('/').filter(Boolean);
+    if (redirectedParts[0] === 'lists' && /^\d+$/.test(redirectedParts[1] || '')) {
+      const id = redirectedParts[1];
+      traktOfficialListIdCache[traktListUrl] = { id, ts: now };
+      return id;
+    }
+
+    const html = await response.text();
+    const patterns = [
+      /"list"\s*:\s*\{[\s\S]*?"ids"\s*:\s*\{[\s\S]*?"trakt"\s*:\s*(\d+)/i,
+      /"ids"\s*:\s*\{[\s\S]*?"trakt"\s*:\s*(\d+)[\s\S]*?"slug"\s*:\s*"[^"]+"/i,
+      /https?:\/\/(?:app\.)?trakt\.tv\/lists\/(\d+)(?:[/?"]|$)/i,
+      /\/lists\/(\d+)(?:[/?"]|$)/i
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (!match?.[1]) continue;
+      const id = match[1];
+      traktOfficialListIdCache[traktListUrl] = { id, ts: now };
+      return id;
+    }
+  } catch (err) {
+    log.warn(`Trakt official resolve: ${err.message}`);
+  }
+
+  traktOfficialListIdCache[traktListUrl] = { id: null, ts: now };
+  return null;
+}
+
+async function getTraktApiListUrls(traktListUrl) {
+  if (!traktListUrl) return [];
+
   try {
     const parsed = new URL(traktListUrl);
     const parts = parsed.pathname.split('/').filter(Boolean);
 
     if (parts[0] === 'users' && parts[2] === 'lists' && parts[1] && parts[3]) {
-      return `https://api.trakt.tv/users/${parts[1]}/lists/${parts[3]}/items`;
+      return [`https://api.trakt.tv/users/${parts[1]}/lists/${parts[3]}/items`];
     }
 
     if (parts[0] === 'lists' && parts[1] === 'official' && parts[2]) {
-      return `https://api.trakt.tv/lists/${parts[2]}/items`;
+      const slugOrId = parts[2];
+      const urls = [];
+      if (/^\d+$/.test(slugOrId)) {
+        urls.push(`https://api.trakt.tv/lists/${slugOrId}/items`);
+      } else {
+        const resolvedId = await resolveTraktOfficialListId(traktListUrl);
+        if (resolvedId) {
+          urls.push(`https://api.trakt.tv/lists/${resolvedId}/items`);
+        }
+        urls.push(`https://api.trakt.tv/users/official/lists/${slugOrId}/items`);
+        urls.push(`https://api.trakt.tv/lists/${slugOrId}/items`);
+      }
+      return [...new Set(urls)];
     }
 
     if (parts[0] === 'lists' && parts[1]) {
-      return `https://api.trakt.tv/lists/${parts[1]}/items`;
+      return [`https://api.trakt.tv/lists/${parts[1]}/items`];
     }
   } catch (_) {}
-  return null;
+
+  return [];
 }
 
 async function getTraktListItems(achievementId) {
@@ -71,34 +130,50 @@ async function getTraktListItems(achievementId) {
     return traktListInflight[achievementId];
   }
 
-  const apiUrl = getTraktApiListUrl(traktListUrl);
-  if (!apiUrl) return null;
+  const apiUrls = await getTraktApiListUrls(traktListUrl);
+  if (!apiUrls.length) return null;
 
   const loadPromise = (async () => {
     try {
-    const items = [];
-    let page = 1;
-    const limit = 100;
+    let items = [];
+    let lastError = null;
 
-    while (page <= 10) {
-      const separator = apiUrl.includes('?') ? '&' : '?';
-      const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
-        headers: {
-          Accept: 'application/json',
-          'trakt-api-version': '2',
-          'trakt-api-key': traktClientId
+    for (const apiUrl of apiUrls) {
+      const collectedItems = [];
+      let page = 1;
+      const limit = 100;
+
+      try {
+        while (page <= 10) {
+          const separator = apiUrl.includes('?') ? '&' : '?';
+          const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
+            headers: {
+              Accept: 'application/json',
+              'trakt-api-version': '2',
+              'trakt-api-key': traktClientId
+            }
+          });
+
+          if (!resp.ok) throw new Error(`Trakt API HTTP ${resp.status}`);
+
+          const payload = await resp.json();
+          const pageItems = Array.isArray(payload) ? payload : [];
+          if (!pageItems.length) break;
+
+          collectedItems.push(...pageItems);
+          if (pageItems.length < limit) break;
+          page += 1;
         }
-      });
 
-      if (!resp.ok) throw new Error(`Trakt API HTTP ${resp.status}`);
+        items = collectedItems;
+        if (items.length > 0) break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
 
-      const payload = await resp.json();
-      const pageItems = Array.isArray(payload) ? payload : [];
-      if (!pageItems.length) break;
-
-      items.push(...pageItems);
-      if (pageItems.length < limit) break;
-      page += 1;
+    if (!items.length && lastError) {
+      throw lastError;
     }
 
     const normalized = items
@@ -290,14 +365,27 @@ function getPreferredPlexServerToken() {
   return configuredToken || '';
 }
 
-function normalizeCollectionTitle(value) {
+function decodeBasicHtmlEntities(value) {
   return String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
+function normalizeCollectionTitle(value) {
+  return decodeBasicHtmlEntities(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\b(the|a|an|le|la|les|un|une|des|du|de)\b/g, ' ')
+    .replace(/\bfast and furious 6\b/g, 'furious 6')
+    .replace(/\bfast and furious 7\b/g, 'furious 7')
     .replace(/\s+/g, ' ')
     .trim();
 }
