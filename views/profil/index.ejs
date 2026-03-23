@@ -1036,6 +1036,10 @@
     gap: 1px;
   }
 
+  .requests-quota-card.is-unlimited .requests-quota-ring::after {
+    content: "\221E";
+  }
+
   .requests-quota-title {
     color: #f2f6fb;
     font-size: 12px;
@@ -1789,7 +1793,12 @@
 
   function isUnlimitedQuota(quota) {
     if (!quota) return false;
-    return quota.restricted === false && !Number.isFinite(Number(quota.limit));
+    const quotaText = String(quota.text || '').trim().toLowerCase();
+    const limit = Number(quota.limit);
+    const remaining = Number(quota.remaining);
+    return (quota.restricted === false && !Number.isFinite(limit))
+      || quotaText.includes('illimit')
+      || (!Number.isFinite(limit) && !Number.isFinite(remaining));
   }
 
   function getQuotaProgressRatio(quota) {
