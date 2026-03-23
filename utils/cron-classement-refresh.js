@@ -5,7 +5,7 @@ const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
 const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
-const { refreshUserAchievementState } = require('./achievement-state');
+const { refreshUserAchievementState, queueBackgroundAchievementRefresh } = require('./achievement-state');
 const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');       // 🔑 Source de vérité
 const { getConfigValue } = require('./config');
 
@@ -436,6 +436,15 @@ async function refreshClassementCache() {
         }, {
           precomputedStats: statsHint,
           includeSecretEvaluation: false
+        });
+        queueBackgroundAchievementRefresh({
+          username: stats.username,
+          id: wizarrUser?.plexUserId || stats.userId || null,
+          email: wizarrUser?.email || null,
+          joinedAtTimestamp: joinedAtTs || null
+        }, {
+          precomputedStats: statsHint,
+          includeSecretEvaluation: true
         });
         const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null, statsHint);
         logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);

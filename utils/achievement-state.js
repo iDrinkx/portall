@@ -12,6 +12,11 @@ const log = require("./logger").create("[Achievement-State]");
 
 const SUCCESS_REFRESH_TTL_MS = 10 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BACKGROUND_REFRESH_CLEANUP_MS = 10 * 60 * 1000;
+
+const backgroundRefreshQueue = [];
+const backgroundRefreshJobs = new Map();
+let backgroundRefreshActiveCount = 0;
 
 function parseSqliteDateToMs(value) {
   if (!value) return 0;
@@ -83,6 +88,110 @@ function getDbUserFromSessionUser(sessionUser) {
   } catch (_) {}
 
   return UserQueries.getByUsername(username) || null;
+}
+
+function getBackgroundRefreshKey(sessionUser, dbUser = null) {
+  const resolvedDbUser = dbUser || getDbUserFromSessionUser(sessionUser);
+  if (resolvedDbUser?.id) return `user:${resolvedDbUser.id}`;
+  const username = String(sessionUser?.username || "").trim().toLowerCase();
+  return username ? `username:${username}` : null;
+}
+
+function scheduleBackgroundJobCleanup(jobKey) {
+  const timeout = setTimeout(() => {
+    const current = backgroundRefreshJobs.get(jobKey);
+    if (current && !current.running && !current.queued) {
+      backgroundRefreshJobs.delete(jobKey);
+    }
+  }, BACKGROUND_REFRESH_CLEANUP_MS);
+  if (typeof timeout.unref === "function") timeout.unref();
+}
+
+function getBackgroundAchievementRefreshStatus(sessionUser) {
+  const dbUser = getDbUserFromSessionUser(sessionUser);
+  const key = getBackgroundRefreshKey(sessionUser, dbUser);
+  const job = key ? backgroundRefreshJobs.get(key) : null;
+
+  return {
+    queued: !!job?.queued,
+    running: !!job?.running,
+    startedAt: job?.startedAt || null,
+    finishedAt: job?.finishedAt || null,
+    lastError: job?.lastError || null
+  };
+}
+
+function pumpBackgroundAchievementRefreshQueue() {
+  if (backgroundRefreshActiveCount > 0) return;
+  const nextJob = backgroundRefreshQueue.shift();
+  if (!nextJob) return;
+
+  const liveJob = backgroundRefreshJobs.get(nextJob.key);
+  if (!liveJob || liveJob !== nextJob || !liveJob.queued) {
+    setImmediate(pumpBackgroundAchievementRefreshQueue);
+    return;
+  }
+
+  liveJob.queued = false;
+  liveJob.running = true;
+  liveJob.startedAt = new Date().toISOString();
+  liveJob.finishedAt = null;
+  liveJob.lastError = null;
+  backgroundRefreshActiveCount += 1;
+
+  Promise.resolve()
+    .then(() => refreshUserAchievementState(liveJob.sessionUser, liveJob.options))
+    .catch((err) => {
+      liveJob.lastError = err?.message || "Erreur inconnue";
+      log.warn(`Refresh achievements arrière-plan impossible pour ${liveJob.sessionUser?.username || liveJob.key}: ${liveJob.lastError}`);
+    })
+    .finally(() => {
+      liveJob.running = false;
+      liveJob.finishedAt = new Date().toISOString();
+      backgroundRefreshActiveCount = Math.max(0, backgroundRefreshActiveCount - 1);
+      scheduleBackgroundJobCleanup(liveJob.key);
+      setImmediate(pumpBackgroundAchievementRefreshQueue);
+    });
+}
+
+function queueBackgroundAchievementRefresh(sessionUser, options = {}) {
+  const dbUser = getDbUserFromSessionUser(sessionUser);
+  const key = getBackgroundRefreshKey(sessionUser, dbUser);
+  if (!key) {
+    return { queued: false, running: false, started: false };
+  }
+
+  const existing = backgroundRefreshJobs.get(key);
+  if (existing?.queued || existing?.running) {
+    return {
+      queued: !!existing.queued,
+      running: !!existing.running,
+      started: false
+    };
+  }
+
+  const job = {
+    key,
+    sessionUser: {
+      username: sessionUser?.username || "",
+      id: sessionUser?.id || null,
+      email: sessionUser?.email || null,
+      joinedAt: sessionUser?.joinedAt || null,
+      joinedAtTimestamp: sessionUser?.joinedAtTimestamp || null
+    },
+    options: { ...options },
+    queued: true,
+    running: false,
+    startedAt: null,
+    finishedAt: null,
+    lastError: null
+  };
+
+  backgroundRefreshJobs.set(key, job);
+  backgroundRefreshQueue.push(job);
+  setImmediate(pumpBackgroundAchievementRefreshQueue);
+
+  return { queued: true, running: false, started: true };
 }
 
 async function persistAchievementState(sessionUser, dbUserId, data, options = {}) {
@@ -282,5 +391,7 @@ module.exports = {
   buildAchievementData,
   buildRenderProgressMap,
   getUserAchievementState,
-  refreshUserAchievementState
+  refreshUserAchievementState,
+  queueBackgroundAchievementRefresh,
+  getBackgroundAchievementRefreshStatus
 };

@@ -866,12 +866,14 @@
     var successRefreshMeta = {
       updatedAt: <%- JSON.stringify(successRefreshMeta?.updatedAt || null) %>,
       ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>,
-      needsRefresh: <%= successRefreshMeta?.needsRefresh ? 'true' : 'false' %>
+      needsRefresh: <%= successRefreshMeta?.needsRefresh ? 'true' : 'false' %>,
+      running: <%= successRefreshMeta?.running ? 'true' : 'false' %>
     };
     var successBasePath = '<%= basePath %>';
     var successIsEmbed = <%= (typeof embed !== 'undefined' && embed) ? 'true' : 'false' %>;
     var successRefreshTimerEl = document.getElementById('successRefreshTimer');
     var successAutoRefreshPending = false;
+    var successStatusPollHandle = null;
     var successAutoRefreshCooldownKey = 'portall.success.autoRefreshAt';
     var successRefreshTimerHandle = null;
     var successRefreshInstanceId = 'success-' + Date.now() + '-' + Math.random().toString(36).slice(2);
@@ -916,6 +918,86 @@
       if (!successIsEmbed) return true;
       var modal = document.getElementById('succesModal');
       return !!(modal && modal.classList.contains('active'));
+    }
+
+    function reloadSuccessView() {
+      if (!successIsEmbed) {
+        window.location.reload();
+        return;
+      }
+
+      var modalBody = document.getElementById('succesModalBody');
+      if (!modalBody) {
+        window.location.reload();
+        return;
+      }
+
+      fetch(successBasePath + '/succes?embed=1')
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          modalBody.innerHTML = html;
+          modalBody.removeAttribute('style');
+          modalBody.style.overflowX = 'hidden';
+          modalBody.dataset.loaded = '1';
+          modalBody.querySelectorAll('script').forEach(function(s) {
+            var ns = document.createElement('script');
+            ns.textContent = s.textContent;
+            s.replaceWith(ns);
+          });
+        })
+        .catch(function() {
+          window.location.reload();
+        });
+    }
+
+    function stopSuccessStatusPolling() {
+      if (successStatusPollHandle) {
+        clearInterval(successStatusPollHandle);
+        successStatusPollHandle = null;
+      }
+    }
+
+    function pollSuccessRefreshStatus() {
+      if (!isCurrentSuccessRefreshInstance()) {
+        stopSuccessStatusPolling();
+        return;
+      }
+      if (!successRefreshMeta.running) {
+        stopSuccessStatusPolling();
+        return;
+      }
+
+      fetch(successBasePath + '/api/badges-refresh-status')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(data) {
+          if (!isCurrentSuccessRefreshInstance()) {
+            stopSuccessStatusPolling();
+            return;
+          }
+
+          if (data.updatedAt) successRefreshMeta.updatedAt = data.updatedAt;
+          successRefreshMeta.needsRefresh = !!data.needsRefresh;
+          successRefreshMeta.running = !!data.running || !!data.queued;
+
+          if (successRefreshMeta.running) {
+            renderSuccessRefreshTimer();
+            return;
+          }
+
+          stopSuccessStatusPolling();
+          reloadSuccessView();
+        })
+        .catch(function() {
+          successRefreshMeta.running = false;
+          stopSuccessStatusPolling();
+          renderSuccessRefreshTimer();
+        });
+    }
+
+    function ensureSuccessStatusPolling() {
+      if (successStatusPollHandle || !successRefreshMeta.running) return;
+      successStatusPollHandle = setInterval(pollSuccessRefreshStatus, 5000);
+      pollSuccessRefreshStatus();
     }
 
     function updateSuccessRefreshTimer() {
@@ -1029,7 +1111,13 @@
       if (!successRefreshTimerEl) return;
       if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
 
-      var updatedAtMs = successRefreshMeta.updatedAt ? new Date(successRefreshMeta.updatedAt).getTime() : 0;
+      if (successRefreshMeta.running) {
+        successRefreshTimerEl.textContent = 'Actualisation en arrière-plan...';
+        ensureSuccessStatusPolling();
+        return;
+      }
+
+      var updatedAtMs = successRefreshMeta.updatedAt ? parseSuccessRefreshDate(successRefreshMeta.updatedAt) : 0;
       if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
 
       var now = Date.now();
@@ -1058,34 +1146,20 @@
         } catch (_) {}
         successRefreshTimerEl.textContent = 'Actualisation en cours...';
         fetch(successBasePath + '/api/badges-eval')
-          .then(function() {
-            if (!successIsEmbed) {
-              window.location.reload();
-              return;
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            successAutoRefreshPending = false;
+            if (data.updatedAt) successRefreshMeta.updatedAt = data.updatedAt;
+            successRefreshMeta.needsRefresh = !!data.needsRefresh;
+            successRefreshMeta.running = !!data.running || !!data.queued;
+            renderSuccessRefreshTimer();
+            if (!successRefreshMeta.running) {
+              reloadSuccessView();
             }
-
-            var modalBody = document.getElementById('succesModalBody');
-            if (!modalBody) {
-              window.location.reload();
-              return;
-            }
-
-            return fetch(successBasePath + '/succes?embed=1')
-              .then(function(r) { return r.text(); })
-              .then(function(html) {
-                modalBody.innerHTML = html;
-                modalBody.removeAttribute('style');
-                modalBody.style.overflowX = 'hidden';
-                modalBody.dataset.loaded = '1';
-                modalBody.querySelectorAll('script').forEach(function(s) {
-                  var ns = document.createElement('script');
-                  ns.textContent = s.textContent;
-                  s.replaceWith(ns);
-                });
-              });
           })
           .catch(function() {
             successAutoRefreshPending = false;
+            successRefreshMeta.running = false;
             successRefreshTimerEl.textContent = 'Actualisation au prochain chargement';
           });
       }

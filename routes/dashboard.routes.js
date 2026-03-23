@@ -26,7 +26,12 @@ const { getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautul
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // ?? Import EventEmitter
 const { calculateUserXp } = require("../utils/xp-calculator");  // ?? Fonction centralisée XP
-const { getUserAchievementState, SUCCESS_REFRESH_TTL_MS } = require("../utils/achievement-state");
+const {
+  getUserAchievementState,
+  SUCCESS_REFRESH_TTL_MS,
+  queueBackgroundAchievementRefresh,
+  getBackgroundAchievementRefreshStatus
+} = require("../utils/achievement-state");
 const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
 const {
   getDashboardBuiltinAdminItems,
@@ -1109,6 +1114,11 @@ router.get("/succes", requireAuth, async (req, res) => {
   try {
     const collectionsEnabled = areCollectionAchievementsEnabled();
     const achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    if (achievementState.needsRefresh && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
+      queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
+      backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    }
     const { data, userUnlockedMap, renderProgressMap } = achievementState;
 
     const achievementsByCategory = {
@@ -1144,7 +1154,8 @@ router.get("/succes", requireAuth, async (req, res) => {
         updatedAt: achievementState.snapshot?.updatedAt || null,
         ttlMs: SUCCESS_REFRESH_TTL_MS,
         refreshed: !!achievementState.refreshed,
-        needsRefresh: !!achievementState.needsRefresh
+        needsRefresh: !!achievementState.needsRefresh,
+        running: !!backgroundRefreshStatus.running || !!backgroundRefreshStatus.queued
       },
       layout: req.query.embed === '1' ? false : 'layout',
       embed: req.query.embed === '1'
@@ -1161,7 +1172,8 @@ router.get("/succes", requireAuth, async (req, res) => {
       successRefreshMeta: {
         updatedAt: null,
         ttlMs: SUCCESS_REFRESH_TTL_MS,
-        refreshed: false
+        refreshed: false,
+        running: false
       },
       error: "Erreur lors du chargement des achievements",
       layout: req.query.embed === '1' ? false : 'layout',
@@ -1238,10 +1250,18 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
-    const state = await getUserAchievementState(req.session.user, { forceRefresh: true });
+    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    if (!refreshStatus.running && !refreshStatus.queued) {
+      queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
+      refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    }
     res.json({
       success: true,
       refreshed: state.refreshed,
+      queued: !!refreshStatus.queued,
+      running: !!refreshStatus.running || !!refreshStatus.queued,
+      needsRefresh: !!state.needsRefresh,
       updatedAt: state.snapshot?.updatedAt || null,
       data: state.data,
       unlocked: state.userUnlockedMap,
@@ -1250,6 +1270,23 @@ router.get('/api/badges-eval', requireAuth, async (req, res) => {
   } catch (err) {
     logBadges.error('badges-eval crash:', err.message);
     res.status(500).json({ success: false, unlocked: {}, progress: {}, data: {} });
+  }
+});
+
+router.get('/api/badges-refresh-status', requireAuth, async (req, res) => {
+  try {
+    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    const refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    res.json({
+      success: true,
+      queued: !!refreshStatus.queued,
+      running: !!refreshStatus.running,
+      needsRefresh: !!state.needsRefresh,
+      updatedAt: state.snapshot?.updatedAt || null
+    });
+  } catch (err) {
+    logBadges.error('badges-refresh-status crash:', err.message);
+    res.status(500).json({ success: false, queued: false, running: false, needsRefresh: false, updatedAt: null });
   }
 });
 
