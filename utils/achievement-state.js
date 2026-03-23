@@ -1,3 +1,5 @@
+const path = require("path");
+const { spawn } = require("child_process");
 const { ACHIEVEMENTS, areCollectionAchievementsEnabled } = require("./achievements");
 const {
   UserQueries,
@@ -17,6 +19,7 @@ const BACKGROUND_REFRESH_CLEANUP_MS = 10 * 60 * 1000;
 const backgroundRefreshQueue = [];
 const backgroundRefreshJobs = new Map();
 let backgroundRefreshActiveCount = 0;
+const backgroundRefreshWorkerPath = path.join(__dirname, "achievement-refresh-worker.js");
 
 function parseSqliteDateToMs(value) {
   if (!value) return 0;
@@ -139,19 +142,51 @@ function pumpBackgroundAchievementRefreshQueue() {
   liveJob.lastError = null;
   backgroundRefreshActiveCount += 1;
 
-  Promise.resolve()
-    .then(() => refreshUserAchievementState(liveJob.sessionUser, liveJob.options))
-    .catch((err) => {
-      liveJob.lastError = err?.message || "Erreur inconnue";
-      log.warn(`Refresh achievements arrière-plan impossible pour ${liveJob.sessionUser?.username || liveJob.key}: ${liveJob.lastError}`);
-    })
-    .finally(() => {
-      liveJob.running = false;
-      liveJob.finishedAt = new Date().toISOString();
-      backgroundRefreshActiveCount = Math.max(0, backgroundRefreshActiveCount - 1);
-      scheduleBackgroundJobCleanup(liveJob.key);
-      setImmediate(pumpBackgroundAchievementRefreshQueue);
+  let finished = false;
+  const finalize = (errorMessage = null) => {
+    if (finished) return;
+    finished = true;
+    if (errorMessage) {
+      liveJob.lastError = errorMessage;
+      log.warn(`Refresh achievements arrière-plan impossible pour ${liveJob.sessionUser?.username || liveJob.key}: ${errorMessage}`);
+    }
+    liveJob.running = false;
+    liveJob.finishedAt = new Date().toISOString();
+    backgroundRefreshActiveCount = Math.max(0, backgroundRefreshActiveCount - 1);
+    scheduleBackgroundJobCleanup(liveJob.key);
+    setImmediate(pumpBackgroundAchievementRefreshQueue);
+  };
+
+  try {
+    const child = spawn(process.execPath, [backgroundRefreshWorkerPath, JSON.stringify({
+      sessionUser: liveJob.sessionUser,
+      options: liveJob.options
+    })], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ["ignore", "ignore", "pipe"]
     });
+
+    let stderrBuffer = "";
+    child.stderr.on("data", chunk => {
+      stderrBuffer += String(chunk || "");
+    });
+
+    child.on("error", err => {
+      finalize(err?.message || "Erreur worker inconnue");
+    });
+
+    child.on("exit", code => {
+      if (code === 0) {
+        finalize(null);
+        return;
+      }
+      const stderr = stderrBuffer.trim();
+      finalize(stderr || `Worker terminé avec code ${code}`);
+    });
+  } catch (err) {
+    finalize(err?.message || "Impossible de lancer le worker");
+  }
 }
 
 function queueBackgroundAchievementRefresh(sessionUser, options = {}) {
