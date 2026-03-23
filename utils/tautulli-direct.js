@@ -1641,6 +1641,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 AND CAST(strftime('%H', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) = 0
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
+            progress[id] = { current: r ? 1 : 0, total: 1 };
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { log.warn('midnight-watcher:', e.message); }
           break;
@@ -1660,6 +1661,18 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               GROUP BY week HAVING hours >= 20
               ORDER BY week ASC LIMIT 1
             `).get(userFilter.param);
+            const bestWeekend = tautulliDb.prepare(`
+              SELECT MAX(weekend_hours) as max_hours
+              FROM (
+                SELECT SUM(CAST(sh.stopped - sh.started AS REAL) / 3600) as weekend_hours
+                FROM session_history sh
+                WHERE ${userFilter.clause} AND sh.stopped > sh.started
+                  AND CAST(strftime('%w', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) IN (0, 6)
+                GROUP BY strftime('%Y-%W', datetime(sh.started, 'unixepoch', 'localtime'))
+              ) w
+            `).get(userFilter.param);
+            const current = Math.min(Math.round(Number(bestWeekend?.max_hours || 0) * 10) / 10, 20);
+            progress[id] = { current, total: 20 };
             if (r) results[id] = fmt(r.last_stopped) || today;
           } catch(e) { log.warn('weekend-warrior:', e.message); }
           break;
@@ -1731,6 +1744,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 AND strftime('%m-%d', datetime(sh.started, 'unixepoch', 'localtime')) = '12-31'
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
+            progress[id] = { current: r ? 1 : 0, total: 1 };
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { log.warn('countdown-pajama:', e.message); }
           break;
