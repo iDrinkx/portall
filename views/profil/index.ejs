@@ -127,20 +127,32 @@
     </div>
 
     <!-- CARTE REQUÊTES -->
-    <div class="profil-card">
+    <div class="profil-card requests-card">
       <h2><img src="<%= basePath %>/img/seerr-icon.svg" alt="Seerr" class="card-header-logo"> Demandes</h2>
-      <div class="card-content">
-        <div class="stat-row">
-          <span class="stat-label">Total demandes</span>
-          <span class="stat-value skel" id="totalRequests"></span>
+      <div class="card-content requests-content">
+        <div class="requests-total-panel">
+          <span class="requests-total-label">Total des demandes</span>
+          <span class="requests-total-value skel" id="totalRequests"></span>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">Films</span>
-          <span class="stat-value approved skel" id="pendingRequests"></span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Séries</span>
-          <span class="stat-value available skel" id="availableRequests"></span>
+
+        <div class="requests-quota-grid">
+          <div class="requests-quota-card movies">
+            <span class="requests-quota-ring" aria-hidden="true"></span>
+            <div class="requests-quota-copy">
+              <span class="requests-quota-title">Demandes de films</span>
+              <span class="requests-quota-meta" id="movieQuotaMeta">Quota en cours</span>
+              <span class="requests-quota-value approved skel" id="pendingRequests"></span>
+            </div>
+          </div>
+
+          <div class="requests-quota-card series">
+            <span class="requests-quota-ring" aria-hidden="true"></span>
+            <div class="requests-quota-copy">
+              <span class="requests-quota-title">Demandes de séries</span>
+              <span class="requests-quota-meta" id="tvQuotaMeta">Quota en cours</span>
+              <span class="requests-quota-value available skel" id="availableRequests"></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -885,6 +897,127 @@
     color: #9b6fd4;
   }
 
+  .requests-card {
+    padding-bottom: 20px;
+  }
+
+  .requests-content {
+    gap: 16px;
+  }
+
+  .requests-total-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)),
+      rgba(8, 14, 24, 0.55);
+  }
+
+  .requests-total-label {
+    color: #d9e4f1;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .requests-total-value {
+    color: #fff;
+    font-size: 42px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .requests-quota-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .requests-quota-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+      rgba(8, 14, 24, 0.48);
+  }
+
+  .requests-quota-card.movies {
+    box-shadow: inset 0 0 0 1px rgba(76, 175, 80, 0.08);
+  }
+
+  .requests-quota-card.series {
+    box-shadow: inset 0 0 0 1px rgba(155, 111, 212, 0.10);
+  }
+
+  .requests-quota-ring {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+
+  .requests-quota-card.movies .requests-quota-ring {
+    background: conic-gradient(#2fd070 0deg 290deg, rgba(47, 208, 112, 0.16) 290deg 360deg);
+  }
+
+  .requests-quota-card.series .requests-quota-ring {
+    background: conic-gradient(#a77cff 0deg 290deg, rgba(167, 124, 255, 0.16) 290deg 360deg);
+  }
+
+  .requests-quota-ring::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: rgba(12, 18, 29, 0.96);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .requests-quota-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .requests-quota-title {
+    color: #f2f6fb;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .requests-quota-meta {
+    color: rgba(226, 236, 247, 0.72);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .requests-quota-value {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .requests-quota-value.approved {
+    color: #36d36d;
+  }
+
+  .requests-quota-value.available {
+    color: #b287ff;
+  }
+
   /* BADGES */
   .badges-section {
     background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
@@ -1306,6 +1439,29 @@
       grid-template-columns: 1fr;
     }
 
+    .requests-total-value {
+      font-size: 34px;
+    }
+
+    .requests-quota-card {
+      padding: 14px 15px;
+      gap: 12px;
+    }
+
+    .requests-quota-ring {
+      flex-basis: 28px;
+      width: 28px;
+      height: 28px;
+    }
+
+    .requests-quota-title {
+      font-size: 13px;
+    }
+
+    .requests-quota-value {
+      font-size: 16px;
+    }
+
     .badges-container {
       grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     }
@@ -1501,6 +1657,8 @@
         totalRequests:    t("totalRequests"),
         pendingRequests:  t("pendingRequests"),
         availableRequests:t("availableRequests"),
+        movieQuotaMeta:   t("movieQuotaMeta"),
+        tvQuotaMeta:      t("tvQuotaMeta"),
         // Visionnage (Tautulli)
         sessionCount:     t("counterSessions"),
         totalHours:       t("statTotalHours"),
@@ -1558,6 +1716,8 @@
       s("totalRequests",    snap.totalRequests);
       s("pendingRequests",  snap.pendingRequests);
       s("availableRequests",snap.availableRequests);
+      s("movieQuotaMeta",   snap.movieQuotaMeta);
+      s("tvQuotaMeta",      snap.tvQuotaMeta);
       // Visionnage
       s("counterSessions",  snap.sessionCount);
       s("statTotalHours",   snap.totalHours);
@@ -1568,6 +1728,18 @@
       s("counterMusic",     snap.musicCount);
       s("statMusicHours",   snap.musicHours);
     } catch (_) {}
+  }
+
+  function formatQuotaMeta(quota, fallbackLabel = "Quota en cours") {
+    if (!quota) return fallbackLabel;
+    const days = Number(quota.days);
+    if (Number.isFinite(days) && days > 0) {
+      return `Derniers ${days} jours`;
+    }
+    if (quota.restricted === false && !Number.isFinite(Number(quota.limit))) {
+      return "Sans restriction";
+    }
+    return fallbackLabel;
   }
 
   // Supprime la classe skeleton sur une liste d'IDs (appelé après chaque batch)
@@ -1941,11 +2113,15 @@
       const totalReqEl = document.getElementById("totalRequests");
       const pendingEl = document.getElementById("pendingRequests");
       const availableEl = document.getElementById("availableRequests");
+      const movieQuotaMetaEl = document.getElementById("movieQuotaMeta");
+      const tvQuotaMetaEl = document.getElementById("tvQuotaMeta");
       const reqCountEl = document.getElementById("requestCount2");
       
       if (totalReqEl) totalReqEl.textContent = seerrData.total;
       if (pendingEl) pendingEl.textContent = seerrData.movieQuota?.text || "Illimité";
       if (availableEl) availableEl.textContent = seerrData.tvQuota?.text || "Illimité";
+      if (movieQuotaMetaEl) movieQuotaMetaEl.textContent = formatQuotaMeta(seerrData.movieQuota, "Quota films");
+      if (tvQuotaMetaEl) tvQuotaMetaEl.textContent = formatQuotaMeta(seerrData.tvQuota, "Quota séries");
       if (reqCountEl) reqCountEl.textContent = seerrData.total + " demandes";
       
       console.log("[PROFIL] ✅ Seerr affiché:", seerrData);
@@ -2469,6 +2645,8 @@
         if (el("totalRequests"))    el("totalRequests").textContent    = seerr.total;
         if (el("pendingRequests"))  el("pendingRequests").textContent  = seerr.movieQuota?.text || "Illimité";
         if (el("availableRequests"))el("availableRequests").textContent= seerr.tvQuota?.text || "Illimité";
+        if (el("movieQuotaMeta"))   el("movieQuotaMeta").textContent   = formatQuotaMeta(seerr.movieQuota, "Quota films");
+        if (el("tvQuotaMeta"))      el("tvQuotaMeta").textContent      = formatQuotaMeta(seerr.tvQuota, "Quota séries");
         if (el("requestCount2"))    el("requestCount2").textContent    = seerr.total + " demandes";
       }
 
