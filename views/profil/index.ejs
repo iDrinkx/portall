@@ -974,35 +974,36 @@
     border-radius: 50%;
     position: relative;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    --quota-progress: 360deg;
+    --quota-color-solid: #2fd070;
+    --quota-color-soft: rgba(47, 208, 112, 0.16);
   }
 
   .requests-quota-card.movies .requests-quota-ring {
-    background: conic-gradient(#2fd070 0deg 290deg, rgba(47, 208, 112, 0.16) 290deg 360deg);
+    --quota-color-solid: #2fd070;
+    --quota-color-soft: rgba(47, 208, 112, 0.16);
+    background: conic-gradient(var(--quota-color-solid) 0deg var(--quota-progress), var(--quota-color-soft) var(--quota-progress) 360deg);
   }
 
   .requests-quota-card.series .requests-quota-ring {
-    background: conic-gradient(#a77cff 0deg 290deg, rgba(167, 124, 255, 0.16) 290deg 360deg);
+    --quota-color-solid: #a77cff;
+    --quota-color-soft: rgba(167, 124, 255, 0.16);
+    background: conic-gradient(var(--quota-color-solid) 0deg var(--quota-progress), var(--quota-color-soft) var(--quota-progress) 360deg);
   }
 
   .requests-quota-card.is-unlimited .requests-quota-ring {
-    background:
-      radial-gradient(circle at center, rgba(255,255,255,0.06) 0 8px, transparent 8px),
-      repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 10deg, transparent 10deg 20deg);
+    background: rgba(255,255,255,0.03);
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,0.10),
       0 0 12px rgba(255,255,255,0.06);
   }
 
   .requests-quota-card.movies.is-unlimited .requests-quota-ring {
-    background:
-      radial-gradient(circle at center, rgba(47, 208, 112, 0.18) 0 8px, transparent 8px),
-      repeating-conic-gradient(from 0deg, rgba(47, 208, 112, 0.9) 0deg 10deg, rgba(47, 208, 112, 0.18) 10deg 20deg);
+    color: #2fd070;
   }
 
   .requests-quota-card.series.is-unlimited .requests-quota-ring {
-    background:
-      radial-gradient(circle at center, rgba(167, 124, 255, 0.18) 0 8px, transparent 8px),
-      repeating-conic-gradient(from 0deg, rgba(167, 124, 255, 0.9) 0deg 10deg, rgba(167, 124, 255, 0.18) 10deg 20deg);
+    color: #a77cff;
   }
 
   .requests-quota-ring::after {
@@ -1012,6 +1013,20 @@
     border-radius: 50%;
     background: rgba(12, 18, 29, 0.96);
     border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .requests-quota-card.is-unlimited .requests-quota-ring::after {
+    content: "∞";
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    font-weight: 800;
+    color: currentColor;
+    text-shadow: 0 0 10px color-mix(in srgb, currentColor 55%, transparent);
   }
 
   .requests-quota-copy {
@@ -1777,10 +1792,44 @@
     return quota.restricted === false && !Number.isFinite(Number(quota.limit));
   }
 
+  function getQuotaProgressRatio(quota) {
+    if (!quota || isUnlimitedQuota(quota)) return null;
+    const limit = Number(quota.limit);
+    if (!Number.isFinite(limit) || limit <= 0) return null;
+
+    const usedRaw = Number(quota.used);
+    const remainingRaw = Number(quota.remaining);
+    if (Number.isFinite(remainingRaw)) {
+      return Math.max(0, Math.min(1, remainingRaw / limit));
+    }
+
+    let used = Number.isFinite(usedRaw) ? usedRaw : null;
+
+    if (used === null && Number.isFinite(remainingRaw)) {
+      used = Math.max(0, limit - remainingRaw);
+    }
+    if (used === null) return null;
+
+    return Math.max(0, Math.min(1, (limit - used) / limit));
+  }
+
   function applyQuotaCardState(cardType, quota) {
     const card = document.querySelector(`.requests-quota-card.${cardType}`);
     if (!card) return;
-    card.classList.toggle('is-unlimited', isUnlimitedQuota(quota));
+    const ring = card.querySelector('.requests-quota-ring');
+    const unlimited = isUnlimitedQuota(quota);
+    const ratio = getQuotaProgressRatio(quota);
+
+    card.classList.toggle('is-unlimited', unlimited);
+    if (!ring) return;
+
+    if (unlimited) {
+      ring.style.setProperty('--quota-progress', '360deg');
+      return;
+    }
+
+    const degrees = ratio == null ? 24 : Math.max(18, Math.round(ratio * 360));
+    ring.style.setProperty('--quota-progress', `${degrees}deg`);
   }
 
   // Supprime la classe skeleton sur une liste d'IDs (appelé après chaque batch)
