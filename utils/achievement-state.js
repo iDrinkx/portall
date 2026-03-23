@@ -121,6 +121,12 @@ function normalizeSnapshot(snapshot = null) {
   };
 }
 
+function isSnapshotFullyEvaluated(snapshot = null, maxAgeMs = SUCCESS_REFRESH_TTL_MS) {
+  if (!snapshot?.fullEvaluatedAt) return false;
+  const ageMs = Math.max(0, Date.now() - parseSqliteDateToMs(snapshot.fullEvaluatedAt));
+  return ageMs <= maxAgeMs;
+}
+
 function getDbUserFromSessionUser(sessionUser) {
   const username = String(sessionUser?.username || "").trim();
   if (!username) return null;
@@ -279,6 +285,7 @@ async function persistAchievementState(sessionUser, dbUserId, data, options = {}
   const joinedAtSeconds = normalizeJoinedAtSeconds(sessionUser?.joinedAtTimestamp || sessionUser?.joinedAt);
   const today = new Date().toLocaleDateString("fr-FR");
   const includeSecretEvaluation = options.includeSecretEvaluation !== false;
+  const previousSnapshot = normalizeSnapshot(AchievementSnapshotQueries.getForUser(dbUserId));
 
   const initialUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
   const computedDates = getAchievementUnlockDates(username, joinedAtSeconds || null);
@@ -351,11 +358,22 @@ async function persistAchievementState(sessionUser, dbUserId, data, options = {}
   const userUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
   const progressMap = dbUserId ? AchievementProgressQueries.getForUser(dbUserId) : {};
   const xpSnapshot = buildXpSnapshot(data, userUnlockedMap, progressMap);
+  const persistedXpSnapshot = !includeSecretEvaluation && previousSnapshot
+    ? {
+        badgeCount: Number(previousSnapshot.badgeCount || 0),
+        totalXp: Number(previousSnapshot.totalXp || 0),
+        level: Math.max(1, Number(previousSnapshot.level || 1)),
+        rank: previousSnapshot.rank || xpSnapshot.rank,
+        progressPercent: Number(previousSnapshot.progressPercent || 0),
+        xpNeeded: Number(previousSnapshot.xpNeeded || 0)
+      }
+    : xpSnapshot;
 
   AchievementSnapshotQueries.save(dbUserId, {
     ...data,
     daysJoined: data.daysSince,
-    ...xpSnapshot
+    ...persistedXpSnapshot,
+    fullEvaluatedAt: includeSecretEvaluation ? new Date().toISOString() : (previousSnapshot?.fullEvaluatedAt || null)
   });
 
   return {
@@ -363,7 +381,7 @@ async function persistAchievementState(sessionUser, dbUserId, data, options = {}
     data,
     userUnlockedMap,
     progressMap,
-    xpSnapshot
+    xpSnapshot: persistedXpSnapshot
   };
 }
 
@@ -456,8 +474,10 @@ async function getUserAchievementState(sessionUser, options = {}) {
   let refreshed = false;
   const snapshotAgeMs = snapshot?.updatedAt ? Math.max(0, Date.now() - parseSqliteDateToMs(snapshot.updatedAt)) : Infinity;
   const stale = !snapshot || snapshotAgeMs > maxAgeMs;
+  const fullyEvaluated = isSnapshotFullyEvaluated(snapshot, maxAgeMs);
+  const needsRefresh = !fullyEvaluated || stale;
 
-  if (!skipRefresh && (forceRefresh || stale)) {
+  if (!skipRefresh && (forceRefresh || needsRefresh)) {
     const refreshResult = await recomputeUserAchievementState(sessionUser, dbUserId, options);
     refreshed = !!refreshResult.refreshed;
     snapshot = normalizeSnapshot(AchievementSnapshotQueries.getForUser(dbUserId)) || snapshot;
@@ -477,7 +497,7 @@ async function getUserAchievementState(sessionUser, options = {}) {
     snapshot,
     refreshed,
     stale,
-    needsRefresh: stale && !forceRefresh
+    needsRefresh: needsRefresh && !forceRefresh
   };
 }
 

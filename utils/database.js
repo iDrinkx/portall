@@ -213,11 +213,11 @@ function mergeUsersCaseInsensitive() {
         INSERT INTO achievement_snapshots (
           user_id, total_hours, movie_count, episode_count, session_count, monthly_hours, night_count, morning_count,
           days_joined, badge_count, total_xp, level, rank_name, rank_icon, rank_color, rank_bg_color, rank_border_color,
-          progress_percent, xp_needed, updated_at
+          progress_percent, xp_needed, full_evaluated_at, updated_at
         )
         SELECT ?, total_hours, movie_count, episode_count, session_count, monthly_hours, night_count, morning_count,
           days_joined, badge_count, total_xp, level, rank_name, rank_icon, rank_color, rank_bg_color, rank_border_color,
-          progress_percent, xp_needed, updated_at
+          progress_percent, xp_needed, full_evaluated_at, updated_at
         FROM achievement_snapshots
         WHERE user_id = ?
         ON CONFLICT(user_id) DO UPDATE SET
@@ -239,6 +239,7 @@ function mergeUsersCaseInsensitive() {
           rank_border_color = CASE WHEN excluded.total_xp >= achievement_snapshots.total_xp THEN excluded.rank_border_color ELSE achievement_snapshots.rank_border_color END,
           progress_percent = CASE WHEN excluded.total_xp >= achievement_snapshots.total_xp THEN excluded.progress_percent ELSE achievement_snapshots.progress_percent END,
           xp_needed = CASE WHEN excluded.total_xp >= achievement_snapshots.total_xp THEN excluded.xp_needed ELSE achievement_snapshots.xp_needed END,
+          full_evaluated_at = COALESCE(excluded.full_evaluated_at, achievement_snapshots.full_evaluated_at),
           updated_at = CURRENT_TIMESTAMP
       `).run(canonical.id, duplicate.id);
       db.prepare(`DELETE FROM achievement_snapshots WHERE user_id = ?`).run(duplicate.id);
@@ -307,6 +308,7 @@ function runMigrations() {
     attemptAddColumn('achievement_snapshots', 'rank_border_color', "TEXT DEFAULT ''");
     attemptAddColumn('achievement_snapshots', 'progress_percent', 'REAL DEFAULT 0');
     attemptAddColumn('achievement_snapshots', 'xp_needed', 'INTEGER DEFAULT 0');
+    attemptAddColumn('achievement_snapshots', 'full_evaluated_at', 'DATETIME');
     
     // Table: users
     db.exec(`
@@ -464,6 +466,7 @@ function runMigrations() {
         rank_border_color TEXT DEFAULT '',
         progress_percent REAL DEFAULT 0,
         xp_needed INTEGER DEFAULT 0,
+        full_evaluated_at DATETIME,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
@@ -1021,9 +1024,9 @@ const AchievementSnapshotQueries = {
       INSERT INTO achievement_snapshots (
         user_id, total_hours, movie_count, episode_count, session_count, monthly_hours, night_count, morning_count,
         days_joined, badge_count, total_xp, level, rank_name, rank_icon, rank_color, rank_bg_color, rank_border_color,
-        progress_percent, xp_needed, updated_at
+        progress_percent, xp_needed, full_evaluated_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id) DO UPDATE SET
         total_hours = excluded.total_hours,
         movie_count = excluded.movie_count,
@@ -1043,6 +1046,7 @@ const AchievementSnapshotQueries = {
         rank_border_color = excluded.rank_border_color,
         progress_percent = excluded.progress_percent,
         xp_needed = excluded.xp_needed,
+        full_evaluated_at = excluded.full_evaluated_at,
         updated_at = CURRENT_TIMESTAMP
     `).run(
       userId,
@@ -1063,7 +1067,8 @@ const AchievementSnapshotQueries = {
       String(stats.rank?.bgColor || stats.rankBgColor || ""),
       String(stats.rank?.borderColor || stats.rankBorderColor || ""),
       Number(stats.progressPercent || 0),
-      Number(stats.xpNeeded || 0)
+      Number(stats.xpNeeded || 0),
+      stats.fullEvaluatedAt || null
     );
   },
 
@@ -1089,6 +1094,7 @@ const AchievementSnapshotQueries = {
         rank_border_color as rankBorderColor,
         progress_percent as progressPercent,
         xp_needed as xpNeeded,
+        strftime('%Y-%m-%dT%H:%M:%SZ', full_evaluated_at) as fullEvaluatedAt,
         strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) as updatedAt
       FROM achievement_snapshots
       WHERE user_id = ?

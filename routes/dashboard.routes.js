@@ -16,7 +16,6 @@ const { ACHIEVEMENTS, hydrateAchievementTexts, areCollectionAchievementsEnabled,
 const {
   UserAchievementQueries,
   UserQueries,
-  AchievementProgressQueries,
   DatabaseMaintenance,
   AppSettingQueries,
   DashboardCardQueries,
@@ -1171,7 +1170,17 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 router.get("/succes", requireAuth, async (req, res) => {
   try {
     const collectionsEnabled = areCollectionAchievementsEnabled();
-    const achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    const collectionAchievementIds = collectionsEnabled ? ACHIEVEMENTS.collections.map(a => a.id) : [];
+    const collectionsMissingState = collectionsEnabled && collectionAchievementIds.length > 0
+      && !collectionAchievementIds.some(id =>
+        achievementState.userUnlockedMap?.[id] || achievementState.progressMap?.[id]
+      );
+
+    if (collectionsMissingState) {
+      achievementState = await refreshUserAchievementState(req.session.user, { includeSecretEvaluation: true });
+    }
+
     let backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     if (achievementState.needsRefresh && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
       queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });

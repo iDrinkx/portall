@@ -1797,7 +1797,6 @@
   const XP_MULTIPLIERS = { HOURS: 10, ANCIENNETE: 1.5 };
   const PAGE_UNLOCKED_BADGES = <%= unlockedBadgesCount || 0 %>;
   const PAGE_TOTAL_BADGES    = <%= totalBadgesCount    || 0 %>;
-  const PAGE_ACHIEVEMENTS_XP = <%= totalAchievementsXp || 0 %>;
   let _lastProfilRefreshTs = null;
   let _profilRefreshTimerHandle = null;
 
@@ -2109,10 +2108,6 @@
   =============================== */
 
   document.addEventListener("DOMContentLoaded", async () => {
-    console.log("[PROFIL] ========== DÉBUT CHARGEMENT ==========");
-    console.log("[PROFIL] basePath:", basePath);
-    console.log("[PROFIL] userId:", userId);
-    
     renderBadges();
 
     // ⚡ Stale-While-Revalidate : afficher instantanément la dernière
@@ -2120,21 +2115,16 @@
     const _cachedSnap = loadXpSnapshot();
     if (_cachedSnap) {
       applyXpDisplay(_cachedSnap);
-      console.log("[XP-CACHE] ⚡ Snapshot XP restauré:", _cachedSnap.badge?.name, _cachedSnap.totalXp, "XP");
     }
 
     // ⚡ Stale-While-Revalidate — toutes les données lentes (Tautulli, Wizarr, Seerr)
     const _cachedProfil = loadProfilSnapshot();
     if (_cachedProfil) {
       applyProfilSnapshot(_cachedProfil);
-      console.log("[PROFIL-CACHE] ⚡ Snapshot profil restauré");
     }
 
     try {
-      console.log("[PROFIL] 🚀 Chargement progressif des données");
-      
       // ÉTAPE 1: Charger rapidement Seerr + Wizarr (pas de timeout long)
-      console.log("[PROFIL] Chargement Seerr + Wizarr (rapide)...");
       const [seerrRes, subscriptionRes, xpSnapRes] = await Promise.allSettled([
         loadSeerrStats(),
         loadSubscription(),
@@ -2147,8 +2137,6 @@
         : { total: 0, pending: 0, movieRequests: 0, tvRequests: 0, movieQuota: { text: "Illimité" }, tvQuota: { text: "Illimité" }, approved: 0, available: 0 };
       const subscriptionData = subscriptionRes.status === 'fulfilled' ? subscriptionRes.value || {} : {};
       const xpSnapshotData = xpSnapRes.status === 'fulfilled' ? xpSnapRes.value : null;
-      
-      console.log("[PROFIL] ✅ Seerr + Wizarr chargés - affichage immédiat");
       
       // Afficher les stats Seerr IMMÉDIATEMENT
       const totalReqEl = document.getElementById("totalRequests");
@@ -2167,8 +2155,6 @@
       applyQuotaCardState('series', seerrData.tvQuota);
       if (reqCountEl) reqCountEl.textContent = seerrData.total + " demandes";
       
-      console.log("[PROFIL] ✅ Seerr affiché:", seerrData);
-      
       // Afficher abonnement IMMÉDIATEMENT
       const profilSubCard    = document.getElementById('profilSubCard');
       const profilSubStatus  = document.getElementById('profilSubStatus');
@@ -2185,7 +2171,6 @@
         if (profilSubDays) profilSubDays.textContent = subscriptionData.daysLeft || '—';
         if (profilSubExpire) profilSubExpire.textContent = subscriptionData.expiresAt || '—';
         if (profilSubProgress) profilSubProgress.style.width = (subscriptionData.progressPercent || 0) + '%';
-        console.log('[PROFIL] \u2705 Abonnement affiché');
       } else if (profilSubStatus) {
         profilSubStatus.className = 'status-badge not_found';
         profilSubStatus.textContent = 'Non trouvé';
@@ -2211,7 +2196,6 @@
       saveProfilSnapshot();
       
       // ÉTAPE 3: Charger Tautulli en PARALLÈLE (peut prendre du temps)
-      console.log("[PROFIL] Chargement Tautulli en arrière-plan (avec polling)...");
       const tautulliRes = await Promise.allSettled([loadTautulliStats()]);
       
       // Extraire les données Tautulli du promise
@@ -2220,7 +2204,6 @@
       const overseerr = seerrData;
       const subscription = subscriptionData;
 
-      console.log("[PROFIL] ✅ Données chargées - Tautulli:", tautulliData);
 
       // ===== AFFICHER LES STATS DE VISIONNAGE (Watch Stats) =====
       if (tautulliData && tautulliData.watchStats) {
@@ -2316,34 +2299,28 @@
         if (sessionEl2) sessionEl2.textContent = tautulliSessionCount + " sessions";
       }
 
-      // CALCUL XP BREAKDOWN avec 3 sources (fait en premier!)
-      // XP_MULTIPLIERS, PAGE_UNLOCKED_BADGES, PAGE_TOTAL_BADGES déclarés en scope global
+      // Répartition XP à partir du snapshot canonique.
 
       // Récupérer les données
       const totalHours = tautulliData?.watchStats?.totalHours || 0;
       const joinedAtObj = new Date(stats.joinedAt || Date.now());
       const daysJoined = Math.floor((Date.now() - joinedAtObj.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Calculer les 3 sources
-      const hoursXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
-      const badgesXp = PAGE_ACHIEVEMENTS_XP;
-      const ancienneteXp = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
-
-      // TOTAL XP = somme des 3 sources
-      const totalXp      = hoursXp + badgesXp + ancienneteXp;
-      let currentLevel   = XP_SYSTEM.getLevel(totalXp);
-      let rank           = XP_SYSTEM.getRankByLevel(currentLevel);
-      let progress       = XP_SYSTEM.getProgressToNextLevel(totalXp);
       const freshXpSnap  = await loadXpSnapshotFromApi();
-      if (freshXpSnap) {
-        currentLevel = freshXpSnap.level;
-        rank = freshXpSnap.rank;
-        progress = {
-          level: freshXpSnap.level,
-          progressPercent: freshXpSnap.progressPercent,
-          xpNeeded: freshXpSnap.xpNeeded
-        };
+      const hoursXp = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
+      const ancienneteXp = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
+      if (!freshXpSnap) {
+        markProfilRefreshed();
+        saveProfilSnapshot();
+        return;
       }
+      const currentLevel = freshXpSnap.level;
+      const rank = freshXpSnap.rank;
+      const progress = {
+        level: freshXpSnap.level,
+        progressPercent: freshXpSnap.progressPercent,
+        xpNeeded: freshXpSnap.xpNeeded
+      };
       const unlockedBadgesCount = getUnlockedBadgesCount(freshXpSnap);
 
       // Glow avatar selon rang
@@ -2361,7 +2338,7 @@
         xpBadgeEl.classList.remove("xp-skel");
       }
       if (xpAmountEl) {
-        xpAmountEl.textContent = `${(freshXpSnap ? freshXpSnap.totalXp : totalXp).toLocaleString("fr-FR")} XP`;
+        xpAmountEl.textContent = `${freshXpSnap.totalXp.toLocaleString("fr-FR")} XP`;
         xpAmountEl.classList.remove("xp-skel");
       }
 
@@ -2373,17 +2350,15 @@
 
       // 💾 Persister pour affichage instantané à la prochaine visite
       saveXpSnapshot(
-        freshXpSnap ? freshXpSnap.totalXp : totalXp,
+        freshXpSnap.totalXp,
         rank,
         progress,
         unlockedBadgesCount
       );
 
       // Calculer les pourcentages de répartition
-      const totalXpBreakdown = freshXpSnap ? freshXpSnap.totalXp : (hoursXp + badgesXp + ancienneteXp);
-      const badgesXpDisplay = freshXpSnap
-        ? Math.max(0, Math.round((freshXpSnap.totalXp - hoursXp - ancienneteXp) * 10) / 10)
-        : badgesXp;
+      const totalXpBreakdown = Math.max(1, freshXpSnap.totalXp);
+      const badgesXpDisplay = Math.max(0, Math.round((freshXpSnap.totalXp - hoursXp - ancienneteXp) * 10) / 10);
       const hoursPercent = totalXpBreakdown > 0 ? Math.round((hoursXp / totalXpBreakdown) * 100) : 0;
       const badgesPercent = totalXpBreakdown > 0 ? Math.round((badgesXpDisplay / totalXpBreakdown) * 100) : 0;
       const anciennetePercent = totalXpBreakdown > 0 ? Math.round((ancienneteXp / totalXpBreakdown) * 100) : 0;
@@ -2454,38 +2429,28 @@
 
       // Rafraîchissement automatique si calcul en cours
       if (stats.status === "computing") {
-        console.log("[PROFIL] � Calcul en cours - Attente SMART (au lieu de 30 polls)...");
-        
         // Attendre que le scan finisse (via long-poll)
         // Puis mettre à jour les éléments DOM sans reload
         (async () => {
           try {
-            console.log("[PROFIL-UPDATE] Attente du scan Tautulli...");
             const waitRes = await fetch(basePath ? `${basePath}/api/stats-wait` : "/api/stats-wait");
             
             if (!waitRes.ok) throw new Error("Wait API error");
             
             const readyStats = await waitRes.json();
-            console.log("[PROFIL-UPDATE] ✅ Scan terminé! Mise à jour dynamique...", readyStats);
-            
             // Update sessionCount
             const sessionEl = document.getElementById("sessionCount");
             if (sessionEl && readyStats.sessionCount !== undefined) {
               sessionEl.textContent = readyStats.sessionCount;
             }
             
-            // Update xpAmount (recalcul XP basé sur les heures)
             const newTotalHours = readyStats?.watchStats?.totalHours || 0;
-            const newTotalXp = Math.round(newTotalHours);
-            const xpAmountEl = document.getElementById("xpAmount");
-            if (xpAmountEl) {
-              xpAmountEl.textContent = newTotalXp.toLocaleString("fr-FR") + " XP";
-              xpAmountEl.classList.remove("skel");
-            }
+            const freshXpSnap = await loadXpSnapshotFromApi();
+            if (!freshXpSnap) throw new Error("XP snapshot unavailable after stats-wait");
             
             // Update rangs débloqués
             const badgeItems = document.querySelectorAll(".badge-item");
-            const newLevel   = XP_SYSTEM.getLevel(newTotalXp);
+            const newLevel   = freshXpSnap.level;
             badgeItems.forEach(item => {
               const rankData = XP_SYSTEM.ranks[parseInt(item.dataset.rankIdx)];
               if (rankData) item.classList.toggle("unlocked", newLevel >= rankData.minLevel);
@@ -2495,7 +2460,7 @@
             const newHoursXp = Math.round(newTotalHours * 10);
             const newDaysJoined = Math.floor((Date.now() - (new Date(readyStats.joinedAt).getTime())) / (1000 * 60 * 60 * 24));
             const newAncienneteXp = Math.round(newDaysJoined * 1.5);
-            const newTotalXpBreakdown = newHoursXp + 0 + newAncienneteXp;
+            const newTotalXpBreakdown = Math.max(1, freshXpSnap.totalXp);
             
             const newHoursPercent = newTotalXpBreakdown > 0 ? Math.round((newHoursXp / newTotalXpBreakdown) * 100) : 0;
             const newAnciennetePercent = newTotalXpBreakdown > 0 ? Math.round((newAncienneteXp / newTotalXpBreakdown) * 100) : 0;
@@ -2530,7 +2495,7 @@
             if (formulaTotalEl) formulaTotalEl.style.display = "none";
             
             // Update badge and avatar color
-            const newBadge = XP_SYSTEM.getBadgeByXp(newTotalXp);
+            const newBadge = freshXpSnap.rank;
             const wrapperEl2 = document.getElementById("avatarWrapper");
             const xpBadgeEl = document.getElementById("xpBadge");
             
@@ -2544,7 +2509,7 @@
               wrapperEl2.style.filter = `drop-shadow(0 0 9px ${_c}cc) drop-shadow(0 0 20px ${_c}66)`;
             }
             if (xpBadgeEl) {
-              xpBadgeEl.textContent = `${newBadge.icon} ${newBadge.name}`;
+              xpBadgeEl.innerHTML = `<span class="xp-level-num">Niv.\u00a0${freshXpSnap.level}</span><span class="xp-rank-sep">•</span><span class="xp-rank-name">${newBadge.icon} ${newBadge.name}</span>`;
               xpBadgeEl.style.background = newBadge.bgColor;
               xpBadgeEl.style.color = newBadge.color;
               xpBadgeEl.style.borderColor = newBadge.borderColor;
@@ -2553,24 +2518,32 @@
 
             const xpAmountEl2 = document.getElementById("xpAmount");
             if (xpAmountEl2) {
-              xpAmountEl2.textContent = `${newTotalXp.toLocaleString("fr-FR")} XP`;
+              xpAmountEl2.textContent = `${freshXpSnap.totalXp.toLocaleString("fr-FR")} XP`;
               xpAmountEl2.classList.remove("xp-skel");
             }
             
             // Update progress bar
-            const newProgress = XP_SYSTEM.getProgressToNextBadge(newTotalXp);
             const xpBarFill = document.getElementById("xpBarFill");
             const xpNeeded = document.getElementById("xpNeeded");
             
             if (xpBarFill) {
-              xpBarFill.style.width = newProgress.progressPercent + "%";
+              xpBarFill.style.width = freshXpSnap.progressPercent + "%";
             }
             if (xpNeeded) {
-              xpNeeded.textContent = newProgress.xpNeeded > 0 ? `${newProgress.xpNeeded.toLocaleString("fr-FR")} XP avant ${newProgress.next?.name || "max"}` : "Max atteint !";
+              xpNeeded.textContent = freshXpSnap.xpNeeded > 0 ? `${freshXpSnap.xpNeeded.toLocaleString("fr-FR")} XP → Niv. ${freshXpSnap.level + 1}` : "Max atteint !";
             }
 
             // 💾 Persister
-            saveXpSnapshot(newTotalXp, newBadge, newProgress);
+            saveXpSnapshot(
+              freshXpSnap.totalXp,
+              freshXpSnap.rank,
+              {
+                level: freshXpSnap.level,
+                progressPercent: freshXpSnap.progressPercent,
+                xpNeeded: freshXpSnap.xpNeeded
+              },
+              freshXpSnap.badgeCount
+            );
             clearSkel('counterSessions','statTotalHours','counterMovies','statMovieHours',
                       'counterEpisodes','statEpisodeHours','counterMusic','statMusicHours',
                       'joinedDate','lastActivity',
@@ -2734,20 +2707,17 @@
 
       // Calcul XP — formule identique au chargement initial
       const hoursXp       = Math.round(totalHours * XP_MULTIPLIERS.HOURS);
-      const badgesXp      = PAGE_ACHIEVEMENTS_XP;
       const ancienneteXp  = daysJoined * XP_MULTIPLIERS.ANCIENNETE;
-      const totalXp       = hoursXp + badgesXp + ancienneteXp;
-      const totalBreakdown = Math.max(1, xpSnap ? xpSnap.totalXp : totalXp);
-      const badgesXpDisplay = xpSnap
-        ? Math.max(0, Math.round((xpSnap.totalXp - hoursXp - ancienneteXp) * 10) / 10)
-        : badgesXp;
+      if (!xpSnap) return;
+      const totalBreakdown = Math.max(1, xpSnap.totalXp);
+      const badgesXpDisplay = Math.max(0, Math.round((xpSnap.totalXp - hoursXp - ancienneteXp) * 10) / 10);
       const hoursPercent      = Math.round((hoursXp      / totalBreakdown) * 100);
       const badgesPercent     = Math.round((badgesXpDisplay / totalBreakdown) * 100);
       const anciennetePercent = Math.round((ancienneteXp / totalBreakdown) * 100);
       const unlockedBadgesCount = getUnlockedBadgesCount(xpSnap);
       const successPct        = PAGE_TOTAL_BADGES > 0 ? Math.round((unlockedBadgesCount / PAGE_TOTAL_BADGES) * 100) : 0;
 
-      if (el("xpAmount")) { const _xa = el("xpAmount"); _xa.textContent = (xpSnap ? xpSnap.totalXp : totalXp).toLocaleString("fr-FR") + " XP"; _xa.classList.remove("skel"); }
+      if (el("xpAmount")) { const _xa = el("xpAmount"); _xa.textContent = xpSnap.totalXp.toLocaleString("fr-FR") + " XP"; _xa.classList.remove("skel"); }
       if (el("xpHoursValue"))         el("xpHoursValue").textContent          = hoursXp.toLocaleString()      + " XP";
       if (el("xpHoursBar"))           el("xpHoursBar").style.width            = hoursPercent      + "%";
       if (el("xpHoursPercent"))       el("xpHoursPercent").textContent        = hoursPercent      + "%";
@@ -2761,11 +2731,9 @@
       if (el("detailProfilAnciennete")) el("detailProfilAnciennete").textContent = daysJoined + " j";
 
       // Rang + niveau courant + barre XP
-      const currentLevel = xpSnap ? xpSnap.level : XP_SYSTEM.getLevel(totalXp);
-      const currentRank  = xpSnap ? xpSnap.rank : XP_SYSTEM.getRankByLevel(currentLevel);
-      const progress     = xpSnap
-        ? { level: xpSnap.level, progressPercent: xpSnap.progressPercent, xpNeeded: xpSnap.xpNeeded }
-        : XP_SYSTEM.getProgressToNextLevel(totalXp);
+      const currentLevel = xpSnap.level;
+      const currentRank  = xpSnap.rank;
+      const progress     = { level: xpSnap.level, progressPercent: xpSnap.progressPercent, xpNeeded: xpSnap.xpNeeded };
       const xpBadgeEl    = el("xpBadge");
       const xpAmountEl   = el("xpAmount");
       applyRankGlow(currentRank.color);
@@ -2778,7 +2746,7 @@
         xpBadgeEl.classList.remove("xp-skel");
       }
       if (xpAmountEl) {
-        xpAmountEl.textContent = `${(xpSnap ? xpSnap.totalXp : totalXp).toLocaleString("fr-FR")} XP`;
+        xpAmountEl.textContent = `${xpSnap.totalXp.toLocaleString("fr-FR")} XP`;
         xpAmountEl.classList.remove("xp-skel");
       }
       if (el("xpBarFill")) el("xpBarFill").style.width = progress.progressPercent + "%";
@@ -2786,7 +2754,7 @@
         `${progress.xpNeeded.toLocaleString("fr-FR")} XP \u2192 Niv.\u00a0${currentLevel + 1}`;
 
       // 💾 Persister
-      saveXpSnapshot(xpSnap ? xpSnap.totalXp : totalXp, currentRank, progress, unlockedBadgesCount);
+      saveXpSnapshot(xpSnap.totalXp, currentRank, progress, unlockedBadgesCount);
       markProfilRefreshed();
       saveProfilSnapshot();
 

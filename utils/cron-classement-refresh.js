@@ -4,7 +4,7 @@ const log = require('./logger');
 const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
-const { refreshUserAchievementState, queueBackgroundAchievementRefresh } = require('./achievement-state');
+const { refreshUserAchievementState } = require('./achievement-state');
 const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');       // 🔑 Source de vérité
 const { getConfigValue } = require('./config');
 
@@ -397,7 +397,7 @@ async function refreshClassementCache() {
         || wizarrUsers.find(entry => String(entry?.email || '').trim().toLowerCase() && emailToUsername[String(entry.email || '').trim().toLowerCase()]?.toLowerCase() === key)
         || null;
 
-      // Priorité joinedAt: Plex XML (= même source que profil) > DB > calculateUserXp fallback
+      // Priorité joinedAt: Plex XML (= même source que profil) > DB > fallback interne
       let joinedAtTs = plexJoinedAtMap[key] || null;
       if (!joinedAtTs) {
         const dbUser = UserQueries.getByUsername(stats.username);
@@ -430,15 +430,6 @@ async function refreshClassementCache() {
           morningCount: Number(stats.morningCount ?? 0)
         };
         const progressionState = await refreshUserAchievementState({
-          username: stats.username,
-          id: wizarrUser?.plexUserId || stats.userId || null,
-          email: wizarrUser?.email || null,
-          joinedAtTimestamp: joinedAtTs || null
-        }, {
-          precomputedStats: statsHint,
-          includeSecretEvaluation: false
-        });
-        queueBackgroundAchievementRefresh({
           username: stats.username,
           id: wizarrUser?.plexUserId || stats.userId || null,
           email: wizarrUser?.email || null,
