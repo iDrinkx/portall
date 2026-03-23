@@ -1,3 +1,9 @@
+## [1.39.9](https://github.com/iDrinkx/portall/compare/v1.39.8...v1.39.9) (2026-03-23)
+
+### Corrections de bugs
+
+* login plex ([5f17b9c](https://github.com/iDrinkx/portall/commit/5f17b9cb4933e14bce0c8ca6ee16979df546023a))
+
 ## [1.39.8](https://github.com/iDrinkx/portall/compare/v1.39.7...v1.39.8) (2026-03-23)
 
 ### Corrections de bugs
