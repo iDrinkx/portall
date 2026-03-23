@@ -22,10 +22,16 @@ const {
   DashboardCardQueries,
   UserServiceCredentialQueries
 } = require("../utils/database");
-const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady, getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
+const { getLastPlayedItem, getUserStatsFromTautulli } = require("../utils/tautulli-direct");
 const CacheManager = require("../utils/cache");
 const TautulliEvents = require("../utils/tautulli-events");  // ?? Import EventEmitter
 const { calculateUserXp } = require("../utils/xp-calculator");  // ?? Fonction centralisée XP
+const {
+  getUserAchievementState,
+  SUCCESS_REFRESH_TTL_MS,
+  queueBackgroundAchievementRefresh,
+  getBackgroundAchievementRefreshStatus
+} = require("../utils/achievement-state");
 const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
 const {
   getDashboardBuiltinAdminItems,
@@ -1107,8 +1113,14 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 router.get("/succes", requireAuth, async (req, res) => {
   try {
     const collectionsEnabled = areCollectionAchievementsEnabled();
-    // ? Rendu instantané depuis la DB uniquement — l'évaluation Tautulli
-    //    se fait en arrière-plan via /api/badges-eval (appelé par le client)
+    const achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    if (achievementState.needsRefresh && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
+      queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
+      backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    }
+    const { data, userUnlockedMap, renderProgressMap } = achievementState;
+
     const achievementsByCategory = {
       temporels:   { icon: "🎁", name: "Temporels",   achievements: ACHIEVEMENTS.temporels },
       activites:   { icon: "🔥", name: "Activité",    achievements: ACHIEVEMENTS.activites },
@@ -1120,40 +1132,16 @@ router.get("/succes", requireAuth, async (req, res) => {
     };
     if (!collectionsEnabled) delete achievementsByCategory.collections;
 
-    const username   = req.session.user.username;
-    const joinedAtTs = req.session.user.joinedAtTimestamp;
-
-    // Upsert utilisateur en DB (silencieux)
-    let dbUserId = null;
-    try {
-      const dbUser = UserQueries.upsert(
-        username,
-        req.session.user.id    || null,
-        req.session.user.email || null,
-        req.session.user.joinedAt || joinedAtTs || null
-      );
-      dbUserId = dbUser?.id || null;
-    } catch(e) {
-      try { dbUserId = UserQueries.getByUsername(username)?.id || null; } catch(_) {}
-    }
-
-    // Lecture DB uniquement (< 5 ms)
-    const userUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
-    const progressMap     = dbUserId ? AchievementProgressQueries.getForUser(dbUserId) : {};
-
-    // Construire les cards depuis l'état DB courant
     for (const category in achievementsByCategory) {
       achievementsByCategory[category].achievements = achievementsByCategory[category].achievements.map(a => ({
         ...hydrateAchievementTexts(a, res.locals.siteTitle),
-        xp: getAchievementXp(a, progressMap[a.id]),
+        xp: getAchievementXp(a, renderProgressMap[a.id]),
         unlocked:     !!userUnlockedMap[a.id],
         unlockedDate: userUnlockedMap[a.id] || null
       }));
     }
 
-    // Stats basées sur la DB (sans recalcul Tautulli)
-    const emptyData = { totalHours: 0, movieCount: 0, episodeCount: 0, sessionCount: 0, monthlyHours: 0, nightCount: 0, morningCount: 0, daysSince: 0 };
-    const stats_global = ACHIEVEMENTS.getStats(emptyData, userUnlockedMap);
+    const stats_global = ACHIEVEMENTS.getStats(data, userUnlockedMap);
 
     res.render("succes", {
       user: req.session.user,
@@ -1161,7 +1149,14 @@ router.get("/succes", requireAuth, async (req, res) => {
       XP_SYSTEM,
       ACHIEVEMENTS: achievementsByCategory,
       stats: stats_global,
-      progressMap,
+      progressMap: renderProgressMap,
+      successRefreshMeta: {
+        updatedAt: achievementState.snapshot?.updatedAt || null,
+        ttlMs: SUCCESS_REFRESH_TTL_MS,
+        refreshed: !!achievementState.refreshed,
+        needsRefresh: !!achievementState.needsRefresh,
+        running: !!backgroundRefreshStatus.running || !!backgroundRefreshStatus.queued
+      },
       layout: req.query.embed === '1' ? false : 'layout',
       embed: req.query.embed === '1'
     });
@@ -1174,6 +1169,12 @@ router.get("/succes", requireAuth, async (req, res) => {
       ACHIEVEMENTS: {},
       stats: { total: 0, unlocked: 0, locked: 0, progress: 0 },
       progressMap: {},
+      successRefreshMeta: {
+        updatedAt: null,
+        ttlMs: SUCCESS_REFRESH_TTL_MS,
+        refreshed: false,
+        running: false
+      },
       error: "Erreur lors du chargement des achievements",
       layout: req.query.embed === '1' ? false : 'layout',
       embed: req.query.embed === '1'
@@ -1249,101 +1250,43 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
-    const collectionsEnabled = areCollectionAchievementsEnabled();
-    const username   = req.session.user.username;
-    const joinedAtTs = req.session.user.joinedAtTimestamp;
-    const today      = new Date().toLocaleDateString('fr-FR');
-
-    let dbUserId = null;
-    try {
-      const dbUser = UserQueries.upsert(username, req.session.user.id||null, req.session.user.email||null, req.session.user.joinedAt||joinedAtTs||null);
-      dbUserId = dbUser?.id || null;
-    } catch(e) {
-      try { dbUserId = UserQueries.getByUsername(username)?.id || null; } catch(_) {}
+    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    if (!refreshStatus.running && !refreshStatus.queued) {
+      queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
+      refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     }
-
-    const userUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
-
-    // 1. Stats Tautulli (rapide si DB directe prête)
-    const stats = await getTautulliStats(
-        username, getConfigValue("TAUTULLI_URL", ""), getConfigValue("TAUTULLI_API_KEY", ""),
-        req.session.user.id, getConfigValue("PLEX_URL", ""), getConfigValue("PLEX_TOKEN", ""), joinedAtTs
-    );
-    const data = {
-      totalHours:   stats.watchStats?.totalHours   || 0,
-      movieCount:   stats.watchStats?.movieCount   || 0,
-      episodeCount: stats.watchStats?.episodeCount || 0,
-      sessionCount: stats.sessionCount   || 0,
-      monthlyHours: stats.monthlyHours   || 0,
-      nightCount:   stats.nightCount     || 0,
-      morningCount: stats.morningCount   || 0,
-      daysSince: Math.floor((Date.now() - (joinedAtTs * 1000)) / (1000 * 60 * 60 * 24))
-    };
-
-    const computedDates = getAchievementUnlockDates(username, joinedAtTs);
-    const allAchievements = ACHIEVEMENTS.getAll();
-    const newlyUnlocked = {};
-
-    // 2. Succès non-secrets
-    for (const a of allAchievements) {
-      if (userUnlockedMap[a.id])    continue;
-      if (a.isSecret)               continue;
-      if (a.category === 'secrets') continue;
-      if (a.category === 'collections') continue;
-      if (!a.condition(data))       continue;
-      const date = computedDates[a.id] || today;
-      if (dbUserId) try { UserAchievementQueries.unlock(dbUserId, a.id, date, 'auto'); } catch(e) {}
-      newlyUnlocked[a.id] = date;
-    }
-
-    // 3. Collections + secrets Tautulli
-    const collectionsToCheck = collectionsEnabled ? ACHIEVEMENTS.collections : [];
-    const secretsToCheck = [...collectionsToCheck, ...ACHIEVEMENTS.secrets]
-      .filter(a => !a.isSecret && (!userUnlockedMap[a.id] || a.revocable)).map(a => a.id);
-    const revocableUnlocked = new Set(
-      [...collectionsToCheck, ...ACHIEVEMENTS.secrets]
-        .filter(a => a.revocable && userUnlockedMap[a.id]).map(a => a.id)
-    );
-    const newProgress = {};
-    const revoked = [];
-
-    if (secretsToCheck.length > 0 && isTautulliReady()) {
-      try {
-        const evalResult = await evaluateSecretAchievements(username, joinedAtTs, secretsToCheck, req.session.user.id);
-        const { unlocked: evalUnlocked, progress: evalProgress } = evalResult;
-        for (const [id, date] of Object.entries(evalUnlocked)) {
-          if (dbUserId) try { UserAchievementQueries.unlock(dbUserId, id, date, 'auto'); } catch(e) {}
-          newlyUnlocked[id] = date;
-        }
-        for (const id of revocableUnlocked) {
-          if (!evalUnlocked[id]) {
-            if (dbUserId) try { UserAchievementQueries.revoke(dbUserId, id); } catch(e) {}
-            revoked.push(id);
-          }
-        }
-        if (evalProgress) {
-          for (const [id, prog] of Object.entries(evalProgress)) {
-            if (dbUserId) try { AchievementProgressQueries.save(dbUserId, id, prog.current, prog.total); } catch(e) {}
-            newProgress[id] = prog;
-          }
-        }
-        if (dbUserId) {
-          for (const id of secretsToCheck) {
-            if (evalProgress?.[id]) continue;
-            try { AchievementProgressQueries.remove(dbUserId, id); } catch(e) {}
-          }
-        }
-        if (Object.keys(newlyUnlocked).length > 0)
-          logBadges.info(`Débloqués pour ${username}:`, Object.keys(newlyUnlocked).join(', '));
-      } catch (err) {
-        logBadges.error('badges-eval:', err.message);
-      }
-    }
-
-    res.json({ unlocked: newlyUnlocked, progress: newProgress, revoked, data });
+    res.json({
+      success: true,
+      refreshed: state.refreshed,
+      queued: !!refreshStatus.queued,
+      running: !!refreshStatus.running || !!refreshStatus.queued,
+      needsRefresh: !!state.needsRefresh,
+      updatedAt: state.snapshot?.updatedAt || null,
+      data: state.data,
+      unlocked: state.userUnlockedMap,
+      progress: state.renderProgressMap
+    });
   } catch (err) {
     logBadges.error('badges-eval crash:', err.message);
-    res.status(500).json({ unlocked: {}, progress: {}, revoked: [], data: {} });
+    res.status(500).json({ success: false, unlocked: {}, progress: {}, data: {} });
+  }
+});
+
+router.get('/api/badges-refresh-status', requireAuth, async (req, res) => {
+  try {
+    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    const refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    res.json({
+      success: true,
+      queued: !!refreshStatus.queued,
+      running: !!refreshStatus.running,
+      needsRefresh: !!state.needsRefresh,
+      updatedAt: state.snapshot?.updatedAt || null
+    });
+  } catch (err) {
+    logBadges.error('badges-refresh-status crash:', err.message);
+    res.status(500).json({ success: false, queued: false, running: false, needsRefresh: false, updatedAt: null });
   }
 });
 

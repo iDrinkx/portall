@@ -13,6 +13,37 @@ function getSafeUserLabel(user) {
   return `user#${user?.id || "unknown"}`;
 }
 
+async function fetchWithTimeoutAndRetry(url, options = {}, settings = {}) {
+  const timeoutMs = Math.max(1000, Number(settings.timeoutMs || 10000));
+  const retries = Math.max(1, Number(settings.retries || 1));
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: ctrl.signal
+      });
+      clearTimeout(timeout);
+      return response;
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err;
+      const isAbort = err?.name === "AbortError" || /aborted a request/i.test(String(err?.message || ""));
+      if (attempt >= retries) break;
+      if (!isAbort) {
+        await new Promise(r => setTimeout(r, 500));
+      } else {
+        await new Promise(r => setTimeout(r, 800));
+      }
+    }
+  }
+
+  throw lastError || new Error("Request failed");
+}
+
 /**
  * Grab le cookie connect.sid de Seerr via le token Plex.
  * Même logique qu'Organizr sso-functions.php#L335.
@@ -110,18 +141,17 @@ router.post("/api/setup", (req, res) => {
 
 router.get("/login", ensureSetupComplete, async (req, res) => {
   try {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 8000);
-    const response = await fetch("https://plex.tv/api/v2/pins?strong=true", {
+    const response = await fetchWithTimeoutAndRetry("https://plex.tv/api/v2/pins?strong=true", {
       method: "POST",
       headers: {
         "X-Plex-Client-Identifier": "portall-app",
         "X-Plex-Product": "portall",
         "Accept": "application/json"
-      },
-      signal: ctrl.signal
+      }
+    }, {
+      timeoutMs: 20000,
+      retries: 2
     });
-    clearTimeout(timeout);
 
     const data = await response.json();
     req.session.pinId = data.id;

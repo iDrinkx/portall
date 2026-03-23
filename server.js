@@ -317,6 +317,29 @@ app.get("/", async (req, res) => {
 });
 
 app.use((err, req, res, _next) => {
+  const isMalformedUrl =
+    err instanceof URIError ||
+    String(err?.message || "").includes("Failed to decode param");
+
+  if (isMalformedUrl) {
+    console.warn("[HTTP] ⚠️  Malformed URL rejected", {
+      method: req.method,
+      path: req.originalUrl || req.url,
+      message: err && err.message
+    });
+
+    if (res.headersSent) return;
+
+    if (String(req.originalUrl || req.url || "").startsWith("/api/")) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Malformed URL"
+      });
+    }
+
+    return res.status(400).send("Bad Request");
+  }
+
   console.error("[HTTP] ❌ Unhandled error", {
     method: req.method,
     path: req.originalUrl || req.url,
@@ -521,7 +544,12 @@ app.listen(PORT, async () => {
     console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
   }
 
-  // 🏆 Démarrer le job de refresh du classement (toutes les 5 minutes)
-  // 🔄 ATTENDU pour s'assurer que le cache est rempli au démarrage
-  await startClassementRefreshJob();
+  // 🏆 Démarrer le job de refresh du classement (toutes les 30 minutes)
+  // en arrière-plan pour ne pas bloquer l'ouverture du site ni l'auth Plex au boot.
+  startClassementRefreshJob({
+    backgroundInitialRefresh: true,
+    initialDelayMs: 5000
+  }).catch(err => {
+    console.warn("[SETUP] ⚠️  Impossible de démarrer le refresh classement:", err.message);
+  });
 });

@@ -89,6 +89,12 @@
     color: #a0a0a0;
     margin: 0;
   }
+  .badges-refresh-timer {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #7f8a98;
+    font-style: italic;
+  }
 
   /* STATS */
   .badges-stats {
@@ -608,6 +614,7 @@
       <h1 class="badges-title"><%= t("success.title") %></h1>
     </div>
     <p class="badges-subtitle"><%= t("success.subtitle", { serverName: siteTitle }) %></p>
+    <div class="badges-refresh-timer" id="successRefreshTimer"></div>
   </div>
 
   <!-- STATS -->
@@ -856,6 +863,316 @@
     document.querySelectorAll('.achievement-card').forEach(function(card) {
       card.addEventListener('click', function() { openModal(card); });
     });
+    var successRefreshMeta = {
+      updatedAt: <%- JSON.stringify(successRefreshMeta?.updatedAt || null) %>,
+      ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>,
+      needsRefresh: <%= successRefreshMeta?.needsRefresh ? 'true' : 'false' %>,
+      running: <%= successRefreshMeta?.running ? 'true' : 'false' %>
+    };
+    var successBasePath = '<%= basePath %>';
+    var successIsEmbed = <%= (typeof embed !== 'undefined' && embed) ? 'true' : 'false' %>;
+    var successRefreshTimerEl = document.getElementById('successRefreshTimer');
+    var successAutoRefreshPending = false;
+    var successStatusPollHandle = null;
+    var successAutoRefreshCooldownKey = 'portall.success.autoRefreshAt';
+    var successRefreshTimerHandle = null;
+    var successRefreshInstanceId = 'success-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    var successLastAutoRefreshAt = 0;
+    try {
+      successLastAutoRefreshAt = Number(sessionStorage.getItem(successAutoRefreshCooldownKey) || '0');
+    } catch (_) {
+      successLastAutoRefreshAt = 0;
+    }
+    if (window.__portallSuccessRefreshTimerHandle) {
+      clearInterval(window.__portallSuccessRefreshTimerHandle);
+      window.__portallSuccessRefreshTimerHandle = null;
+    }
+    window.__portallSuccessRefreshInstanceId = successRefreshInstanceId;
+
+    function formatRefreshDuration(totalSeconds) {
+      if (totalSeconds < 60) return totalSeconds + 's';
+      var minutes = Math.floor(totalSeconds / 60);
+      var seconds = totalSeconds % 60;
+      if (minutes < 60) return minutes + 'm' + (seconds ? ' ' + seconds + 's' : '');
+      var hours = Math.floor(minutes / 60);
+      var remainingMinutes = minutes % 60;
+      return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '');
+    }
+
+    function parseSuccessRefreshDate(value) {
+      if (!value) return 0;
+      if (typeof value === 'number' && isFinite(value)) return value;
+      var normalized = String(value).trim().replace(' ', 'T');
+      if (!/[zZ]|[+\-]\d{2}:\d{2}$/.test(normalized)) {
+        normalized += 'Z';
+      }
+      var parsed = Date.parse(normalized);
+      return isFinite(parsed) ? parsed : 0;
+    }
+
+    function isCurrentSuccessRefreshInstance() {
+      return window.__portallSuccessRefreshInstanceId === successRefreshInstanceId;
+    }
+
+    function isSuccessEmbedVisible() {
+      if (!successIsEmbed) return true;
+      var modal = document.getElementById('succesModal');
+      return !!(modal && modal.classList.contains('active'));
+    }
+
+    function reloadSuccessView() {
+      if (!successIsEmbed) {
+        window.location.reload();
+        return;
+      }
+
+      var modalBody = document.getElementById('succesModalBody');
+      if (!modalBody) {
+        window.location.reload();
+        return;
+      }
+
+      fetch(successBasePath + '/succes?embed=1')
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          modalBody.innerHTML = html;
+          modalBody.removeAttribute('style');
+          modalBody.style.overflowX = 'hidden';
+          modalBody.dataset.loaded = '1';
+          modalBody.querySelectorAll('script').forEach(function(s) {
+            var ns = document.createElement('script');
+            ns.textContent = s.textContent;
+            s.replaceWith(ns);
+          });
+        })
+        .catch(function() {
+          window.location.reload();
+        });
+    }
+
+    function stopSuccessStatusPolling() {
+      if (successStatusPollHandle) {
+        clearInterval(successStatusPollHandle);
+        successStatusPollHandle = null;
+      }
+    }
+
+    function pollSuccessRefreshStatus() {
+      if (!isCurrentSuccessRefreshInstance()) {
+        stopSuccessStatusPolling();
+        return;
+      }
+      if (!successRefreshMeta.running) {
+        stopSuccessStatusPolling();
+        return;
+      }
+
+      fetch(successBasePath + '/api/badges-refresh-status')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(data) {
+          if (!isCurrentSuccessRefreshInstance()) {
+            stopSuccessStatusPolling();
+            return;
+          }
+
+          if (data.updatedAt) successRefreshMeta.updatedAt = data.updatedAt;
+          successRefreshMeta.needsRefresh = !!data.needsRefresh;
+          successRefreshMeta.running = !!data.running || !!data.queued;
+
+          if (successRefreshMeta.running) {
+            renderSuccessRefreshTimer();
+            return;
+          }
+
+          stopSuccessStatusPolling();
+          reloadSuccessView();
+        })
+        .catch(function() {
+          successRefreshMeta.running = false;
+          stopSuccessStatusPolling();
+          renderSuccessRefreshTimer();
+        });
+    }
+
+    function ensureSuccessStatusPolling() {
+      if (successStatusPollHandle || !successRefreshMeta.running) return;
+      successStatusPollHandle = setInterval(pollSuccessRefreshStatus, 5000);
+      pollSuccessRefreshStatus();
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+
+      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
+      if (!updatedAtMs) return;
+
+      var now = Date.now();
+      var ageSeconds = Math.max(0, Math.floor((now - updatedAtMs) / 1000));
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      var text = 'Succès actualisés il y a ' + formatRefreshDuration(ageSeconds);
+      if (successRefreshMeta.ttlMs > 0) {
+        text += remainingSeconds > 0
+          ? ' • frais pour encore ' + formatRefreshDuration(remainingSeconds)
+          : ' • refresh recommandé';
+      }
+      successRefreshTimerEl.textContent = text;
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+
+      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
+      if (!updatedAtMs) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? (remainingSeconds > 0
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : recommandée')
+        : 'Données succès à jour';
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl) return;
+      if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
+
+      var updatedAtMs = successRefreshMeta.updatedAt ? parseSuccessRefreshDate(successRefreshMeta.updatedAt) : 0;
+      if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : imminente')
+        : 'Données succès à jour';
+
+      var autoRefreshCooldownActive = successLastAutoRefreshAt > 0 && (now - successLastAutoRefreshAt) < 30000;
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && autoRefreshCooldownActive) {
+        successRefreshTimerEl.textContent = 'Actualisation récente, synchronisation en attente...';
+        return;
+      }
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending) {
+        successAutoRefreshPending = true;
+        successRefreshMeta.needsRefresh = false;
+        successLastAutoRefreshAt = now;
+        try {
+          sessionStorage.setItem(successAutoRefreshCooldownKey, String(now));
+        } catch (_) {}
+        successRefreshTimerEl.textContent = 'Actualisation en cours...';
+        fetch(successBasePath + '/api/badges-eval')
+          .then(function() {
+            if (!successIsEmbed) {
+              window.location.reload();
+              return;
+            }
+
+            var modalBody = document.getElementById('succesModalBody');
+            if (!modalBody) {
+              window.location.reload();
+              return;
+            }
+
+            return fetch(successBasePath + '/succes?embed=1')
+              .then(function(r) { return r.text(); })
+              .then(function(html) {
+                modalBody.innerHTML = html;
+                modalBody.removeAttribute('style');
+                modalBody.style.overflowX = 'hidden';
+                modalBody.dataset.loaded = '1';
+                modalBody.querySelectorAll('script').forEach(function(s) {
+                  var ns = document.createElement('script');
+                  ns.textContent = s.textContent;
+                  s.replaceWith(ns);
+                });
+              });
+          })
+          .catch(function() {
+            successAutoRefreshPending = false;
+            successRefreshTimerEl.textContent = 'Actualisation au prochain chargement';
+          });
+      }
+    }
+
+    function renderSuccessRefreshTimer() {
+      if (!isCurrentSuccessRefreshInstance()) return;
+      if (!successRefreshTimerEl) return;
+      if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
+
+      if (successRefreshMeta.running) {
+        successRefreshTimerEl.textContent = 'Actualisation en arrière-plan...';
+        ensureSuccessStatusPolling();
+        return;
+      }
+
+      var updatedAtMs = successRefreshMeta.updatedAt ? parseSuccessRefreshDate(successRefreshMeta.updatedAt) : 0;
+      if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+      var autoRefreshCooldownActive = successLastAutoRefreshAt > 0 && (now - successLastAutoRefreshAt) < 30000;
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && autoRefreshCooldownActive) {
+        successRefreshTimerEl.textContent = 'Actualisation automatique récente...';
+        return;
+      }
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : imminente')
+        : 'Données succès à jour';
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending && isSuccessEmbedVisible()) {
+        successAutoRefreshPending = true;
+        successRefreshMeta.needsRefresh = false;
+        successLastAutoRefreshAt = now;
+        try {
+          sessionStorage.setItem(successAutoRefreshCooldownKey, String(now));
+        } catch (_) {}
+        successRefreshTimerEl.textContent = 'Actualisation en cours...';
+        fetch(successBasePath + '/api/badges-eval')
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            successAutoRefreshPending = false;
+            if (data.updatedAt) successRefreshMeta.updatedAt = data.updatedAt;
+            successRefreshMeta.needsRefresh = !!data.needsRefresh;
+            successRefreshMeta.running = !!data.running || !!data.queued;
+            renderSuccessRefreshTimer();
+            if (!successRefreshMeta.running) {
+              reloadSuccessView();
+            }
+          })
+          .catch(function() {
+            successAutoRefreshPending = false;
+            successRefreshMeta.running = false;
+            successRefreshTimerEl.textContent = 'Actualisation au prochain chargement';
+          });
+      }
+    }
+
+    renderSuccessRefreshTimer();
+    if (successRefreshTimerEl && (successRefreshMeta.updatedAt || successRefreshMeta.needsRefresh)) {
+      successRefreshTimerHandle = setInterval(renderSuccessRefreshTimer, 1000);
+      window.__portallSuccessRefreshTimerHandle = successRefreshTimerHandle;
+    }
+    // L'affichage est préparé côté serveur à partir de l'état persisté en DB.
+    // On coupe ici l'ancien recalcul navigateur pour garder une seule source de vérité.
+    return;
     // ──────────────────────────────────────────────────────────────────────
 
     const BASE = '<%= basePath %>';

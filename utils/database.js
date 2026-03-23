@@ -238,6 +238,22 @@ function runMigrations() {
     `);  // achievement_progress
 
     db.exec(`
+      CREATE TABLE IF NOT EXISTS achievement_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE,
+        total_hours REAL DEFAULT 0,
+        movie_count INTEGER DEFAULT 0,
+        episode_count INTEGER DEFAULT 0,
+        session_count INTEGER DEFAULT 0,
+        monthly_hours REAL DEFAULT 0,
+        night_count INTEGER DEFAULT 0,
+        morning_count INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);  // achievement_snapshots
+
+    db.exec(`
       CREATE TABLE IF NOT EXISTS collection_item_mappings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         achievement_id TEXT NOT NULL,
@@ -302,6 +318,7 @@ function runMigrations() {
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_achievement_snapshots_user ON achievement_snapshots(user_id);
       CREATE INDEX IF NOT EXISTS idx_watch_history_user ON watch_history(user_id);
       CREATE INDEX IF NOT EXISTS idx_watch_history_scanned ON watch_history(scannedAt);
       CREATE INDEX IF NOT EXISTS idx_session_cache_user ON session_cache(user_id);
@@ -759,6 +776,53 @@ const AchievementProgressQueries = {
   }
 };
 
+const AchievementSnapshotQueries = {
+  save(userId, stats = {}) {
+    const db = getDb();
+    return db.prepare(`
+      INSERT INTO achievement_snapshots (
+        user_id, total_hours, movie_count, episode_count, session_count, monthly_hours, night_count, morning_count, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        total_hours = excluded.total_hours,
+        movie_count = excluded.movie_count,
+        episode_count = excluded.episode_count,
+        session_count = excluded.session_count,
+        monthly_hours = excluded.monthly_hours,
+        night_count = excluded.night_count,
+        morning_count = excluded.morning_count,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(
+      userId,
+      Number(stats.totalHours || 0),
+      Number(stats.movieCount || 0),
+      Number(stats.episodeCount || 0),
+      Number(stats.sessionCount || 0),
+      Number(stats.monthlyHours || 0),
+      Number(stats.nightCount || 0),
+      Number(stats.morningCount || 0)
+    );
+  },
+
+  getForUser(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT
+        total_hours as totalHours,
+        movie_count as movieCount,
+        episode_count as episodeCount,
+        session_count as sessionCount,
+        monthly_hours as monthlyHours,
+        night_count as nightCount,
+        morning_count as morningCount,
+        strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) as updatedAt
+      FROM achievement_snapshots
+      WHERE user_id = ?
+    `).get(userId) || null;
+  }
+};
+
 const CollectionItemMappingQueries = {
   upsert({ achievementId, mediaType, traktKey, traktTitle = null, traktYear = null, matchedTitle = null, matchedYear = null, matchedGuid = null }) {
     const db = getDb();
@@ -1052,6 +1116,7 @@ module.exports = {
   DatabaseMaintenance,
   UserAchievementQueries,
   AchievementProgressQueries,
+  AchievementSnapshotQueries,
   CollectionItemMappingQueries,
   AppSettingQueries,
   DashboardCardQueries,

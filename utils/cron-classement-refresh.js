@@ -5,10 +5,13 @@ const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
 const { calculateUserXp } = require('./xp-calculator');  // 🎯 Fonction centralisée XP
+const { refreshUserAchievementState, queueBackgroundAchievementRefresh } = require('./achievement-state');
 const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');       // 🔑 Source de vérité
 const { getConfigValue } = require('./config');
 
 const logCR = log.create('[Classement-Refresh]');
+const CLASSEMENT_REFRESH_CRON = '*/30 * * * *';
+const CLASSEMENT_USER_BATCH_SIZE = 1;
 
 let classementCache = {
   data: { byHours: [], byLevel: [] },
@@ -101,6 +104,21 @@ const AppSettingQueriesSafe = {
     }
   }
 };
+
+async function mapInBatches(items, batchSize, mapper) {
+  const results = [];
+  const size = Math.max(1, Number(batchSize || 1));
+  const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
+
+  for (let i = 0; i < items.length; i += size) {
+    const batch = items.slice(i, i + size);
+    const batchResults = await Promise.all(batch.map(mapper));
+    results.push(...batchResults);
+    await yieldToEventLoop();
+  }
+
+  return results;
+}
 
 /**
  * 🔍 Valide les données calculées pour détecter les corruptions
@@ -373,9 +391,12 @@ async function refreshClassementCache() {
 
     // 🎯 Pré-calculer les données XP pour TOUS les utilisateurs
     // Utilise la MÊME fonction centralisée que le profil pour garantir la cohérence 100%
-    const users = await Promise.all(statsFiltered.map(async (stats) => {
+    const users = await mapInBatches(statsFiltered, CLASSEMENT_USER_BATCH_SIZE, async (stats) => {
       const key = (stats.username || '').toLowerCase();
       const thumb = thumbMap[key] || null;
+      const wizarrUser = wizarrUsers.find(entry => String(entry?.username || '').trim().toLowerCase() === key)
+        || wizarrUsers.find(entry => String(entry?.email || '').trim().toLowerCase() && emailToUsername[String(entry.email || '').trim().toLowerCase()]?.toLowerCase() === key)
+        || null;
 
       // Priorité joinedAt: Plex XML (= même source que profil) > DB > calculateUserXp fallback
       let joinedAtTs = plexJoinedAtMap[key] || null;
@@ -409,6 +430,24 @@ async function refreshClassementCache() {
           nightCount: Number(stats.nightCount ?? 0),
           morningCount: Number(stats.morningCount ?? 0)
         };
+        await refreshUserAchievementState({
+          username: stats.username,
+          id: wizarrUser?.plexUserId || stats.userId || null,
+          email: wizarrUser?.email || null,
+          joinedAtTimestamp: joinedAtTs || null
+        }, {
+          precomputedStats: statsHint,
+          includeSecretEvaluation: false
+        });
+        queueBackgroundAchievementRefresh({
+          username: stats.username,
+          id: wizarrUser?.plexUserId || stats.userId || null,
+          email: wizarrUser?.email || null,
+          joinedAtTimestamp: joinedAtTs || null
+        }, {
+          precomputedStats: statsHint,
+          includeSecretEvaluation: true
+        });
         const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null, statsHint);
         logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);
 
@@ -434,7 +473,7 @@ async function refreshClassementCache() {
           badgeCount: 0
         };
       }
-    }));
+    });
 
     const byHours = [...users].sort((a, b) => b.totalHours - a.totalHours);
     const byLevel = [...users].sort((a, b) => b.level - a.level || b.totalXp - a.totalXp);
@@ -588,17 +627,36 @@ function healthCheckAndRepair() {
 }
 
 /**
- * Démarre le cron job de refresh (toutes les 5 minutes)
+ * Démarre le cron job de refresh
  */
-async function startClassementRefreshJob() {
+async function startClassementRefreshJob(options = {}) {
+  const backgroundInitialRefresh = options.backgroundInitialRefresh !== false;
+  const initialDelayMs = Math.max(0, Number(options.initialDelayMs || 5000));
+
   // Vérifier intégrité au démarrage
   healthCheckAndRepair();
 
-  // Refresh immédiat au démarrage (SYNCHRONE pour éviter une réponse vide)
-  await refreshClassementCache();
+  const launchInitialRefresh = async () => {
+    try {
+      await refreshClassementCache();
+    } catch (err) {
+      logCR.warn(`Refresh initial classement échoué: ${err.message}`);
+    }
+  };
 
-  // Cron: toutes les 60 minutes
-  cron.schedule('0 * * * *', () => {
+  if (backgroundInitialRefresh) {
+    logCR.info(`⏳ Refresh initial du classement programmé dans ${Math.round(initialDelayMs / 1000)}s`);
+    const timeout = setTimeout(() => {
+      launchInitialRefresh();
+    }, initialDelayMs);
+    if (typeof timeout.unref === 'function') timeout.unref();
+  } else {
+    // Compatibilité: mode bloquant si explicitement demandé
+    await launchInitialRefresh();
+  }
+
+  // Cron: toutes les 30 minutes
+  cron.schedule(CLASSEMENT_REFRESH_CRON, () => {
     refreshClassementCache();
   });
 
@@ -608,7 +666,7 @@ async function startClassementRefreshJob() {
     corruptionCount = 0;
   });
 
-  logCR.info('✅ Cron job classement démarré (toutes les 60 minutes)');
+  logCR.info('✅ Cron job classement démarré (toutes les 30 minutes)');
 }
 
 module.exports = {

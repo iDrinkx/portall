@@ -834,40 +834,67 @@
 
   var bp = (window.APP_BASE_PATH || '');
   var lastRefreshTime = null;
+  var classementRefreshIntervalMs = 30 * 60 * 1000;
+  var classementTimerHandle = null;
+  var classementAutoRefreshPending = false;
+
+  function formatRefreshCountdown(totalSeconds) {
+    if (totalSeconds < 60) return totalSeconds + 's';
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    if (minutes < 60) return minutes + 'm' + (seconds ? ' ' + seconds + 's' : '');
+    var hours = Math.floor(minutes / 60);
+    var remainingMinutes = minutes % 60;
+    return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '');
+  }
 
   function updateTimer() {
     if (!lastRefreshTime) return;
     var now = Date.now();
-    var diff = Math.floor((now - lastRefreshTime) / 1000);
-    var text;
-    if (diff < 60) {
-      text = 'Données actualisées il y a ' + diff + 's';
-    } else {
-      var minutes = Math.floor(diff / 60);
-      text = 'Données actualisées il y a ' + minutes + 'm';
-    }
+    var nextRefreshTime = lastRefreshTime + classementRefreshIntervalMs;
+    var remainingSeconds = Math.max(0, Math.ceil((nextRefreshTime - now) / 1000));
     var timerEl = document.getElementById('lbRefreshTimer');
-    if (timerEl) timerEl.textContent = text;
+    if (timerEl) {
+      timerEl.textContent = remainingSeconds > 0
+        ? 'Prochaine actualisation : ' + formatRefreshCountdown(remainingSeconds)
+        : 'Actualisation en cours...';
+    }
+
+    if (remainingSeconds <= 0 && !classementAutoRefreshPending) {
+      classementAutoRefreshPending = true;
+      loadClassementData(false);
+    }
   }
 
-  fetch(bp + '/api/classement')
-    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
-    .then(function(data) {
-      usersByName = {};
-      (data.byLevel || []).forEach(function(u) { usersByName[u.username] = u; });
-      if (data.lastRefresh) {
-        lastRefreshTime = new Date(data.lastRefresh).getTime();
+  function loadClassementData(initialLoad) {
+    fetch(bp + '/api/classement')
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(data) {
+        usersByName = {};
+        (data.byLevel || []).forEach(function(u) { usersByName[u.username] = u; });
+        if (data.lastRefresh) {
+          lastRefreshTime = new Date(data.lastRefresh).getTime();
+        }
+        classementAutoRefreshPending = false;
         updateTimer();
-        setInterval(updateTimer, 1000);
-      }
-      document.getElementById('lbLoading').style.display = 'none';
-      document.getElementById('lbContent').style.display = 'block';
-      renderTable(data.byLevel, 'rankLevelList', 'level', 0);
-      renderTable(data.byHours, 'rankHoursList', 'hours', 0);
-    })
-    .catch(function() {
-      document.getElementById('lbLoading').style.display = 'none';
-      document.getElementById('lbError').style.display   = 'block';
-    });
+        if (!classementTimerHandle) {
+          classementTimerHandle = setInterval(updateTimer, 1000);
+        }
+        document.getElementById('lbLoading').style.display = 'none';
+        document.getElementById('lbError').style.display   = 'none';
+        document.getElementById('lbContent').style.display = 'block';
+        renderTable(data.byLevel, 'rankLevelList', 'level', 0);
+        renderTable(data.byHours, 'rankHoursList', 'hours', 0);
+      })
+      .catch(function() {
+        classementAutoRefreshPending = false;
+        if (initialLoad) {
+          document.getElementById('lbLoading').style.display = 'none';
+          document.getElementById('lbError').style.display   = 'block';
+        }
+      });
+  }
+
+  loadClassementData(true);
 })();
 </script>
