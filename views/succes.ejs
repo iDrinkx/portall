@@ -865,19 +865,27 @@
     });
     var successRefreshMeta = {
       updatedAt: <%- JSON.stringify(successRefreshMeta?.updatedAt || null) %>,
-      ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>
+      ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>,
+      needsRefresh: <%= successRefreshMeta?.needsRefresh ? 'true' : 'false' %>
     };
     var successBasePath = '<%= basePath %>';
     var successIsEmbed = <%= (typeof embed !== 'undefined' && embed) ? 'true' : 'false' %>;
     var successRefreshTimerEl = document.getElementById('successRefreshTimer');
     var successAutoRefreshPending = false;
     var successAutoRefreshCooldownKey = 'portall.success.autoRefreshAt';
+    var successRefreshTimerHandle = null;
+    var successRefreshInstanceId = 'success-' + Date.now() + '-' + Math.random().toString(36).slice(2);
     var successLastAutoRefreshAt = 0;
     try {
       successLastAutoRefreshAt = Number(sessionStorage.getItem(successAutoRefreshCooldownKey) || '0');
     } catch (_) {
       successLastAutoRefreshAt = 0;
     }
+    if (window.__portallSuccessRefreshTimerHandle) {
+      clearInterval(window.__portallSuccessRefreshTimerHandle);
+      window.__portallSuccessRefreshTimerHandle = null;
+    }
+    window.__portallSuccessRefreshInstanceId = successRefreshInstanceId;
 
     function formatRefreshDuration(totalSeconds) {
       if (totalSeconds < 60) return totalSeconds + 's';
@@ -887,6 +895,16 @@
       var hours = Math.floor(minutes / 60);
       var remainingMinutes = minutes % 60;
       return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '');
+    }
+
+    function isCurrentSuccessRefreshInstance() {
+      return window.__portallSuccessRefreshInstanceId === successRefreshInstanceId;
+    }
+
+    function isSuccessEmbedVisible() {
+      if (!successIsEmbed) return true;
+      var modal = document.getElementById('succesModal');
+      return !!(modal && modal.classList.contains('active'));
     }
 
     function updateSuccessRefreshTimer() {
@@ -929,10 +947,11 @@
     }
 
     function updateSuccessRefreshTimer() {
-      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+      if (!successRefreshTimerEl) return;
+      if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
 
-      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
-      if (!updatedAtMs) return;
+      var updatedAtMs = successRefreshMeta.updatedAt ? new Date(successRefreshMeta.updatedAt).getTime() : 0;
+      if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
 
       var now = Date.now();
       var remainingSeconds = successRefreshMeta.ttlMs > 0
@@ -940,7 +959,7 @@
         : 0;
 
       successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
-        ? (remainingSeconds > 0
+        ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
           ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
           : 'Prochaine actualisation : imminente')
         : 'Données succès à jour';
@@ -954,6 +973,7 @@
 
       if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending) {
         successAutoRefreshPending = true;
+        successRefreshMeta.needsRefresh = false;
         successLastAutoRefreshAt = now;
         try {
           sessionStorage.setItem(successAutoRefreshCooldownKey, String(now));
@@ -993,9 +1013,77 @@
       }
     }
 
-    updateSuccessRefreshTimer();
-    if (successRefreshTimerEl && successRefreshMeta.updatedAt) {
-      setInterval(updateSuccessRefreshTimer, 1000);
+    function renderSuccessRefreshTimer() {
+      if (!isCurrentSuccessRefreshInstance()) return;
+      if (!successRefreshTimerEl) return;
+      if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
+
+      var updatedAtMs = successRefreshMeta.updatedAt ? new Date(successRefreshMeta.updatedAt).getTime() : 0;
+      if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+      var autoRefreshCooldownActive = successLastAutoRefreshAt > 0 && (now - successLastAutoRefreshAt) < 30000;
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && autoRefreshCooldownActive) {
+        successRefreshTimerEl.textContent = 'Actualisation automatique récente...';
+        return;
+      }
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : imminente')
+        : 'Données succès à jour';
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending && isSuccessEmbedVisible()) {
+        successAutoRefreshPending = true;
+        successRefreshMeta.needsRefresh = false;
+        successLastAutoRefreshAt = now;
+        try {
+          sessionStorage.setItem(successAutoRefreshCooldownKey, String(now));
+        } catch (_) {}
+        successRefreshTimerEl.textContent = 'Actualisation en cours...';
+        fetch(successBasePath + '/api/badges-eval')
+          .then(function() {
+            if (!successIsEmbed) {
+              window.location.reload();
+              return;
+            }
+
+            var modalBody = document.getElementById('succesModalBody');
+            if (!modalBody) {
+              window.location.reload();
+              return;
+            }
+
+            return fetch(successBasePath + '/succes?embed=1')
+              .then(function(r) { return r.text(); })
+              .then(function(html) {
+                modalBody.innerHTML = html;
+                modalBody.removeAttribute('style');
+                modalBody.style.overflowX = 'hidden';
+                modalBody.dataset.loaded = '1';
+                modalBody.querySelectorAll('script').forEach(function(s) {
+                  var ns = document.createElement('script');
+                  ns.textContent = s.textContent;
+                  s.replaceWith(ns);
+                });
+              });
+          })
+          .catch(function() {
+            successAutoRefreshPending = false;
+            successRefreshTimerEl.textContent = 'Actualisation au prochain chargement';
+          });
+      }
+    }
+
+    renderSuccessRefreshTimer();
+    if (successRefreshTimerEl && (successRefreshMeta.updatedAt || successRefreshMeta.needsRefresh)) {
+      successRefreshTimerHandle = setInterval(renderSuccessRefreshTimer, 1000);
+      window.__portallSuccessRefreshTimerHandle = successRefreshTimerHandle;
     }
     // L'affichage est préparé côté serveur à partir de l'état persisté en DB.
     // On coupe ici l'ancien recalcul navigateur pour garder une seule source de vérité.

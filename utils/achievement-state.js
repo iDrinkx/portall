@@ -225,6 +225,7 @@ async function refreshUserAchievementState(sessionUser, options = {}) {
 async function getUserAchievementState(sessionUser, options = {}) {
   const maxAgeMs = Number(options.maxAgeMs || SUCCESS_REFRESH_TTL_MS);
   const forceRefresh = !!options.forceRefresh;
+  const skipRefresh = !!options.skipRefresh;
   const dbUser = getDbUserFromSessionUser(sessionUser);
   const dbUserId = dbUser?.id || null;
 
@@ -246,7 +247,7 @@ async function getUserAchievementState(sessionUser, options = {}) {
   const snapshotAgeMs = snapshot?.updatedAt ? Math.max(0, Date.now() - parseSqliteDateToMs(snapshot.updatedAt)) : Infinity;
   const stale = !snapshot || snapshotAgeMs > maxAgeMs;
 
-  if (forceRefresh || stale) {
+  if (!skipRefresh && (forceRefresh || stale)) {
     const refreshResult = await recomputeUserAchievementState(sessionUser, dbUserId);
     refreshed = !!refreshResult.refreshed;
     snapshot = AchievementSnapshotQueries.getForUser(dbUserId) || snapshot;
@@ -265,7 +266,8 @@ async function getUserAchievementState(sessionUser, options = {}) {
     renderProgressMap,
     snapshot,
     refreshed,
-    stale: !snapshot
+    stale,
+    needsRefresh: stale && !forceRefresh
   };
 }
 

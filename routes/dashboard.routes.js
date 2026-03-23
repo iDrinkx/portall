@@ -1108,7 +1108,7 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 router.get("/succes", requireAuth, async (req, res) => {
   try {
     const collectionsEnabled = areCollectionAchievementsEnabled();
-    const achievementState = await getUserAchievementState(req.session.user);
+    const achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
     const { data, userUnlockedMap, renderProgressMap } = achievementState;
 
     const achievementsByCategory = {
@@ -1143,7 +1143,8 @@ router.get("/succes", requireAuth, async (req, res) => {
       successRefreshMeta: {
         updatedAt: achievementState.snapshot?.updatedAt || null,
         ttlMs: SUCCESS_REFRESH_TTL_MS,
-        refreshed: !!achievementState.refreshed
+        refreshed: !!achievementState.refreshed,
+        needsRefresh: !!achievementState.needsRefresh
       },
       layout: req.query.embed === '1' ? false : 'layout',
       embed: req.query.embed === '1'
