@@ -188,14 +188,19 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   const plexUrl = getConfigValue("PLEX_URL", "");
   const configuredPlexToken = String(getConfigValue("PLEX_TOKEN", "") || "").trim();
   const runtimePlexToken = String(AppSettingQueries.get("runtime_plex_cloud_token", "") || "").trim();
-  const plexCloudToken = String(authToken || runtimePlexToken || configuredPlexToken || "").trim();
-  const plexServerToken = String(configuredPlexToken || authToken || runtimePlexToken || "").trim();
+  const persistedAdminUserId = String(AppSettingQueries.get("admin_user_id", "") || "").trim();
+  const adminLookupToken = String(runtimePlexToken || configuredPlexToken || "").trim();
+  const plexServerToken = String(configuredPlexToken || runtimePlexToken || authToken || "").trim();
 
-  if (plexUrl && plexCloudToken) {
+  if (persistedAdminUserId && Number(persistedAdminUserId) === Number(user.id)) {
+    isAdmin = true;
+  }
+
+  if (plexUrl && adminLookupToken) {
     try {
       const userId = parseInt(user.id);
       const [ownerId, machineId] = await Promise.all([
-        getServerOwnerId(plexCloudToken),
+        getServerOwnerId(adminLookupToken),
         getServerMachineId(plexUrl, plexServerToken)
       ]);
 
@@ -203,7 +208,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
         isAdmin = true;
         logAuth.info(`Proprietaire du serveur detecte pour user#${userId}`);
       } else {
-        const authorizedUsers = await getAuthorizedServerUsers(plexCloudToken, machineId);
+        const authorizedUsers = await getAuthorizedServerUsers(adminLookupToken, machineId);
         if (!authorizedUsers.some(u => u.id === userId)) {
           logAuth.warn(`Acces Plex refuse pour user#${userId}`);
           authorizedByPlex = false;
@@ -212,13 +217,14 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     } catch (authErr) {
       logAuth.warn(`Vérification Plex impossible (${authErr.message}) — accès accordé par défaut`);
     }
+  } else if (plexUrl && !isAdmin) {
+    logAuth.warn("Aucun token admin Plex disponible pour verifier les acces serveur — acces accorde par defaut");
   }
 
   if (!authorizedByPlex) {
     return res.redirect((req.basePath || "") + "/?error=unauthorized");
   }
 
-  const persistedAdminUserId = String(AppSettingQueries.get("admin_user_id", "") || "").trim();
   if (persistedAdminUserId) {
     if (Number(persistedAdminUserId) === Number(user.id)) {
       isAdmin = true;
