@@ -816,7 +816,7 @@ const AchievementSnapshotQueries = {
         monthly_hours as monthlyHours,
         night_count as nightCount,
         morning_count as morningCount,
-        updated_at as updatedAt
+        strftime('%Y-%m-%dT%H:%M:%SZ', updated_at) as updatedAt
       FROM achievement_snapshots
       WHERE user_id = ?
     `).get(userId) || null;

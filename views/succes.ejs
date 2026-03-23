@@ -897,6 +897,17 @@
       return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '');
     }
 
+    function parseSuccessRefreshDate(value) {
+      if (!value) return 0;
+      if (typeof value === 'number' && isFinite(value)) return value;
+      var normalized = String(value).trim().replace(' ', 'T');
+      if (!/[zZ]|[+\-]\d{2}:\d{2}$/.test(normalized)) {
+        normalized += 'Z';
+      }
+      var parsed = Date.parse(normalized);
+      return isFinite(parsed) ? parsed : 0;
+    }
+
     function isCurrentSuccessRefreshInstance() {
       return window.__portallSuccessRefreshInstanceId === successRefreshInstanceId;
     }
@@ -950,7 +961,7 @@
       if (!successRefreshTimerEl) return;
       if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
 
-      var updatedAtMs = successRefreshMeta.updatedAt ? new Date(successRefreshMeta.updatedAt).getTime() : 0;
+      var updatedAtMs = successRefreshMeta.updatedAt ? parseSuccessRefreshDate(successRefreshMeta.updatedAt) : 0;
       if (!updatedAtMs && !successRefreshMeta.needsRefresh) return;
 
       var now = Date.now();
