@@ -1,3 +1,33 @@
+## [1.41.0](https://github.com/iDrinkx/portall/compare/v1.40.0...v1.41.0) (2026-03-23)
+
+### Nouvelles fonctionnalites
+
+* ajout 3 succès ([303b510](https://github.com/iDrinkx/portall/commit/303b51069e06ce624f98c0aca9e46af15d834439))
+* unification calcul xp ([ce8feef](https://github.com/iDrinkx/portall/commit/ce8feef8935ad3725274e1130027f9fbd68c8dd7))
+
+### Corrections de bugs
+
+* crash ([41126eb](https://github.com/iDrinkx/portall/commit/41126eb3ba5aa8ee8b613123809d40b909209eb9))
+* demandes seerr ([ea91575](https://github.com/iDrinkx/portall/commit/ea9157527ec7f3e496d6a669897ad94eed688b0d))
+* double refresh ([b96887b](https://github.com/iDrinkx/portall/commit/b96887b7b1c2e2f767cae1aad3f206a840d11c52))
+* logique succès ([3569ac8](https://github.com/iDrinkx/portall/commit/3569ac8358cc1f80b6ee7b14dea223c447f4377d))
+* logo illimité seerr ([5f3d74e](https://github.com/iDrinkx/portall/commit/5f3d74e41e641c1f09ccb9afe3d8dc86b79aaf02))
+* mise en page profil ([40d4429](https://github.com/iDrinkx/portall/commit/40d442925f20c1ea6d141caed9677e0d5a0042a0))
+* nettoyage et optimisation logique xp ([f045c60](https://github.com/iDrinkx/portall/commit/f045c603bd10a67b46c5128fdbb6902182519d87))
+* plex timeout ([9f1361d](https://github.com/iDrinkx/portall/commit/9f1361ddcd686708926db44830df59ab821feb06))
+* profil ([dec16b1](https://github.com/iDrinkx/portall/commit/dec16b1f42ae293672dffa7095594c6c765f86cd))
+* quota seerr profil ([a6d7dcc](https://github.com/iDrinkx/portall/commit/a6d7dccbb8d0f410cd2b2e9b6314c6842e9607a6))
+* rond seerr profil ([b2efef5](https://github.com/iDrinkx/portall/commit/b2efef54e61052af9fba9db11525f6b12d5c2e3f))
+* seerr demandes profil ([ba557d4](https://github.com/iDrinkx/portall/commit/ba557d428434308508effa031a57b0798caa8a7f))
+* succès tautulli ([aeb1a03](https://github.com/iDrinkx/portall/commit/aeb1a031277adad76ce2a9475b5004613586f5a9))
+* taille texte demandes ([0a6099a](https://github.com/iDrinkx/portall/commit/0a6099a4277d98ca1a7658c9ac69dca14afc5446))
+* taille total demande seerr ([f74e261](https://github.com/iDrinkx/portall/commit/f74e261cf678e2b35dd0ec085c222b26e2ae598e))
+* tautulli.db use ([1bdb268](https://github.com/iDrinkx/portall/commit/1bdb268e36cebd9d1e8099148a7091d655cdd497))
+* token plex ([2c06a29](https://github.com/iDrinkx/portall/commit/2c06a29ca39ad5e812a0bd4cf274090804654f21))
+* total demandes visuel ([0c7d79f](https://github.com/iDrinkx/portall/commit/0c7d79fb0959d54a047c5365b1ef4096da63106b))
+* total hours ([700e255](https://github.com/iDrinkx/portall/commit/700e2552bf2761550badaaf098bf72c3286c50c3))
+* username tautulli ([5c342c1](https://github.com/iDrinkx/portall/commit/5c342c1f5f272d553b7163ed5aa47dba8d125930))
+
 ## [1.40.0](https://github.com/iDrinkx/portall/compare/v1.39.9...v1.40.0) (2026-03-23)
 
 ### Nouvelles fonctionnalites
