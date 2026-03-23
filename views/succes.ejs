@@ -650,14 +650,22 @@
           let dateText = '';
           let progressTotal = 0;
           const progressEntry = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id];
+          const explicitSecretText = achievement.conditionText || achievement.description || '';
+          const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };
           if (achievement.unlocked) {
-            descText = achievement.description || '';
+            descText = isSecret ? explicitSecretText : (achievement.description || '');
             dateText = achievement.unlockedDate
               ? successUnlockedOnTemplate.replace('__DATE__', achievement.unlockedDate)
               : successUnlockedShort;
           } else if (isSecret && !isRevocable) {
             descText = '';
             dateText = successSecretBadge;
+            if (progressEntry && progressEntry.total > 0) {
+              progressTotal = progressEntry.total;
+            } else {
+              const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { total: 0 };
+              progressTotal = progInfo.total || 0;
+            }
           } else if (isRevocable) {
             descText = achievement.description || '';
             if (progressEntry && progressEntry.total > 0) {
@@ -665,14 +673,12 @@
             } else {
               // Fallback pour revocable: afficher une progression de base
               // seulement si le total est informatif (>1).
-              const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };
               const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { total: 0 };
               const fallbackTotal = progInfo.total || 0;
               if (fallbackTotal > 1) progressTotal = fallbackTotal;
             }
           } else {
             descText = achievement.conditionText || achievement.description || '';
-            const emptyData = { daysSince: 0, sessionCount: 0, totalHours: 0, movieCount: 0, episodeCount: 0 };
             const progInfo = achievement.getProgress ? achievement.getProgress(emptyData) : { total: 100 };
             progressTotal = progInfo.total || 0;
           }
@@ -680,53 +686,44 @@
           <%
             let _pctDisplay = null;
             if (progressTotal > 0) {
-              _pctDisplay = '0%';
-            } else if (isRevocable && !achievement.unlocked) {
-              const _pr = typeof progressMap !== 'undefined' && progressMap && progressMap[achievement.id];
-              if (_pr && _pr.total > 0) {
-                _pctDisplay = Math.min(100, Math.round((_pr.current / _pr.total) * 100)) + '%';
+              if (progressEntry && progressEntry.total > 0) {
+                _pctDisplay = Math.min(100, Math.round((progressEntry.current / progressEntry.total) * 100)) + '%';
+              } else {
+                _pctDisplay = '0%';
               }
             }
           %>
+          <% const showXpForCard = !!achievement.xp && (!isSecret || achievement.unlocked || isRevocable); %>
           <div class="ach-card-wrap">
           <div class="achievement-card <%= achievement.category %> <%= achievement.unlocked ? 'unlocked' : 'locked' %>"
                data-badge-id="<%= achievement.id %>"
                data-name="<%- achievement.name.replace(/"/g,'&quot;') %>"
                data-icon="<%= achievement.icon %>"
                data-desc="<%- descText.replace(/"/g,'&quot;') %>"
-               data-desc-unlocked="<%- (achievement.description || '').replace(/"/g,'&quot;') %>"
+               data-desc-unlocked="<%- (isSecret ? explicitSecretText : (achievement.description || '')).replace(/"/g,'&quot;') %>"
                data-date="<%- dateText.replace(/"/g,'&quot;') %>"
                data-secret="<%= isSecret && !isRevocable ? 'true' : 'false' %>"
                data-category="<%= achievement.category %>"
                data-has-progress="<%= progressTotal > 0 ? 'true' : 'false' %>">
             <span class="achievement-tooltip"><%= achievement.name %></span>
             <span class="achievement-icon"><%= achievement.icon %></span>
-            <% if (achievement.xp) { %>
+            <% if (showXpForCard) { %>
               <span class="achievement-xp-badge">+<%= achievement.xp %> XP</span>
             <% } %>
             <% if (progressTotal > 0) { %>
+              <% const progressCurrent = progressEntry && progressEntry.total > 0 ? Math.min(progressEntry.current, progressEntry.total) : 0; %>
+              <% const progressPercent = progressTotal > 0 ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100)) : 0; %>
               <div class="achievement-hidden-data">
                 <div id="progress-<%= achievement.id %>">
-                  <span class="current">0</span> / <span class="total"><%= progressTotal %></span> (<span class="percent">0</span>%)
+                  <span class="current"><%= progressCurrent %></span> / <span class="total"><%= progressTotal %></span> (<span class="percent"><%= progressPercent %></span>%)
                 </div>
               </div>
-              <div class="ach-card-mini-bar"><div class="ach-card-mini-fill" id="card-fill-<%= achievement.id %>" style="width:0%"></div></div>
-            <% } else if (isRevocable && !achievement.unlocked) { %>
-              <% const prog = progressEntry; %>
-              <% if (prog && prog.total > 0) { %>
-                <% const pct0 = Math.min(100, Math.round((prog.current / prog.total) * 100)); %>
-                <div class="achievement-hidden-data">
-                  <div id="progress-<%= achievement.id %>">
-                    <span class="current"><%= prog.current %></span> / <span class="total"><%= prog.total %></span> (<span class="percent"><%= pct0 %></span>%)
-                  </div>
-                </div>
-                <div class="ach-card-mini-bar"><div class="ach-card-mini-fill" id="card-fill-<%= achievement.id %>" style="width:<%= pct0 %>%"></div></div>
-              <% } %>
+              <div class="ach-card-mini-bar"><div class="ach-card-mini-fill" id="card-fill-<%= achievement.id %>" style="width:<%= progressPercent %>%"></div></div>
             <% } %>
           </div>
           <% if (_pctDisplay !== null) { %>
             <span class="ach-card-pct" id="card-pct-<%= achievement.id %>"><%= _pctDisplay %></span>
-          <% } else if (achievement.xp) { %>
+          <% } else if (showXpForCard) { %>
             <span class="ach-card-xp-label">+<%= achievement.xp %> XP</span>
           <% } %>
           </div>

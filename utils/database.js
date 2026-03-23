@@ -377,8 +377,9 @@ const UserQueries = {
       INSERT INTO users (username, plexId, email, joinedAt)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(username) DO UPDATE SET
-        email = excluded.email,
-        joinedAt = excluded.joinedAt,
+        plexId = COALESCE(excluded.plexId, users.plexId),
+        email = COALESCE(excluded.email, users.email),
+        joinedAt = COALESCE(excluded.joinedAt, users.joinedAt),
         updatedAt = CURRENT_TIMESTAMP
       RETURNING *
     `);

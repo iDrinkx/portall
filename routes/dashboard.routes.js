@@ -6,7 +6,7 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 const log = require("../utils/logger");
 const logRomm = log.create("[RomM]");
 
-const { computeSubscription } = require("../utils/wizarr");
+const { computeSubscription, getAllWizarrUsersDetailed } = require("../utils/wizarr");
 const { getTautulliStats } = require("../utils/tautulli");
 const { getSeerrStats } = require("../utils/seerr");
 const { getPlexJoinDate, getServerOwnerId } = require("../utils/plex");
@@ -984,22 +984,11 @@ async function getWizarrSubscription(user) {
       return computeSubscription(null);
     }
 
-    const resp = await fetch(`${wizarrUrl}/api/users`, {
-      headers: { Accept: "application/json", "X-API-Key": apiKey }
-    });
-
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      logWizarr.error(`API HTTP ${resp.status} —`, errorText.slice(0, 120));
-      throw new Error(`Wizarr API ${resp.status}`);
+    const wizarrResult = await getAllWizarrUsersDetailed(wizarrUrl, apiKey);
+    const list = wizarrResult.users || [];
+    if (!list.length) {
+      logWizarr.warn(`Aucun user Wizarr retourne pour abonnement — ${wizarrResult.reason || "raison inconnue"}`);
     }
-
-    const payload = await resp.json();
-    const list =
-      Array.isArray(payload) ? payload :
-      Array.isArray(payload?.users) ? payload.users :
-      Array.isArray(payload?.data) ? payload.data :
-      [];
 
     const norm = s => (s || "").toLowerCase().trim();
     const plexEmail = norm(user.email);

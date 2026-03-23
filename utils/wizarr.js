@@ -2,57 +2,75 @@ const fetch = require('node-fetch');
 const log = require('./logger').create('[Wizarr]');
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const WIZARR_LIST_TIMEOUT_MS = 20000;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function extractTs(u) {
-  const raw = u.joinedAtTimestamp || u.created_at || u.date_created || u.created || u.dateCreated || null;
-  if (!raw) return null;
-  if (typeof raw === 'number') return raw < 1e12 ? raw : Math.floor(raw / 1000);
-  const ms = new Date(raw).getTime();
-  return isNaN(ms) ? null : Math.floor(ms / 1000);
-}
-
 function normalizeList(payload) {
-  return Array.isArray(payload)        ? payload :
-         Array.isArray(payload?.data)  ? payload.data :
-         Array.isArray(payload?.users) ? payload.users :
-         [];
+  return Array.isArray(payload) ? payload
+    : Array.isArray(payload?.data) ? payload.data
+    : Array.isArray(payload?.users) ? payload.users
+    : [];
 }
 
-function mapUser(u) {
+function mapUser(user) {
   return {
-    id:                u.id || null,
-    username:          u.username || u.plexUsername || u.plex_username || null,
-    plexUserId:        u.plexUserId || u.plex_user_id || u.plexId || null,
-    email:             u.email || null,
-    joinedAtTimestamp: extractTs(u),
-    expires:           u.expires || null
+    id: user.id || null,
+    username: user.username || user.plexUsername || user.plex_username || null,
+    plexUserId: user.plexUserId || user.plex_user_id || user.plexId || null,
+    email: user.email || null,
+    joinedAtTimestamp: null,
+    expires: user.expires || null
   };
 }
 
-function computeSubscription(user) {
+function getWizarrHeaders(apiKey) {
+  return {
+    Accept: 'application/json',
+    'X-API-Key': apiKey
+  };
+}
 
-  // ❌ Aucun utilisateur trouvé
+function isTimeoutError(err) {
+  const message = String(err?.message || '').toLowerCase();
+  return err?.type === 'request-timeout' || message.includes('network timeout');
+}
+
+async function fetchJson(url, apiKey, timeout = WIZARR_LIST_TIMEOUT_MS) {
+  const resp = await fetch(url, {
+    headers: getWizarrHeaders(apiKey),
+    timeout
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    const error = new Error(`HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`);
+    error.status = resp.status;
+    throw error;
+  }
+
+  return resp.json();
+}
+
+function computeSubscription(user) {
   if (!user) {
     return {
-      status: "not_found",
-      label: "Aucun abonnement",
+      status: 'not_found',
+      label: 'Aucun abonnement',
       daysLeft: null,
       expiresAt: null,
       progressPercent: 0
     };
   }
 
-  // 🔵 Abonnement illimité
   if (!user.expires) {
     return {
-      status: "unlimited",
-      label: "Illimité",
-      daysLeft: "Illimité",
-      expiresAt: "Jamais",
+      status: 'unlimited',
+      label: 'Illimite',
+      daysLeft: 'Illimite',
+      expiresAt: 'Jamais',
       progressPercent: 100
     };
   }
@@ -62,8 +80,8 @@ function computeSubscription(user) {
 
   if (isNaN(expireDate.getTime())) {
     return {
-      status: "not_found",
-      label: "Erreur date",
+      status: 'not_found',
+      label: 'Erreur date',
       daysLeft: null,
       expiresAt: null,
       progressPercent: 0
@@ -71,41 +89,128 @@ function computeSubscription(user) {
   }
 
   const diffDays = Math.ceil((expireDate - now) / MS_PER_DAY);
-
-  // 🔴 Expiré
   if (diffDays <= 0) {
     return {
-      status: "expired",
-      label: "Expiré",
-      daysLeft: "0 jour",
-      expiresAt: expireDate.toLocaleDateString("fr-FR"),
+      status: 'expired',
+      label: 'Expire',
+      daysLeft: '0 jour',
+      expiresAt: expireDate.toLocaleDateString('fr-FR'),
       progressPercent: 0
     };
   }
 
-  // 🟠 Warning si ≤ 15 jours
-  const status = diffDays <= 15 ? "warning" : "active";
-
+  const status = diffDays <= 15 ? 'warning' : 'active';
   return {
     status,
-    label: status === "warning" ? "Expire bientôt" : "Actif",
+    label: status === 'warning' ? 'Expire bientot' : 'Actif',
     daysLeft: `${diffDays} jours`,
-    expiresAt: expireDate.toLocaleDateString("fr-FR"),
+    expiresAt: expireDate.toLocaleDateString('fr-FR'),
     progressPercent: Math.min(100, Math.round((diffDays / 365) * 100))
   };
 }
 
-/**
- * Vérifie auprès de Wizarr si l'utilisateur a un accès actif (abonnement non expiré)
- * @param {Object} user - Objet utilisateur Plex avec { email, username, id }
- * @param {string} wizarrUrl - URL de Wizarr (ex: http://wizarr.example.com)
- * @param {string} apiKey - Clé API Wizarr
- * @returns {Promise<{authorized: boolean, reason?: string}>}
- */
-async function checkWizarrAccess(user, wizarrUrl, apiKey) {
-  // Si pas de config Wizarr, on autorise par défaut
+async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
   if (!wizarrUrl || !apiKey) {
-    return { authorized: true, reason: 'Wizarr non configuré — accès accordé par défaut' };
+    return { users: [], ok: false, reason: 'Wizarr non configure', source: 'config' };
+  }
+
+  const apiUsersEndpoints = [
+    `${wizarrUrl}/api/users?limit=250`,
+    `${wizarrUrl}/api/users?limit=1000`,
+    `${wizarrUrl}/api/users`
+  ];
+
+  let lastError = null;
+  const attemptReasons = [];
+
+  for (const url of apiUsersEndpoints) {
+    try {
+      const payload = await fetchJson(url, apiKey);
+      const list = normalizeList(payload);
+      if (list.length > 0) {
+        const filtered = list.map(mapUser).filter(user => user.username);
+        log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users)`);
+        return { users: filtered, ok: true, reason: null, source: url };
+      }
+
+      lastError = `Reponse vide sur ${url}`;
+      attemptReasons.push(lastError);
+    } catch (err) {
+      if (err.status === 404) {
+        log.debug(`Wizarr endpoint absent: ${url}`);
+        continue;
+      }
+
+      lastError = isTimeoutError(err)
+        ? `${url} — timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+        : err.message;
+      attemptReasons.push(lastError);
+    }
+  }
+
+  const users = [];
+  const take = 50;
+  let skip = 0;
+  let hasMore = true;
+  let pageCount = 0;
+
+  while (hasMore) {
+    try {
+      const url = `${wizarrUrl}/api/v1/user?skip=${skip}&take=${take}`;
+      const payload = await fetchJson(url, apiKey);
+      const page = normalizeList(payload);
+      pageCount += 1;
+
+      if (page.length === 0) {
+        hasMore = false;
+      } else {
+        users.push(...page.map(mapUser));
+        skip += take;
+        const total = payload?.total ?? payload?.pageInfo?.results ?? null;
+        if ((total !== null && users.length >= total) || page.length < take) {
+          hasMore = false;
+        }
+      }
+    } catch (err) {
+      if (err.status === 404) {
+        log.debug('Wizarr legacy endpoint /api/v1/user absent sur cette version');
+      } else {
+        const v1Error = isTimeoutError(err)
+          ? `/api/v1/user — timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+          : `/api/v1/user — ${err.message}`;
+        if (!lastError) lastError = v1Error;
+        attemptReasons.push(v1Error);
+      }
+      hasMore = false;
+    }
+  }
+
+  const filtered = users.filter(user => user.username);
+  if (filtered.length > 0) {
+    return {
+      users: filtered,
+      ok: true,
+      reason: null,
+      source: `/api/v1/user (${pageCount} page${pageCount > 1 ? 's' : ''})`
+    };
+  }
+
+  return {
+    users: [],
+    ok: false,
+    reason: attemptReasons.length ? attemptReasons.join(' | ') : (lastError || 'Aucun utilisateur retourne par Wizarr'),
+    source: 'none'
+  };
+}
+
+async function getAllWizarrUsers(wizarrUrl, apiKey) {
+  const result = await getAllWizarrUsersDetailed(wizarrUrl, apiKey);
+  return result.users;
+}
+
+async function checkWizarrAccess(user, wizarrUrl, apiKey) {
+  if (!wizarrUrl || !apiKey) {
+    return { authorized: true, reason: 'Wizarr non configure - acces accorde par defaut' };
   }
 
   if (!user.email) {
@@ -120,36 +225,30 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
     };
 
     let wizUser = null;
-
-    // Essai 1: filtre direct par email côté Wizarr
     const emailParam = encodeURIComponent(user.email);
-    const resp = await fetch(`${wizarrUrl}/api/users?email=${emailParam}`, {
-      headers: {
-        Accept: "application/json",
-        "X-API-Key": apiKey
-      }
-    });
 
-    if (!resp.ok) {
-      return { authorized: false, reason: `Wizarr API ${resp.status} — vérification impossible` };
+    try {
+      const payload = await fetchJson(`${wizarrUrl}/api/users?email=${emailParam}`, apiKey, 10000);
+      const list = normalizeList(payload);
+      log.debug('checkWizarrAccess direct email lookup', {
+        ...debugContext,
+        directMatches: list.length
+      });
+      wizUser = list[0] || null;
+    } catch (err) {
+      if (!isTimeoutError(err) && err.status) {
+        return { authorized: false, reason: `Wizarr API ${err.status} - verification impossible` };
+      }
+      log.warn(`checkWizarrAccess direct lookup failed - ${err.message}`);
     }
 
-    const payload = await resp.json();
-    const list = Array.isArray(payload?.users) ? payload.users : [];
-    log.debug(`checkWizarrAccess direct email lookup`, {
-      ...debugContext,
-      directMatches: list.length
-    });
-    wizUser = list[0] || null;
-
-    // Essai 2: fallback robuste sur la liste complète, avec plusieurs critères
     if (!wizUser) {
       const allUsers = await getAllWizarrUsers(wizarrUrl, apiKey);
       const targetEmail = String(user.email || '').trim().toLowerCase();
       const targetUsername = String(user.username || '').trim().toLowerCase();
       const targetPlexId = String(user.id || '').trim();
 
-      log.debug(`checkWizarrAccess fallback scan`, {
+      log.debug('checkWizarrAccess fallback scan', {
         ...debugContext,
         wizarrUsers: allUsers.length,
         sample: allUsers.slice(0, 5).map(entry => ({
@@ -173,11 +272,11 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
     }
 
     if (!wizUser) {
-      log.warn(`checkWizarrAccess no match`, debugContext);
-      return { authorized: false, reason: 'Utilisateur non trouvé dans Wizarr' };
+      log.warn('checkWizarrAccess no match', debugContext);
+      return { authorized: false, reason: 'Utilisateur non trouve dans Wizarr' };
     }
 
-    log.info(`checkWizarrAccess match`, {
+    log.info('checkWizarrAccess match', {
       ...debugContext,
       matchedUsername: wizUser.username || null,
       matchedEmail: wizUser.email || null,
@@ -185,9 +284,7 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
       expires: wizUser.expires || null
     });
 
-    // Vérifier que l'abonnement est actif (illimité ou pas expiré)
     if (!wizUser.expires) {
-      // Abonnement illimité → OK
       return { authorized: true };
     }
 
@@ -195,134 +292,24 @@ async function checkWizarrAccess(user, wizarrUrl, apiKey) {
     const expireDate = new Date(wizUser.expires);
 
     if (isNaN(expireDate.getTime())) {
-      return { authorized: false, reason: 'Date d\'expiration invalide' };
+      return { authorized: false, reason: 'Date d expiration invalide' };
     }
 
     const diffDays = Math.ceil((expireDate - now) / MS_PER_DAY);
-
     if (diffDays <= 0) {
-      return { authorized: false, reason: `Abonnement expiré le ${expireDate.toLocaleDateString('fr-FR')}` };
+      return { authorized: false, reason: `Abonnement expire le ${expireDate.toLocaleDateString('fr-FR')}` };
     }
 
-    // Abonnement actif
     return { authorized: true };
-
   } catch (err) {
     return { authorized: false, reason: `Erreur Wizarr: ${err.message}` };
   }
 }
 
-/**
- * Récupère TOUS les utilisateurs Wizarr avec pagination
- * @param {string} wizarrUrl - URL de Wizarr
- * @param {string} apiKey - Clé API Wizarr
- * @returns {Promise<Array<{id, username, plexUserId, email, joinedAtTimestamp}>>}
- */
-async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
-  if (!wizarrUrl || !apiKey) {
-    return { users: [], ok: false, reason: 'Wizarr non configuré', source: 'config' };
-  }
-
-  const apiUsersEndpoints = [
-    `${wizarrUrl}/api/users?limit=1000`,
-    `${wizarrUrl}/api/users`,
-  ];
-  let lastError = null;
-  const attemptReasons = [];
-
-  for (const url of apiUsersEndpoints) {
-    try {
-      const resp = await fetch(url, {
-        headers: { Accept: 'application/json', 'X-API-Key': apiKey },
-        timeout: 8000
-      });
-
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => "");
-        lastError = `HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`;
-        attemptReasons.push(lastError);
-        continue;
-      }
-
-      const payload = await resp.json();
-      const list = normalizeList(payload);
-      if (list.length > 0) {
-        const filtered = list.map(mapUser).filter(u => u.username);
-        log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users)`);
-        return { users: filtered, ok: true, reason: null, source: url };
-      }
-
-      lastError = `Réponse vide sur ${url}`;
-      attemptReasons.push(lastError);
-    } catch (err) {
-      lastError = `${url} — ${err.message}`;
-      attemptReasons.push(lastError);
-    }
-  }
-
-  const users = [];
-  const take = 50;
-  let skip = 0;
-  let hasMore = true;
-  let pageCount = 0;
-
-  while (hasMore) {
-    try {
-      const url = `${wizarrUrl}/api/v1/user?skip=${skip}&take=${take}`;
-      const resp = await fetch(url, {
-        headers: { Accept: 'application/json', 'X-API-Key': apiKey },
-        timeout: 8000
-      });
-
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => "");
-        const v1Error = `HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`;
-        if (!lastError) lastError = v1Error;
-        attemptReasons.push(v1Error);
-        break;
-      }
-
-      const payload = await resp.json();
-      const page = normalizeList(payload);
-      pageCount += 1;
-
-      if (page.length === 0) {
-        hasMore = false;
-      } else {
-        users.push(...page.map(mapUser));
-        skip += take;
-        const total = payload?.total ?? payload?.pageInfo?.results ?? null;
-        if ((total !== null && users.length >= total) || page.length < take) hasMore = false;
-      }
-    } catch (err) {
-      const v1Error = `/api/v1/user — ${err.message}`;
-      if (!lastError) lastError = v1Error;
-      attemptReasons.push(v1Error);
-      hasMore = false;
-    }
-  }
-
-  const filtered = users.filter(u => u.username);
-  if (filtered.length > 0) {
-    return {
-      users: filtered,
-      ok: true,
-      reason: null,
-      source: `/api/v1/user (${pageCount} page${pageCount > 1 ? 's' : ''})`
-    };
-  }
-
-  return {
-    users: [],
-    ok: false,
-    reason: attemptReasons.length ? attemptReasons.join(' | ') : (lastError || 'Aucun utilisateur retourné par Wizarr'),
-    source: 'none'
-  };
-}
-
-async function getAllWizarrUsers(wizarrUrl, apiKey) {
-  const result = await getAllWizarrUsersDetailed(wizarrUrl, apiKey);
-  return result.users;
-}
-
-module.exports = { computeSubscription, checkWizarrAccess, getAllWizarrUsers, getAllWizarrUsersDetailed, delay };
+module.exports = {
+  computeSubscription,
+  checkWizarrAccess,
+  getAllWizarrUsers,
+  getAllWizarrUsersDetailed,
+  delay
+};

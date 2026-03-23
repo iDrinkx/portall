@@ -232,6 +232,7 @@ async function refreshClassementCache() {
 
     // ══════════════════════════════════════════════════════════════════
     // ÉTAPE 2: Récupérer les users Wizarr, puis persister en DB
+    // Wizarr sert ici de source pour la liste des users actifs, pas pour joinedAt.
     // ══════════════════════════════════════════════════════════════════
     const wizarrUrl = String(getConfigValue('WIZARR_URL', '') || '').trim();
     const wizarrApiKey = String(getConfigValue('WIZARR_API_KEY', '') || '').trim();
@@ -277,7 +278,7 @@ async function refreshClassementCache() {
         try {
           // Résoudre le vrai username Plex via email avant de persister
           const plexName = (wUser.email && emailToUsername[wUser.email.toLowerCase()]) || wUser.username;
-          UserQueries.upsert(plexName, wUser.plexUserId, wUser.email, wUser.joinedAtTimestamp);
+          UserQueries.upsert(plexName, wUser.plexUserId, wUser.email, null);
         } catch (_) {}
       }
     } else if (!wizarrConfigured) {
@@ -335,7 +336,7 @@ async function refreshClassementCache() {
 
       const tautulliStats = getUserStatsFromTautulli(plexUsername);
       if (tautulliStats) {
-        return { ...tautulliStats, username: plexUsername, _joinedAtTimestamp: wUser.joinedAtTimestamp };
+        return { ...tautulliStats, username: plexUsername };
       }
       return {
         username: plexUsername,
@@ -348,8 +349,7 @@ async function refreshClassementCache() {
         episode_duration_seconds: 0,
         music_count: 0,
         music_duration_seconds: 0,
-        totalHours: 0,
-        _joinedAtTimestamp: wUser.joinedAtTimestamp
+        totalHours: 0
       };
     });
 
@@ -377,8 +377,8 @@ async function refreshClassementCache() {
       const key = (stats.username || '').toLowerCase();
       const thumb = thumbMap[key] || null;
 
-      // Priorité joinedAt: Plex XML (= même source que profil) > Wizarr > DB > calculateUserXp fallback
-      let joinedAtTs = plexJoinedAtMap[key] || stats._joinedAtTimestamp || null;
+      // Priorité joinedAt: Plex XML (= même source que profil) > DB > calculateUserXp fallback
+      let joinedAtTs = plexJoinedAtMap[key] || null;
       if (!joinedAtTs) {
         const dbUser = UserQueries.getByUsername(stats.username);
         if (dbUser && dbUser.joinedAt) {
@@ -389,7 +389,14 @@ async function refreshClassementCache() {
         }
       }
 
-      logCR.debug(`🎯 XP ${stats.username}: joinedAtTs=${joinedAtTs} src=${plexJoinedAtMap[key]?'plex':stats._joinedAtTimestamp?'wizarr':'fallback'}`);
+      // Si Plex nous donne joinedAt, le persister en DB pour les prochains démarrages.
+      if (plexJoinedAtMap[key]) {
+        try {
+          UserQueries.upsert(stats.username, null, null, plexJoinedAtMap[key]);
+        } catch (_) {}
+      }
+
+      logCR.debug(`🎯 XP ${stats.username}: joinedAtTs=${joinedAtTs} src=${plexJoinedAtMap[key]?'plex':joinedAtTs?'db':'fallback'}`);
 
       try {
         // 🎯 Appeler la fonction centralisée avec heures DB directes (rapide, pas d'appel HTTP)
@@ -547,13 +554,19 @@ function healthCheckAndRepair() {
 
     const usersWithoutJoinedAt = allUsers.filter(u => !u.joinedAt).length;
     const percentMissing = (usersWithoutJoinedAt / allUsers.length) * 100;
+    const hasPlexToken = String(getConfigValue('PLEX_TOKEN', '') || '').trim().length > 0;
 
     // ✅ Si > 30% sans joinedAt → RESET CACHE pour recalcul avec fallback
     // Le fallback dans le cron va utiliser des valeurs intelligentes (30/60/120 jours)
     if (percentMissing > 30) {
-      logCR.warn(`⚠️  ${percentMissing.toFixed(1)}% des users sans joinedAt`);
+      if (hasPlexToken) {
+        logCR.info(`ℹ️  ${percentMissing.toFixed(1)}% des users sans joinedAt en DB — Plex servira de source au refresh`);
+        logCR.info('   🔄 Backfill automatique des dates Plex vers la DB en cours de refresh');
+      } else {
+        logCR.warn(`⚠️  ${percentMissing.toFixed(1)}% des users sans joinedAt`);
+        logCR.warn('   💡 Fallback intelligent sera utilisé (30/60/120 jours selon heures)');
+      }
       logCR.warn('   🔧 Réinitialisation du cache pour recalcul automatique');
-      logCR.warn('   💡 Fallback intelligent sera utilisé (30/60/120 jours selon heures)');
 
       // Réinitialiser complètement le cache
       classementCache = {

@@ -22,6 +22,7 @@ const plexLibraryIndexCache = { items: null, ts: 0, failedAt: 0, promise: null }
 const tautulliLibraryIndexCache = { items: null, ts: 0 };
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
 const COLLECTION_MOVIE_MIN_PERCENT = 50;
+const TRAKT_USER_AGENT = 'portall/1.0 (+https://github.com/iDrinkx/plex-portal)';
 
 const TRAKT_LISTS = {
   'potter-head': 'https://app.trakt.tv/users/arachn0id/lists/wizarding-world',
@@ -46,7 +47,13 @@ async function resolveTraktOfficialListId(traktListUrl) {
   }
 
   try {
-    const response = await fetch(traktListUrl, { redirect: 'follow' });
+    const response = await fetch(traktListUrl, {
+      redirect: 'follow',
+      headers: {
+        'User-Agent': TRAKT_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Trakt page HTTP ${response.status}`);
     }
@@ -149,6 +156,8 @@ async function getTraktListItems(achievementId) {
           const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
             headers: {
               Accept: 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': TRAKT_USER_AGENT,
               'trakt-api-version': '2',
               'trakt-api-key': traktClientId
             }
@@ -1632,6 +1641,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 AND CAST(strftime('%H', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) = 0
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
+            progress[id] = { current: r ? 1 : 0, total: 1 };
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { log.warn('midnight-watcher:', e.message); }
           break;
@@ -1651,6 +1661,18 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
               GROUP BY week HAVING hours >= 20
               ORDER BY week ASC LIMIT 1
             `).get(userFilter.param);
+            const bestWeekend = tautulliDb.prepare(`
+              SELECT MAX(weekend_hours) as max_hours
+              FROM (
+                SELECT SUM(CAST(sh.stopped - sh.started AS REAL) / 3600) as weekend_hours
+                FROM session_history sh
+                WHERE ${userFilter.clause} AND sh.stopped > sh.started
+                  AND CAST(strftime('%w', datetime(sh.started, 'unixepoch', 'localtime')) AS INTEGER) IN (0, 6)
+                GROUP BY strftime('%Y-%W', datetime(sh.started, 'unixepoch', 'localtime'))
+              ) w
+            `).get(userFilter.param);
+            const current = Math.min(Math.round(Number(bestWeekend?.max_hours || 0) * 10) / 10, 20);
+            progress[id] = { current, total: 20 };
             if (r) results[id] = fmt(r.last_stopped) || today;
           } catch(e) { log.warn('weekend-warrior:', e.message); }
           break;
@@ -1722,6 +1744,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
                 AND strftime('%m-%d', datetime(sh.started, 'unixepoch', 'localtime')) = '12-31'
               ORDER BY sh.started ASC LIMIT 1
             `).get(userFilter.param);
+            progress[id] = { current: r ? 1 : 0, total: 1 };
             if (r) results[id] = fmt(r.started) || today;
           } catch(e) { log.warn('countdown-pajama:', e.message); }
           break;
