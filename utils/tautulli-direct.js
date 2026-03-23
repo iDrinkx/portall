@@ -1387,6 +1387,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
   const results = {};
   const progress = {};
   if (!tautulliDb || toCheckIds.length === 0) return { unlocked: results, progress };
+  const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
   const norm = username.toLowerCase();
   const fmt  = (ts) => ts ? new Date(ts * 1000).toLocaleDateString('fr-FR') : null;
@@ -1705,6 +1706,7 @@ async function evaluateSecretAchievements(username, joinedAtTimestamp, toCheckId
 
   try {
     for (const id of toCheckIds) {
+      await yieldToEventLoop();
       switch (id) {
 
         // 🦕 Survivant du Parc — Toute la saga Jurassic

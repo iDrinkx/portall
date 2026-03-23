@@ -1177,12 +1177,12 @@ router.get("/succes", requireAuth, async (req, res) => {
         achievementState.userUnlockedMap?.[id] || achievementState.progressMap?.[id]
       );
 
-    if (collectionsMissingState) {
+    if (collectionsMissingState && !achievementState.snapshot?.updatedAt) {
       achievementState = await refreshUserAchievementState(req.session.user, { includeSecretEvaluation: true });
     }
 
     let backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
-    if (achievementState.needsRefresh && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
+    if ((achievementState.needsRefresh || collectionsMissingState) && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
       queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
       backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     }
@@ -1317,11 +1317,15 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
-    const state = await refreshUserAchievementState(req.session.user, { includeSecretEvaluation: true });
-    const refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    if (!refreshStatus.running && !refreshStatus.queued) {
+      queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
+      refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+    }
     res.json({
       success: true,
-      refreshed: state.refreshed,
+      refreshed: !!state.refreshed,
       queued: !!refreshStatus.queued,
       running: !!refreshStatus.running || !!refreshStatus.queued,
       needsRefresh: !!state.needsRefresh,

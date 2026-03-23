@@ -17,6 +17,7 @@ let classementCache = {
   timestamp: null,
   lastRefresh: null
 };
+let classementRefreshInFlight = null;
 
 let lastValidCache = null; // Cache de secours en cas de corruption
 let corruptionCount = 0;    // Compteur de corruptions détectées
@@ -167,14 +168,20 @@ function validateCacheData(users, stats) {
  * Pré-calcule et cache les données du classement
  */
 async function refreshClassementCache() {
-  try {
-    logCR.debug('🔄 Refresh classement en cours...');
-    const startTime = Date.now();
+  if (classementRefreshInFlight) {
+    logCR.debug('⏳ Refresh classement déjà en cours - requête fusionnée');
+    return classementRefreshInFlight;
+  }
 
-    if (!isTautulliReady()) {
-      logCR.warn('Tautulli pas prêt, skip refresh');
-      return;
-    }
+  classementRefreshInFlight = (async () => {
+    try {
+      logCR.debug('🔄 Refresh classement en cours...');
+      const startTime = Date.now();
+
+      if (!isTautulliReady()) {
+        logCR.warn('Tautulli pas prêt, skip refresh');
+        return;
+      }
 
     // ══════════════════════════════════════════════════════════════════
     // ÉTAPE 1: Plex XML en premier — construit les 3 maps de référence
@@ -535,11 +542,16 @@ async function refreshClassementCache() {
     classementCache = newCache;
     lastValidCache = { data: { byHours: [...byHours], byLevel: [...byLevel] } }; // Sauvegarder comme backup
 
-    const duration = Date.now() - startTime;
-    logCR.debug(`✅ Classement refreshé en ${duration}ms (${users.length} users)`);
-  } catch (err) {
-    logCR.error(`Error refreshing classement: ${err.message}`);
-  }
+      const duration = Date.now() - startTime;
+      logCR.debug(`✅ Classement refreshé en ${duration}ms (${users.length} users)`);
+    } catch (err) {
+      logCR.error(`Error refreshing classement: ${err.message}`);
+    } finally {
+      classementRefreshInFlight = null;
+    }
+  })();
+
+  return classementRefreshInFlight;
 }
 
 /**
