@@ -135,15 +135,11 @@
           <span class="stat-value skel" id="totalRequests"></span>
         </div>
         <div class="stat-row">
-          <span class="stat-label">Approuvées</span>
-          <span class="stat-value approved skel" id="approvedRequests"></span>
+          <span class="stat-label">Films</span>
+          <span class="stat-value approved skel" id="pendingRequests"></span>
         </div>
         <div class="stat-row">
-          <span class="stat-label">En attente</span>
-          <span class="stat-value pending skel" id="pendingRequests"></span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Disponibles</span>
+          <span class="stat-label">Séries</span>
           <span class="stat-value available skel" id="availableRequests"></span>
         </div>
       </div>
@@ -1503,7 +1499,6 @@
         subProgress:      g("profilSubProgress")?.style.width || "0%",
         // Demandes (Seerr)
         totalRequests:    t("totalRequests"),
-        approvedRequests: t("approvedRequests"),
         pendingRequests:  t("pendingRequests"),
         availableRequests:t("availableRequests"),
         // Visionnage (Tautulli)
@@ -1561,7 +1556,6 @@
       if (prog && snap.subProgress) prog.style.width = snap.subProgress;
       // Demandes
       s("totalRequests",    snap.totalRequests);
-      s("approvedRequests", snap.approvedRequests);
       s("pendingRequests",  snap.pendingRequests);
       s("availableRequests",snap.availableRequests);
       // Visionnage
@@ -1811,6 +1805,10 @@
           console.error("[SEERR] ❌ Erreur API:", res.status, text);
           return {
             pending: 0,
+            movieRequests: 0,
+            tvRequests: 0,
+            movieQuota: { text: "Illimité" },
+            tvQuota: { text: "Illimité" },
             approved: 0,
             available: 0,
             total: 0
@@ -1828,6 +1826,10 @@
         console.warn("[SEERR] ⚠️ Données null, retour défaut");
         return {
           pending: 0,
+          movieRequests: 0,
+          tvRequests: 0,
+          movieQuota: { text: "Illimité" },
+          tvQuota: { text: "Illimité" },
           approved: 0,
           available: 0,
           total: 0
@@ -1837,6 +1839,10 @@
       console.log("[SEERR] ✅ Données valides retournées - total:", data.total);
       return {
         pending: data.pending || 0,
+        movieRequests: data.movieRequests || 0,
+        tvRequests: data.tvRequests || 0,
+        movieQuota: data.movieQuota || { text: "Illimité" },
+        tvQuota: data.tvQuota || { text: "Illimité" },
         approved: data.approved || 0,
         available: data.available || 0,
         unavailable: data.unavailable || 0,
@@ -1846,6 +1852,10 @@
       console.error("[SEERR] ❌ Erreur catch:", err.message, err);
       return {
         pending: 0,
+        movieRequests: 0,
+        tvRequests: 0,
+        movieQuota: { text: "Illimité" },
+        tvQuota: { text: "Illimité" },
         approved: 0,
         available: 0,
         total: 0
@@ -1919,7 +1929,9 @@
       ]);
       
       // ÉTAPE 2: Afficher immédiatement Seerr + Wizarr (sans attendre Tautulli)
-      const seerrData = seerrRes.status === 'fulfilled' ? seerrRes.value || { total: 0, pending: 0, approved: 0, available: 0 } : { total: 0, pending: 0, approved: 0, available: 0 };
+      const seerrData = seerrRes.status === 'fulfilled'
+        ? seerrRes.value || { total: 0, pending: 0, movieRequests: 0, tvRequests: 0, movieQuota: { text: "Illimité" }, tvQuota: { text: "Illimité" }, approved: 0, available: 0 }
+        : { total: 0, pending: 0, movieRequests: 0, tvRequests: 0, movieQuota: { text: "Illimité" }, tvQuota: { text: "Illimité" }, approved: 0, available: 0 };
       const subscriptionData = subscriptionRes.status === 'fulfilled' ? subscriptionRes.value || {} : {};
       const xpSnapshotData = xpSnapRes.status === 'fulfilled' ? xpSnapRes.value : null;
       
@@ -1927,15 +1939,13 @@
       
       // Afficher les stats Seerr IMMÉDIATEMENT
       const totalReqEl = document.getElementById("totalRequests");
-      const approvedEl = document.getElementById("approvedRequests");
       const pendingEl = document.getElementById("pendingRequests");
       const availableEl = document.getElementById("availableRequests");
       const reqCountEl = document.getElementById("requestCount2");
       
       if (totalReqEl) totalReqEl.textContent = seerrData.total;
-      if (approvedEl) approvedEl.textContent = seerrData.approved;
-      if (pendingEl) pendingEl.textContent = seerrData.pending;
-      if (availableEl) availableEl.textContent = seerrData.available;
+      if (pendingEl) pendingEl.textContent = seerrData.movieQuota?.text || "Illimité";
+      if (availableEl) availableEl.textContent = seerrData.tvQuota?.text || "Illimité";
       if (reqCountEl) reqCountEl.textContent = seerrData.total + " demandes";
       
       console.log("[PROFIL] ✅ Seerr affiché:", seerrData);
@@ -1963,7 +1973,7 @@
       }
 
       // 🧹 Nettoyer skeletons — batch 1 (Seerr + Abonnement)
-      clearSkel('totalRequests','approvedRequests','pendingRequests','availableRequests',
+      clearSkel('totalRequests','pendingRequests','availableRequests',
                 'profilSubStatus','profilSubDays','profilSubExpire');
       if (xpSnapshotData) {
         applyXpDisplay(xpSnapshotData);
@@ -2345,7 +2355,7 @@
             clearSkel('counterSessions','statTotalHours','counterMovies','statMovieHours',
                       'counterEpisodes','statEpisodeHours','counterMusic','statMusicHours',
                       'joinedDate','lastActivity',
-                      'totalRequests','approvedRequests','pendingRequests','availableRequests',
+                      'totalRequests','pendingRequests','availableRequests',
                       'profilSubStatus','profilSubDays','profilSubExpire');
             markProfilRefreshed();
             saveProfilSnapshot();
@@ -2457,9 +2467,8 @@
       // ---- Seerr ----
       if (seerr) {
         if (el("totalRequests"))    el("totalRequests").textContent    = seerr.total;
-        if (el("approvedRequests")) el("approvedRequests").textContent = seerr.approved;
-        if (el("pendingRequests"))  el("pendingRequests").textContent  = seerr.pending;
-        if (el("availableRequests"))el("availableRequests").textContent= seerr.available;
+        if (el("pendingRequests"))  el("pendingRequests").textContent  = seerr.movieQuota?.text || "Illimité";
+        if (el("availableRequests"))el("availableRequests").textContent= seerr.tvQuota?.text || "Illimité";
         if (el("requestCount2"))    el("requestCount2").textContent    = seerr.total + " demandes";
       }
 

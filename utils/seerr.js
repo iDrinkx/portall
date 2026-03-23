@@ -128,7 +128,7 @@ async function getCurrentSeerrUser(SEERR_URL, SEERR_API_KEY) {
  * @param {string} username - Username Plex (fallback si l'email ne match pas)
  * @param {string} SEERR_URL - URL de base d'Seerr
  * @param {string} SEERR_API_KEY - Clé API Seerr
- * @returns {Promise<Object|null>} Stats avec pending, approved, available, unavailable
+ * @returns {Promise<Object|null>} Stats avec pending, movie/tv requests et quotas restants
  */
 async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY) {
   try {
@@ -187,14 +187,56 @@ const res = await fetch(url.toString(), {
       }
     }
 
+    const now = Date.now();
+
+    const buildQuotaSummary = (type, limit, days) => {
+      const normalizedLimit = Number(limit);
+      const normalizedDays = Number(days);
+      const hasLimit = Number.isFinite(normalizedLimit) && normalizedLimit > 0;
+      const hasDays = Number.isFinite(normalizedDays) && normalizedDays > 0;
+
+      if (!hasLimit || !hasDays) {
+        return {
+          limit: hasLimit ? normalizedLimit : null,
+          days: hasDays ? normalizedDays : null,
+          used: 0,
+          remaining: null,
+          text: "Illimité"
+        };
+      }
+
+      const cutoff = now - (normalizedDays * 24 * 60 * 60 * 1000);
+      const used = allRequests.filter(req => {
+        const requestType = String(req.type || req.media?.mediaType || "").toLowerCase();
+        if (requestType !== type) return false;
+        const createdAtMs = req.createdAt ? Date.parse(req.createdAt) : 0;
+        return Number.isFinite(createdAtMs) && createdAtMs >= cutoff;
+      }).length;
+
+      const remaining = Math.max(0, normalizedLimit - used);
+      return {
+        limit: normalizedLimit,
+        days: normalizedDays,
+        used,
+        remaining,
+        text: `${remaining} sur ${normalizedLimit} restantes`
+      };
+    };
+
     // Compter par statut
     let pending = 0;
     let approved = 0;
     let approvedAvailable = 0;
     let available = 0;
     let unavailable = 0;
+    let movieRequests = 0;
+    let tvRequests = 0;
 
     allRequests.forEach(req => {
+      const requestType = String(req.type || req.media?.mediaType || "").toLowerCase();
+      if (requestType === "movie") movieRequests++;
+      else if (requestType === "tv") tvRequests++;
+
       if (req.status === 1) {
         pending++;
       } else if (req.status === 2) {
@@ -206,8 +248,15 @@ const res = await fetch(url.toString(), {
       if (req.media?.status === 5) available++;
     });
 
+    const movieQuota = buildQuotaSummary("movie", seerrUser.movieQuotaLimit, seerrUser.movieQuotaDays);
+    const tvQuota = buildQuotaSummary("tv", seerrUser.tvQuotaLimit, seerrUser.tvQuotaDays);
+
     const result = {
       pending,
+      movieRequests,
+      tvRequests,
+      movieQuota,
+      tvQuota,
       approved: approved - approvedAvailable,
       available: approvedAvailable,
       unavailable,
@@ -247,7 +296,7 @@ async function getSeerrGlobalStats(SEERR_URL, SEERR_API_KEY) {
     if (!res.ok) return null;
 
     const json = await res.json();
-    const totalRequests = json.pageInfo?.totalResults || 0;
+    const totalRequests = Number(json.pageInfo?.results || json.pageInfo?.totalResults || 0);
 
     return {
       totalRequests,

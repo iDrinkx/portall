@@ -431,10 +431,16 @@ async function initializeAllUsersForCron() {
         const pageInfo = json.pageInfo || {};
         totalPages = Math.ceil((pageInfo.results || 0) / pageSize);
 
-        console.log(`[SETUP]   Page ${page}: ${json.data?.length || 0} utilisateurs trouvés`);
+        const pageUsers = Array.isArray(json.results)
+          ? json.results
+          : Array.isArray(json.data)
+            ? json.data
+            : [];
 
-        if (json.data) {
-          users.push(...json.data.map(u => ({
+        console.log(`[SETUP]   Page ${page}: ${pageUsers.length || 0} utilisateurs trouvés`);
+
+        if (pageUsers.length > 0) {
+          users.push(...pageUsers.map(u => ({
             id: u.id,
             username: u.username || u.plexUsername,
             plexUserId: u.plexId,

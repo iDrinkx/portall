@@ -1535,8 +1535,14 @@ router.get("/api/all-users", async (req, res) => {
       const pageInfo = json.pageInfo || {};
       totalPages = Math.ceil((pageInfo.results || 0) / pageSize);
 
-      if (json.data) {
-        users.push(...json.data.map(u => ({
+      const pageUsers = Array.isArray(json.results)
+        ? json.results
+        : Array.isArray(json.data)
+          ? json.data
+          : [];
+
+      if (pageUsers.length > 0) {
+        users.push(...pageUsers.map(u => ({
           id: u.id,
           username: u.username || u.plexUsername,
           plexUserId: u.plexId,
