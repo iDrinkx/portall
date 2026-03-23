@@ -186,20 +186,24 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   let authorizedByPlex = true;
   let isAdmin = false;
   const plexUrl = getConfigValue("PLEX_URL", "");
-  const plexToken = getConfigValue("PLEX_TOKEN", "");
-  if (plexUrl && plexToken) {
+  const configuredPlexToken = String(getConfigValue("PLEX_TOKEN", "") || "").trim();
+  const runtimePlexToken = String(AppSettingQueries.get("runtime_plex_cloud_token", "") || "").trim();
+  const plexCloudToken = String(authToken || runtimePlexToken || configuredPlexToken || "").trim();
+  const plexServerToken = String(configuredPlexToken || authToken || runtimePlexToken || "").trim();
+
+  if (plexUrl && plexCloudToken) {
     try {
       const userId = parseInt(user.id);
       const [ownerId, machineId] = await Promise.all([
-        getServerOwnerId(plexToken),
-        getServerMachineId(plexUrl, plexToken)
+        getServerOwnerId(plexCloudToken),
+        getServerMachineId(plexUrl, plexServerToken)
       ]);
 
       if (ownerId && ownerId === userId) {
         isAdmin = true;
         logAuth.info(`Proprietaire du serveur detecte pour user#${userId}`);
       } else {
-        const authorizedUsers = await getAuthorizedServerUsers(plexToken, machineId);
+        const authorizedUsers = await getAuthorizedServerUsers(plexCloudToken, machineId);
         if (!authorizedUsers.some(u => u.id === userId)) {
           logAuth.warn(`Acces Plex refuse pour user#${userId}`);
           authorizedByPlex = false;

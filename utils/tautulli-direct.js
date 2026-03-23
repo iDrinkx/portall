@@ -22,6 +22,7 @@ const plexLibraryIndexCache = { items: null, ts: 0, failedAt: 0, promise: null }
 const tautulliLibraryIndexCache = { items: null, ts: 0 };
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000;
 const COLLECTION_MOVIE_MIN_PERCENT = 50;
+const TRAKT_USER_AGENT = 'portall/1.0 (+https://github.com/iDrinkx/plex-portal)';
 
 const TRAKT_LISTS = {
   'potter-head': 'https://app.trakt.tv/users/arachn0id/lists/wizarding-world',
@@ -46,7 +47,13 @@ async function resolveTraktOfficialListId(traktListUrl) {
   }
 
   try {
-    const response = await fetch(traktListUrl, { redirect: 'follow' });
+    const response = await fetch(traktListUrl, {
+      redirect: 'follow',
+      headers: {
+        'User-Agent': TRAKT_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Trakt page HTTP ${response.status}`);
     }
@@ -149,6 +156,8 @@ async function getTraktListItems(achievementId) {
           const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
             headers: {
               Accept: 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': TRAKT_USER_AGENT,
               'trakt-api-version': '2',
               'trakt-api-key': traktClientId
             }
