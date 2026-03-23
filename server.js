@@ -473,7 +473,7 @@ app.listen(PORT, async () => {
 
   // 📋 IMPORT AUTOMATIQUE depuis Wizarr au démarrage
   // Cela garantit que le classement est complet même après suppression DB
-  // Source de vérité: Wizarr (email + username + joinedAtTimestamp)
+  // Source de vérité: Wizarr pour la liste des users, Plex pour joinedAt
   console.log("[SETUP] 📋 Import automatique des users Wizarr en DB...");
   try {
     const { getAllWizarrUsersDetailed, delay } = require("./utils/wizarr");
@@ -507,7 +507,7 @@ app.listen(PORT, async () => {
       for (const wUser of wizarrUsers) {
         try {
           if (wUser.username) {
-            UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, wUser.joinedAtTimestamp);
+            UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, null);
             upserted++;
           }
         } catch (_) {}

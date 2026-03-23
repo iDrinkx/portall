@@ -8,14 +8,6 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function extractTs(user) {
-  const raw = user.joinedAtTimestamp || user.created_at || user.date_created || user.created || user.dateCreated || null;
-  if (!raw) return null;
-  if (typeof raw === 'number') return raw < 1e12 ? raw : Math.floor(raw / 1000);
-  const ms = new Date(raw).getTime();
-  return isNaN(ms) ? null : Math.floor(ms / 1000);
-}
-
 function normalizeList(payload) {
   return Array.isArray(payload) ? payload
     : Array.isArray(payload?.data) ? payload.data
@@ -29,7 +21,7 @@ function mapUser(user) {
     username: user.username || user.plexUsername || user.plex_username || null,
     plexUserId: user.plexUserId || user.plex_user_id || user.plexId || null,
     email: user.email || null,
-    joinedAtTimestamp: extractTs(user),
+    joinedAtTimestamp: null,
     expires: user.expires || null
   };
 }
