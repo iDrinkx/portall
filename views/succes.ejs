@@ -89,6 +89,12 @@
     color: #a0a0a0;
     margin: 0;
   }
+  .badges-refresh-timer {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #7f8a98;
+    font-style: italic;
+  }
 
   /* STATS */
   .badges-stats {
@@ -608,6 +614,7 @@
       <h1 class="badges-title"><%= t("success.title") %></h1>
     </div>
     <p class="badges-subtitle"><%= t("success.subtitle", { serverName: siteTitle }) %></p>
+    <div class="badges-refresh-timer" id="successRefreshTimer"></div>
   </div>
 
   <!-- STATS -->
@@ -856,6 +863,101 @@
     document.querySelectorAll('.achievement-card').forEach(function(card) {
       card.addEventListener('click', function() { openModal(card); });
     });
+    var successRefreshMeta = {
+      updatedAt: <%- JSON.stringify(successRefreshMeta?.updatedAt || null) %>,
+      ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>
+    };
+    var successBasePath = '<%= basePath %>';
+    var successRefreshTimerEl = document.getElementById('successRefreshTimer');
+    var successAutoRefreshPending = false;
+
+    function formatRefreshDuration(totalSeconds) {
+      if (totalSeconds < 60) return totalSeconds + 's';
+      var minutes = Math.floor(totalSeconds / 60);
+      var seconds = totalSeconds % 60;
+      if (minutes < 60) return minutes + 'm' + (seconds ? ' ' + seconds + 's' : '');
+      var hours = Math.floor(minutes / 60);
+      var remainingMinutes = minutes % 60;
+      return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '');
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+
+      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
+      if (!updatedAtMs) return;
+
+      var now = Date.now();
+      var ageSeconds = Math.max(0, Math.floor((now - updatedAtMs) / 1000));
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      var text = 'Succès actualisés il y a ' + formatRefreshDuration(ageSeconds);
+      if (successRefreshMeta.ttlMs > 0) {
+        text += remainingSeconds > 0
+          ? ' • frais pour encore ' + formatRefreshDuration(remainingSeconds)
+          : ' • refresh recommandé';
+      }
+      successRefreshTimerEl.textContent = text;
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+
+      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
+      if (!updatedAtMs) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? (remainingSeconds > 0
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : recommandée')
+        : 'Données succès à jour';
+    }
+
+    function updateSuccessRefreshTimer() {
+      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
+
+      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
+      if (!updatedAtMs) return;
+
+      var now = Date.now();
+      var remainingSeconds = successRefreshMeta.ttlMs > 0
+        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
+        : 0;
+
+      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
+        ? (remainingSeconds > 0
+          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
+          : 'Prochaine actualisation : imminente')
+        : 'Données succès à jour';
+
+      if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending) {
+        successAutoRefreshPending = true;
+        successRefreshTimerEl.textContent = 'Actualisation en cours...';
+        fetch(successBasePath + '/api/badges-eval')
+          .then(function() {
+            window.location.reload();
+          })
+          .catch(function() {
+            successAutoRefreshPending = false;
+            successRefreshTimerEl.textContent = 'Actualisation au prochain chargement';
+          });
+      }
+    }
+
+    updateSuccessRefreshTimer();
+    if (successRefreshTimerEl && successRefreshMeta.updatedAt) {
+      setInterval(updateSuccessRefreshTimer, 1000);
+    }
+    // L'affichage est préparé côté serveur à partir de l'état persisté en DB.
+    // On coupe ici l'ancien recalcul navigateur pour garder une seule source de vérité.
+    return;
     // ──────────────────────────────────────────────────────────────────────
 
     const BASE = '<%= basePath %>';
