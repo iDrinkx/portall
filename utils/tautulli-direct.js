@@ -1215,11 +1215,12 @@ function getTimeBasedSessionCounts(username) {
 
   try {
     const norm = username.toLowerCase();
+    const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
     // Nuit : 22h-6h (heure locale)
     const nightStmt = tautulliDb.prepare(`
       SELECT COUNT(*) as cnt
       FROM session_history sh
-      WHERE LOWER(sh.user) = ?
+      WHERE ${stableUserClause}
         AND sh.stopped > sh.started
         AND (
           CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) >= 22
@@ -1230,7 +1231,7 @@ function getTimeBasedSessionCounts(username) {
     const morningStmt = tautulliDb.prepare(`
       SELECT COUNT(*) as cnt
       FROM session_history sh
-      WHERE LOWER(sh.user) = ?
+      WHERE ${stableUserClause}
         AND sh.stopped > sh.started
         AND CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) BETWEEN 6 AND 8
     `);
@@ -1277,6 +1278,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
 
   try {
     const norm = username.toLowerCase();
+    const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
 
     // Helper : date de la Nème session (tous types)
     const nthSession = (n, mediaType = null) => {
@@ -1285,7 +1287,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT sh.started
           FROM session_history sh
-          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started ${typeCond}
+          WHERE ${stableUserClause} AND sh.stopped > sh.started ${typeCond}
           ORDER BY sh.started ASC
           LIMIT 1 OFFSET ?
         `);
@@ -1302,7 +1304,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
             SELECT stopped, SUM(CAST((stopped - started) AS REAL) / 3600)
               OVER (ORDER BY started ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as cum_hours
             FROM session_history sh
-            WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+            WHERE ${stableUserClause} AND sh.stopped > sh.started
             ORDER BY started
           ) WHERE cum_hours >= ?
           LIMIT 1
@@ -1325,7 +1327,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT sh.started
           FROM session_history sh
-          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started AND ${whereCond}
+          WHERE ${stableUserClause} AND sh.stopped > sh.started AND ${whereCond}
           ORDER BY sh.started ASC
           LIMIT 1 OFFSET ?
         `);
@@ -1348,7 +1350,7 @@ function getAchievementUnlockDates(username, joinedAtTimestamp) {
         const stmt = tautulliDb.prepare(`
           SELECT strftime('%d/%m/%Y', MAX(sh.stopped), 'unixepoch') as unlock_date
           FROM session_history sh
-          WHERE LOWER(sh.user) = ? AND sh.stopped > sh.started
+          WHERE ${stableUserClause} AND sh.stopped > sh.started
           GROUP BY strftime('%Y-%m', sh.started, 'unixepoch')
           HAVING SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) >= ?
           ORDER BY strftime('%Y-%m', sh.started, 'unixepoch') ASC

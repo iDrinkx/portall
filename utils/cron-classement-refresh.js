@@ -3,7 +3,13 @@ const fetch = require('node-fetch');
 const log = require('./logger');
 const { UserQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
-const { getUserStatsFromTautulli, getAllUserStatsFromTautulli, isTautulliReady } = require('./tautulli-direct');
+const {
+  getUserStatsFromTautulli,
+  getAllUserStatsFromTautulli,
+  getMonthlyHoursFromTautulli,
+  getTimeBasedSessionCounts,
+  isTautulliReady
+} = require('./tautulli-direct');
 const { refreshUserAchievementState } = require('./achievement-state');
 const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');       // 🔑 Source de vérité
 const { getConfigValue } = require('./config');
@@ -427,14 +433,16 @@ async function refreshClassementCache() {
 
       try {
         // 🎯 Appeler la fonction centralisée avec heures DB directes (rapide, pas d'appel HTTP)
+        const monthlyHours = Number(getMonthlyHoursFromTautulli(stats.username) || 0);
+        const { nightCount, morningCount } = getTimeBasedSessionCounts(stats.username);
         const statsHint = {
           totalHours: Number(stats.totalHours ?? 0),
           sessionCount: Number(stats.sessionCount ?? stats.session_count ?? 0),
           movieCount: Number(stats.movieCount ?? stats.movie_count ?? 0),
           episodeCount: Number(stats.episodeCount ?? stats.episode_count ?? 0),
-          monthlyHours: Number(stats.monthlyHours ?? 0),
-          nightCount: Number(stats.nightCount ?? 0),
-          morningCount: Number(stats.morningCount ?? 0)
+          monthlyHours,
+          nightCount: Number(nightCount || 0),
+          morningCount: Number(morningCount || 0)
         };
         const progressionState = await refreshUserAchievementState({
           username: stats.username,
