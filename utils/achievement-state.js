@@ -85,10 +85,11 @@ function getDbUserFromSessionUser(sessionUser) {
   return UserQueries.getByUsername(username) || null;
 }
 
-async function persistAchievementState(sessionUser, dbUserId, data) {
+async function persistAchievementState(sessionUser, dbUserId, data, options = {}) {
   const username = String(sessionUser?.username || "").trim();
   const joinedAtSeconds = normalizeJoinedAtSeconds(sessionUser?.joinedAtTimestamp || sessionUser?.joinedAt);
   const today = new Date().toLocaleDateString("fr-FR");
+  const includeSecretEvaluation = options.includeSecretEvaluation !== false;
   AchievementSnapshotQueries.save(dbUserId, data);
 
   const userUnlockedMap = dbUserId ? UserAchievementQueries.getForUser(dbUserId) : {};
@@ -118,7 +119,7 @@ async function persistAchievementState(sessionUser, dbUserId, data) {
       .map(achievement => achievement.id)
   );
 
-  if (secretsToCheck.length > 0 && isTautulliReady()) {
+  if (includeSecretEvaluation && secretsToCheck.length > 0 && isTautulliReady()) {
     try {
       const evalResult = await evaluateSecretAchievements(
         username,
@@ -162,7 +163,7 @@ async function persistAchievementState(sessionUser, dbUserId, data) {
   return { refreshed: true, data };
 }
 
-async function recomputeUserAchievementState(sessionUser, dbUserId) {
+async function recomputeUserAchievementState(sessionUser, dbUserId, options = {}) {
   const username = String(sessionUser?.username || "").trim();
   const joinedAtSeconds = normalizeJoinedAtSeconds(sessionUser?.joinedAtTimestamp || sessionUser?.joinedAt);
   const stats = await getTautulliStats(
@@ -181,7 +182,7 @@ async function recomputeUserAchievementState(sessionUser, dbUserId) {
   }
 
   const data = buildAchievementData(stats, joinedAtSeconds);
-  return persistAchievementState(sessionUser, dbUserId, data);
+  return persistAchievementState(sessionUser, dbUserId, data, options);
 }
 
 async function refreshUserAchievementState(sessionUser, options = {}) {
@@ -202,8 +203,13 @@ async function refreshUserAchievementState(sessionUser, options = {}) {
   const joinedAtSeconds = normalizeJoinedAtSeconds(sessionUser?.joinedAtTimestamp || sessionUser?.joinedAt);
   const precomputedStats = options.precomputedStats || null;
   const refreshResult = precomputedStats
-    ? await persistAchievementState(sessionUser, dbUserId, buildAchievementData(precomputedStats, joinedAtSeconds))
-    : await recomputeUserAchievementState(sessionUser, dbUserId);
+    ? await persistAchievementState(
+        sessionUser,
+        dbUserId,
+        buildAchievementData(precomputedStats, joinedAtSeconds),
+        options
+      )
+    : await recomputeUserAchievementState(sessionUser, dbUserId, options);
 
   const snapshot = AchievementSnapshotQueries.getForUser(dbUserId);
   const userUnlockedMap = UserAchievementQueries.getForUser(dbUserId);
@@ -248,7 +254,7 @@ async function getUserAchievementState(sessionUser, options = {}) {
   const stale = !snapshot || snapshotAgeMs > maxAgeMs;
 
   if (!skipRefresh && (forceRefresh || stale)) {
-    const refreshResult = await recomputeUserAchievementState(sessionUser, dbUserId);
+    const refreshResult = await recomputeUserAchievementState(sessionUser, dbUserId, options);
     refreshed = !!refreshResult.refreshed;
     snapshot = AchievementSnapshotQueries.getForUser(dbUserId) || snapshot;
   }

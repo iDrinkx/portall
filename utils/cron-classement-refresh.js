@@ -434,7 +434,8 @@ async function refreshClassementCache() {
           email: wizarrUser?.email || null,
           joinedAtTimestamp: joinedAtTs || null
         }, {
-          precomputedStats: statsHint
+          precomputedStats: statsHint,
+          includeSecretEvaluation: false
         });
         const xpData = await calculateUserXp(stats.username, joinedAtTs, stats.totalHours ?? null, statsHint);
         logCR.debug(`✅ ${stats.username}: XP=${xpData.totalXp}, level=${xpData.level}, hours=${xpData.totalHours}`);
