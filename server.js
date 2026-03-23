@@ -545,6 +545,11 @@ app.listen(PORT, async () => {
   }
 
   // 🏆 Démarrer le job de refresh du classement (toutes les 30 minutes)
-  // 🔄 ATTENDU pour s'assurer que le cache est rempli au démarrage
-  await startClassementRefreshJob();
+  // en arrière-plan pour ne pas bloquer l'ouverture du site ni l'auth Plex au boot.
+  startClassementRefreshJob({
+    backgroundInitialRefresh: true,
+    initialDelayMs: 5000
+  }).catch(err => {
+    console.warn("[SETUP] ⚠️  Impossible de démarrer le refresh classement:", err.message);
+  });
 });

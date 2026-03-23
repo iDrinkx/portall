@@ -627,12 +627,31 @@ function healthCheckAndRepair() {
 /**
  * Démarre le cron job de refresh
  */
-async function startClassementRefreshJob() {
+async function startClassementRefreshJob(options = {}) {
+  const backgroundInitialRefresh = options.backgroundInitialRefresh !== false;
+  const initialDelayMs = Math.max(0, Number(options.initialDelayMs || 5000));
+
   // Vérifier intégrité au démarrage
   healthCheckAndRepair();
 
-  // Refresh immédiat au démarrage (SYNCHRONE pour éviter une réponse vide)
-  await refreshClassementCache();
+  const launchInitialRefresh = async () => {
+    try {
+      await refreshClassementCache();
+    } catch (err) {
+      logCR.warn(`Refresh initial classement échoué: ${err.message}`);
+    }
+  };
+
+  if (backgroundInitialRefresh) {
+    logCR.info(`⏳ Refresh initial du classement programmé dans ${Math.round(initialDelayMs / 1000)}s`);
+    const timeout = setTimeout(() => {
+      launchInitialRefresh();
+    }, initialDelayMs);
+    if (typeof timeout.unref === 'function') timeout.unref();
+  } else {
+    // Compatibilité: mode bloquant si explicitement demandé
+    await launchInitialRefresh();
+  }
 
   // Cron: toutes les 30 minutes
   cron.schedule(CLASSEMENT_REFRESH_CRON, () => {
