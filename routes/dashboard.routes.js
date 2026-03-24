@@ -38,6 +38,12 @@ const {
   buildDashboardBuiltinCards
 } = require("../utils/dashboard-builtins");
 const {
+  getDashboardSectionAdminItems,
+  getDashboardSectionConfig,
+  saveDashboardSectionConfig
+} = require("../utils/dashboard-sections");
+const { buildDashboardLayoutItems, saveDashboardLayoutConfig } = require("../utils/dashboard-layout");
+const {
   getDashboardCustomHtml,
   getDashboardCustomHtmlBlocks,
   getDashboardCustomHtmlBlocksRaw,
@@ -1128,8 +1134,8 @@ async function getWizarrSubscription(user) {
 
 router.get("/dashboard", requireAuth, async (req, res) => {
   const colorMap = getColorMap();
-  const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
-  const dashboardBuiltinCards = buildDashboardBuiltinCards(req.session.user, req.basePath || "", res.locals.t);
+  const dashboardBuiltinItems = getDashboardBuiltinAdminItems(res.locals.t);
+  const dashboardSectionItems = getDashboardSectionConfig();
   const dashboardCustomCards = DashboardCardQueries.list()
     .map(card => {
       const color = colorMap.get(card.colorKey);
@@ -1162,15 +1168,113 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     }
   }
 
+  const dashboardCustomHtmlBlocks = getDashboardCustomHtmlBlocks();
+  const dashboardLayoutItems = buildDashboardLayoutItems({
+    builtinItems: dashboardBuiltinItems,
+    sectionItems: dashboardSectionItems,
+    customCards: dashboardCustomCards,
+    htmlBlocks: dashboardCustomHtmlBlocks,
+    t: res.locals.t
+  });
+  const layoutEnabledMap = new Map(dashboardLayoutItems.map(item => [item.id, item.enabled !== false]));
+  const dashboardServerStatsEnabled = !!layoutEnabledMap.get("section:server-stats");
+  const normalizeLeaderboardUsername = (value) => String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  const usernameNormalized = normalizeLeaderboardUsername(req.session.user?.username || "");
+
+  let classementPosition = null;
+  try {
+    const { getClassementCache, refreshClassementCache } = require("../utils/cron-classement-refresh");
+    const resolveClassementPosition = () => {
+      const cacheData = getClassementCache();
+      const byLevel = Array.isArray(cacheData?.data?.byLevel) ? cacheData.data.byLevel : [];
+      const rankIndex = byLevel.findIndex(entry => normalizeLeaderboardUsername(entry?.username || "") === usernameNormalized);
+      return rankIndex >= 0 ? rankIndex + 1 : null;
+    };
+
+	    classementPosition = resolveClassementPosition();
+	    if (classementPosition === null) {
+	      await refreshClassementCache({ includeSecretEvaluation: false });
+	      classementPosition = resolveClassementPosition();
+	    }
+  } catch (_) {
+    classementPosition = null;
+  }
+
+  let totalSessionCount = null;
+  try {
+    const userStats = await getTautulliStats(
+      String(req.session.user?.username || ""),
+      getConfigValue("TAUTULLI_URL", ""),
+      getConfigValue("TAUTULLI_API_KEY", ""),
+      req.session.user?.id,
+      getConfigValue("PLEX_URL", ""),
+      getConfigValue("PLEX_TOKEN", ""),
+      req.session.user?.joinedAtTimestamp
+    );
+    const parsedCount = Number(userStats?.sessionCount || 0);
+    totalSessionCount = Number.isFinite(parsedCount) ? parsedCount : null;
+  } catch (_) {
+    totalSessionCount = null;
+  }
+
+  const calendarNow = new Date();
+  const calendarDay = String(calendarNow.getDate());
+  const calendarMonth = calendarNow.toLocaleDateString(res.locals.locale || "fr-FR", { month: "short" }).replace(".", "");
+
+  const dashboardBuiltinCards = buildDashboardBuiltinCards(req.session.user, req.basePath || "", res.locals.t)
+    .filter(card => layoutEnabledMap.get(`builtin:${card.key}`) !== false)
+    .map(card => {
+      if (card.key === "classement" && Number.isInteger(classementPosition) && classementPosition > 0) {
+        return {
+          ...card,
+          visual: {
+            type: "rank",
+            value: classementPosition
+          }
+        };
+      }
+
+      if (card.key === "calendrier") {
+        return {
+          ...card,
+          visual: {
+            type: "date",
+            day: calendarDay,
+            month: String(calendarMonth || "").toUpperCase()
+          }
+        };
+      }
+
+      if (card.key === "mes-stats" && Number.isFinite(totalSessionCount) && totalSessionCount > 0) {
+        const countText = String(Math.max(0, Math.trunc(totalSessionCount)));
+        return {
+          ...card,
+          visual: {
+            type: "count",
+            value: countText,
+            size: countText.length >= 6 ? "sm" : (countText.length >= 5 ? "md" : "lg")
+          }
+        };
+      }
+
+      return card;
+    });
+
   res.render("dashboard/index", {
     user: req.session.user,
     basePath: req.basePath,
     dashboardBuiltinCards,
     dashboardCustomCards,
-    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocks(),
+    dashboardCustomHtmlBlocks,
     dashboardCustomHtml: getDashboardCustomHtml(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardServerStatsEnabled,
+    dashboardSectionItems,
+    dashboardLayoutItems,
     uptimeKuma
   });
 });
@@ -1230,7 +1334,16 @@ router.get("/mes-stats", requireAuth, (req, res) => {
 router.get("/succes", requireAuth, async (req, res) => {
   try {
     const collectionsEnabled = areCollectionAchievementsEnabled();
-    const achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    const hasCollectionProgress = collectionsEnabled && ACHIEVEMENTS.collections.some((achievement) => {
+      const progressEntry = achievementState.renderProgressMap?.[achievement.id];
+      return Number(progressEntry?.total || 0) > 0;
+    });
+
+    if (collectionsEnabled && achievementState.needsRefresh && !hasCollectionProgress) {
+      await refreshUserAchievementState(req.session.user, { includeSecretEvaluation: true });
+      achievementState = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    }
 
     let backgroundRefreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     if ((achievementState.needsRefresh || !achievementState.snapshot?.updatedAt) && !backgroundRefreshStatus.running && !backgroundRefreshStatus.queued) {
@@ -1310,9 +1423,9 @@ router.get("/calendrier", requireAuth, (req, res) => {
 
 router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
   const leaderboardBlurEnabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
-  const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
   const navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   const dashboardBuiltinItems = getDashboardBuiltinAdminItems(res.locals.t);
+  const dashboardSectionItems = getDashboardSectionAdminItems(res.locals.t);
   const siteBackground = getSiteBackgroundSettings();
   const customCards = DashboardCardQueries.list();
   const availableColorKeys = getAvailableColorKeys(customCards);
@@ -1334,20 +1447,29 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     integrationKey: card.integrationKey || "custom",
     colorName: colorMap.get(card.colorKey)?.name || card.colorKey
   }));
+  const dashboardHtmlBlocksRaw = getDashboardCustomHtmlBlocksRaw();
+  const dashboardLayoutItems = buildDashboardLayoutItems({
+    builtinItems: dashboardBuiltinItems,
+    sectionItems: dashboardSectionItems,
+    customCards: customCardsResolved,
+    htmlBlocks: dashboardHtmlBlocksRaw,
+    t: res.locals.t
+  });
 
   res.render("parametres/index", {
     user: req.session.user,
     basePath: req.basePath,
     leaderboardBlurEnabled,
-    dashboardServerStatsEnabled,
     navSubscriptionPillEnabled,
     siteBackground,
     backgroundPresets: BACKGROUND_PRESETS,
     supportedLocales: SUPPORTED_LOCALES,
     siteLanguage: getSiteLanguage(),
     dashboardBuiltinItems,
+    dashboardSectionItems,
+    dashboardLayoutItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
-    dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocksRaw(),
+    dashboardCustomHtmlBlocks: dashboardHtmlBlocksRaw,
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
     dashboardCustomHtmlPreviewBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
@@ -1368,12 +1490,26 @@ const logBadges = log.create('[Badges]');
 
 router.get('/api/badges-eval', requireAuth, async (req, res) => {
   try {
-    const state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+    let state = await getUserAchievementState(req.session.user, { skipRefresh: true });
     let refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     if ((state.needsRefresh || !state.snapshot?.updatedAt) && !refreshStatus.running && !refreshStatus.queued) {
       queueBackgroundAchievementRefresh(req.session.user, { includeSecretEvaluation: true });
       refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
     }
+
+    if (refreshStatus.running || refreshStatus.queued || state.needsRefresh) {
+      const waitStart = Date.now();
+      const maxWaitMs = 12000;
+      while ((Date.now() - waitStart) < maxWaitMs) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        state = await getUserAchievementState(req.session.user, { skipRefresh: true });
+        refreshStatus = getBackgroundAchievementRefreshStatus(req.session.user);
+        if (!refreshStatus.running && !refreshStatus.queued && !state.needsRefresh) {
+          break;
+        }
+      }
+    }
+
     res.json({
       success: true,
       refreshed: !!state.refreshed,
@@ -1831,6 +1967,54 @@ router.post("/api/admin/dashboard-builtins", requireAuth, requireAdmin, (req, re
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
   const savedItems = saveDashboardBuiltinConfig(items);
   log.create("[Admin]").info(`Ordre des cartes dashboard mis a jour par ${req.session.user.username}`);
+  res.json({ success: true, items: savedItems });
+});
+
+router.get("/api/admin/dashboard-sections", requireAuth, requireAdmin, (req, res) => {
+  res.json({ items: getDashboardSectionAdminItems(res.locals.t) });
+});
+
+router.post("/api/admin/dashboard-sections", requireAuth, requireAdmin, (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const savedItems = saveDashboardSectionConfig(items);
+  const serverStatsItem = savedItems.find(item => item.key === "server-stats");
+  if (serverStatsItem) {
+    AppSettingQueries.setBool("dashboard_server_stats_enabled", serverStatsItem.enabled !== false);
+  }
+  log.create("[Admin]").info(`Agencement des sections dashboard mis a jour par ${req.session.user.username}`);
+  res.json({ success: true, items: savedItems });
+});
+
+router.post("/api/admin/dashboard-layout", requireAuth, requireAdmin, (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const savedItems = saveDashboardLayoutConfig(items);
+
+  const builtinItems = getDashboardBuiltinAdminItems(res.locals.t).map(item => {
+    const layoutItem = savedItems.find(entry => entry.id === `builtin:${item.key}`);
+    return {
+      key: item.key,
+      enabled: layoutItem ? layoutItem.enabled !== false : item.enabled !== false,
+      order: item.order
+    };
+  });
+  saveDashboardBuiltinConfig(builtinItems);
+
+  const sectionItems = getDashboardSectionAdminItems(res.locals.t).map(item => {
+    const layoutItem = savedItems.find(entry => entry.id === `section:${item.key}`);
+    return {
+      key: item.key,
+      enabled: layoutItem ? layoutItem.enabled !== false : item.enabled !== false,
+      position: item.position,
+      order: item.order
+    };
+  });
+  const savedSections = saveDashboardSectionConfig(sectionItems);
+  const serverStatsItem = savedSections.find(item => item.key === "server-stats");
+  if (serverStatsItem) {
+    AppSettingQueries.setBool("dashboard_server_stats_enabled", serverStatsItem.enabled !== false);
+  }
+
+  log.create("[Admin]").info(`Ordre global dashboard mis a jour par ${req.session.user.username}`);
   res.json({ success: true, items: savedItems });
 });
 

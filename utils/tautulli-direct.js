@@ -1063,14 +1063,15 @@ function getUserStatsFromTautulli(username) {
   
   try {
     const normalizedUsername = username.toLowerCase();
+    const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
     
     // 🎯 Requête SQL optimisée - agrégation directe
     // Tautulli stocke les historiques dans la table `session_history`
     // Durée = (stopped - started) en secondes
     const stmt = tautulliDb.prepare(`
       SELECT 
-        u.user_id,
-        u.username,
+        MIN(u.user_id) as user_id,
+        MIN(u.username) as username,
         COUNT(sh.id) as session_count,
         SUM(CAST((sh.stopped - sh.started) AS INTEGER)) as total_duration_seconds,
         MAX(sh.stopped) as last_session_timestamp,
@@ -1080,10 +1081,9 @@ function getUserStatsFromTautulli(username) {
         SUM(CASE WHEN sh.media_type = 'episode' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as episode_duration_seconds,
         SUM(CASE WHEN sh.media_type = 'track' THEN 1 ELSE 0 END) as music_count,
         SUM(CASE WHEN sh.media_type = 'track' THEN CAST((sh.stopped - sh.started) AS INTEGER) ELSE 0 END) as music_duration_seconds
-      FROM users u
-      LEFT JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ?
-      GROUP BY u.user_id, u.username
+      FROM session_history sh
+      JOIN users u ON u.user_id = sh.user_id
+      WHERE ${stableUserClause}
     `);
     
     const stats = stmt.get(normalizedUsername);
@@ -1102,6 +1102,7 @@ function getUserStatsFromTautulli(username) {
       userId: stats.user_id,
       username: stats.username,
       sessionCount: stats.session_count || 0,
+      videoSessionCount: (stats.movie_count || 0) + (stats.episode_count || 0),
       totalHours: totalHours,
       movieCount: stats.movie_count || 0,
       movieHours: movieHours,
@@ -1189,12 +1190,12 @@ function getMonthlyHoursFromTautulli(username) {
 
   try {
     const normalizedUsername = username.toLowerCase();
+    const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
     // Début du mois courant en timestamp Unix
     const stmt = tautulliDb.prepare(`
       SELECT SUM(CAST((sh.stopped - sh.started) AS INTEGER)) as monthly_seconds
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ?
+      FROM session_history sh
+      WHERE ${stableUserClause}
         AND sh.started >= CAST(strftime('%s', date('now', 'start of month')) AS INTEGER)
         AND sh.stopped > sh.started
     `);
@@ -1977,6 +1978,7 @@ function getLastPlayedItem(username) {
   if (!tautulliDb) return null;
   try {
     const norm = username.toLowerCase();
+    const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
     // Passe par la table users pour matcher le bon user_id (même logique que getUserStatsFromTautulli)
     const stmt = tautulliDb.prepare(`
       SELECT
@@ -1987,10 +1989,9 @@ function getLastPlayedItem(username) {
         shm.parent_title,
         shm.year,
         shm.thumb
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
+      FROM session_history sh
       JOIN session_history_metadata shm ON sh.id = shm.id
-      WHERE LOWER(u.username) = ?
+      WHERE ${stableUserClause}
         AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
       ORDER BY sh.stopped DESC
@@ -2024,6 +2025,7 @@ function getLastPlayedItem(username) {
 function getUserDetailedStats(username) {
   if (!tautulliDb) return null;
   const norm = username.toLowerCase();
+  const stableUserClause = `sh.user_id IN (SELECT u.user_id FROM users u WHERE LOWER(u.username) = ?)`;
   const result = {};
 
   // ── Top 10 contenu (heures cumulées) ──────────────────────────────
@@ -2036,10 +2038,9 @@ function getUserDetailedStats(username) {
         END as title,
         sh.media_type,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
+      FROM session_history sh
       JOIN session_history_metadata shm ON sh.id = shm.id
-      WHERE LOWER(u.username) = ?
+      WHERE ${stableUserClause}
         AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
         AND (shm.title IS NOT NULL OR shm.grandparent_title IS NOT NULL)
@@ -2060,9 +2061,8 @@ function getUserDetailedStats(username) {
           sh.title as title,
           sh.media_type,
           SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-        FROM users u
-        JOIN session_history sh ON u.user_id = sh.user_id
-        WHERE LOWER(u.username) = ?
+        FROM session_history sh
+        WHERE ${stableUserClause}
           AND sh.stopped > sh.started
           AND sh.media_type IN ('movie', 'episode')
         GROUP BY sh.title
@@ -2086,9 +2086,8 @@ function getUserDetailedStats(username) {
           sh.title as title,
           sh.media_type,
           SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-        FROM users u
-        JOIN session_history sh ON u.user_id = sh.user_id
-        WHERE LOWER(u.username) = ?
+        FROM session_history sh
+        WHERE ${stableUserClause}
           AND sh.stopped > sh.started
           AND sh.media_type IN ('movie', 'episode')
         GROUP BY sh.title
@@ -2113,9 +2112,8 @@ function getUserDetailedStats(username) {
     const rows = tautulliDb.prepare(`
       SELECT sh.media_type,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      FROM session_history sh
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
       GROUP BY sh.media_type
     `).all(norm);
     result.contentTypes = rows.map(r => ({
@@ -2129,10 +2127,9 @@ function getUserDetailedStats(username) {
     const rows = tautulliDb.prepare(`
       SELECT shm.genres,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
+      FROM session_history sh
       JOIN session_history_metadata shm ON sh.id = shm.id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
         AND sh.media_type = 'movie'
         AND shm.genres IS NOT NULL AND shm.genres != ''
       GROUP BY shm.genres
@@ -2154,10 +2151,9 @@ function getUserDetailedStats(username) {
     const rows = tautulliDb.prepare(`
       SELECT shm.genres,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
+      FROM session_history sh
       JOIN session_history_metadata shm ON sh.id = shm.id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
         AND sh.media_type = 'episode'
         AND shm.genres IS NOT NULL AND shm.genres != ''
       GROUP BY shm.genres
@@ -2184,10 +2180,9 @@ function getUserDetailedStats(username) {
         SELECT
           COALESCE(shm.transcode_decision, 'direct play') as decision,
           COUNT(*) as cnt
-        FROM users u
-        JOIN session_history sh ON u.user_id = sh.user_id
+        FROM session_history sh
         JOIN session_history_media_info shm ON sh.id = shm.id
-        WHERE LOWER(u.username) = ?
+        WHERE ${stableUserClause}
           AND sh.stopped > sh.started
           AND sh.media_type IN ('movie', 'episode')
         GROUP BY shm.transcode_decision
@@ -2208,10 +2203,9 @@ function getUserDetailedStats(username) {
               ELSE 'direct play'
             END as decision,
             COUNT(*) as cnt
-          FROM users u
-          JOIN session_history sh ON u.user_id = sh.user_id
+          FROM session_history sh
           JOIN session_history_media_info shm ON sh.id = shm.id
-          WHERE LOWER(u.username) = ?
+          WHERE ${stableUserClause}
             AND sh.stopped > sh.started
             AND sh.media_type IN ('movie', 'episode')
           GROUP BY decision
@@ -2225,9 +2219,8 @@ function getUserDetailedStats(username) {
         // Fallback 3 : Fallback simple - tout compter comme direct play
         rows = tautulliDb.prepare(`
           SELECT 'direct play' as decision, COUNT(*) as cnt
-          FROM users u
-          JOIN session_history sh ON u.user_id = sh.user_id
-          WHERE LOWER(u.username) = ?
+          FROM session_history sh
+          WHERE ${stableUserClause}
             AND sh.stopped > sh.started
             AND sh.media_type IN ('movie', 'episode')
         `).all(norm);
@@ -2261,9 +2254,8 @@ function getUserDetailedStats(username) {
   try {
     const row = tautulliDb.prepare(`
       SELECT COUNT(DISTINCT date(sh.started, 'unixepoch', 'localtime')) as cnt
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      FROM session_history sh
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
     `).get(norm);
     activeDaysCount = Math.max(1, row?.cnt || 1);
@@ -2276,9 +2268,8 @@ function getUserDetailedStats(username) {
         CAST(strftime('%H', sh.started, 'unixepoch', 'localtime') AS INTEGER) as hour,
         sh.media_type,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      FROM session_history sh
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
       GROUP BY hour, sh.media_type
       ORDER BY hour
@@ -2296,9 +2287,8 @@ function getUserDetailedStats(username) {
     // Nombre d'occurrences de chaque jour de semaine entre la 1ère et dernière session
     const rangeRow = tautulliDb.prepare(`
       SELECT MIN(sh.started) as first_ts, MAX(sh.started) as last_ts
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      FROM session_history sh
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
     `).get(norm);
 
     // Calcul JS du nombre d'occurrences de chaque DOW dans la période
@@ -2324,9 +2314,8 @@ function getUserDetailedStats(username) {
         CAST(strftime('%w', sh.started, 'unixepoch', 'localtime') AS INTEGER) as dow,
         sh.media_type,
         SUM(CAST((sh.stopped - sh.started) AS REAL) / 3600) as hours
-      FROM users u
-      JOIN session_history sh ON u.user_id = sh.user_id
-      WHERE LOWER(u.username) = ? AND sh.stopped > sh.started
+      FROM session_history sh
+      WHERE ${stableUserClause} AND sh.stopped > sh.started
         AND sh.media_type IN ('movie', 'episode')
       GROUP BY dow, sh.media_type
       ORDER BY dow
@@ -2592,3 +2581,4 @@ module.exports = {
   resetCollectionCaches,
   closeTautulliDatabase
 };
+

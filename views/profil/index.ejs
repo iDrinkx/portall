@@ -1583,6 +1583,7 @@
   =============================== */
 
   // Clé unique par utilisateur, max 5 min de validité (synchro avec le refresh classement)
+  // Cache court cote client pour eviter les flashes visuels au rechargement
   const _XP_CACHE_KEY = () => `xp_snapshot_${document.body.getAttribute("data-user-id") || "guest"}`;
   const _XP_CACHE_TTL  = 5 * 60 * 1000;
 
@@ -2842,7 +2843,7 @@
 
     function startPolling() {
       _timerNowPlaying = setInterval(refreshNowPlaying, 10000);   // 10 s
-      _timerStats      = setInterval(refreshStats,      1800000); // 30 min
+      _timerStats      = setInterval(refreshStats,      3600000); // 1 h
     }
 
     function stopPolling() {

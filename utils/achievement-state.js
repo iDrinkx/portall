@@ -13,7 +13,7 @@ const { getTautulliStats } = require("./tautulli");
 const { getAchievementUnlockDates, evaluateSecretAchievements, isTautulliReady } = require("./tautulli-direct");
 const log = require("./logger").create("[Achievement-State]");
 
-const SUCCESS_REFRESH_TTL_MS = 30 * 60 * 1000;
+const SUCCESS_REFRESH_TTL_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BACKGROUND_REFRESH_CLEANUP_MS = 10 * 60 * 1000;
 

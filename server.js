@@ -9,9 +9,8 @@ const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const seeerrProxyRoutes = require("./routes/seerr-proxy.routes");
 const reverseProxyMiddleware = require("./middleware/reverseproxy.middleware");
-const { startSessionCronJob } = require("./utils/cron-session-job");
 const { startDatabaseMaintenanceJob } = require("./utils/cron-maintenance-job");  // 🧹 Database maintenance
-const { startClassementRefreshJob } = require("./utils/cron-classement-refresh");  // 🏆 Classement refresh
+const { startRefreshOrchestrator } = require("./utils/refresh-orchestrator");
 const { runHealthCheck } = require("./utils/health-check");  // 🏥 Health check au boot
 const { initDatabase, DashboardCardQueries, AppSettingQueries } = require("./utils/database");  // 🗄️  Database initialization
 const { applyRuntimeConfig, isSetupComplete, getConfigValue } = require("./utils/config");
@@ -382,88 +381,6 @@ async function loadAllUserStatsFromTautulli() {
   }
 }
 
-/**
- * 👥 Récupérer la liste des utilisateurs pour le cron job
- * (depuis Seerr ou Tautulli)
- */
-async function initializeAllUsersForCron() {
-  try {
-    const baseUrl = process.env.SEERR_URL || "http://localhost:5055";
-    const apiKey = process.env.SEERR_API_KEY;
-    
-    if (!apiKey) {
-      console.warn("[SETUP] ⚠️  Pas d'SEERR_API_KEY configurée, cron job sans utilisateurs");
-      return [];
-    }
-
-    console.log("[SETUP] Tentative de fetch des utilisateurs Seerr depuis:", baseUrl);
-
-    const users = [];
-    let page = 1;
-    let pageSize = 50;
-    let totalPages = 1;
-    let retries = 3;
-
-    while (page <= totalPages && retries > 0) {
-      try {
-        console.log(`[SETUP]   Fetch page ${page}...`);
-        
-        const resp = await fetch(
-          `${baseUrl}/api/v1/user?skip=${(page - 1) * pageSize}&take=${pageSize}`,
-          {
-            headers: {
-              "X-API-Key": apiKey,
-              "Accept": "application/json"
-            }
-          }
-        );
-
-        console.log(`[SETUP]   Status: ${resp.status}`);
-
-        if (!resp.ok) {
-          console.warn(`[SETUP]   ⚠️  Seerr ${resp.status}, retry...`);
-          retries--;
-          await new Promise(r => setTimeout(r, 500)); // attendre 500ms avant retry
-          continue;
-        }
-
-        const json = await resp.json();
-        const pageInfo = json.pageInfo || {};
-        totalPages = Math.ceil((pageInfo.results || 0) / pageSize);
-
-        const pageUsers = Array.isArray(json.results)
-          ? json.results
-          : Array.isArray(json.data)
-            ? json.data
-            : [];
-
-        console.log(`[SETUP]   Page ${page}: ${pageUsers.length || 0} utilisateurs trouvés`);
-
-        if (pageUsers.length > 0) {
-          users.push(...pageUsers.map(u => ({
-            id: u.id,
-            username: u.username || u.plexUsername,
-            plexUserId: u.plexId,
-            joinedAtTimestamp: u.createdAt ? Math.floor(new Date(u.createdAt).getTime() / 1000) : null
-          })));
-        }
-
-        page++;
-      } catch (err) {
-        console.warn(`[SETUP]   ⚠️  Erreur fetch page ${page}:`, err.message);
-        retries--;
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-
-    console.log(`[SETUP] ✅ Récupéré ${users.length} utilisateurs pour le cron job`);
-    return users;
-  } catch (err) {
-    console.error("[SETUP] ❌ Erreur initializeAllUsersForCron:", err.message);
-    return [];
-  }
-}
-
 // Démarrer le serveur et initialiser le cron job
 app.listen(PORT, async () => {
   console.log("\n🚀 Server running on port", PORT);
@@ -485,18 +402,6 @@ app.listen(PORT, async () => {
   // 🏥 HEALTH CHECK au démarrage
   await runHealthCheck();
   
-  // Initialiser le cron job avec tous les utilisateurs Seerr
-  console.log("[SETUP] Initialisation du cron job sessions...");
-  const allUsers = await initializeAllUsersForCron();
-  
-  startSessionCronJob(
-    getConfigValue("TAUTULLI_URL"),
-    getConfigValue("TAUTULLI_API_KEY"),
-    getConfigValue("PLEX_URL"),
-    getConfigValue("PLEX_TOKEN"),
-    allUsers // ✅ Liste réelle de tous les utilisateurs
-  );
-
   // 🧹 Démarrer le job de maintenance de la base de données
   startDatabaseMaintenanceJob();
 
@@ -550,12 +455,12 @@ app.listen(PORT, async () => {
     console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
   }
 
-  // 🏆 Démarrer le job de refresh du classement (toutes les 30 minutes)
-  // en arrière-plan pour ne pas bloquer l'ouverture du site ni l'auth Plex au boot.
-  startClassementRefreshJob({
+  startRefreshOrchestrator({
+    TAUTULLI_URL: getConfigValue("TAUTULLI_URL"),
+    TAUTULLI_API_KEY: getConfigValue("TAUTULLI_API_KEY"),
     backgroundInitialRefresh: true,
-    initialDelayMs: 5000
+    initialDelayMs: 60000
   }).catch(err => {
-    console.warn("[SETUP] ⚠️  Impossible de démarrer le refresh classement:", err.message);
+    console.warn("[SETUP] ⚠️  Impossible de démarrer l'orchestrateur des refresh:", err.message);
   });
 });

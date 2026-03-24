@@ -1455,6 +1455,34 @@ body.site-bg-mode-custom .site-bg-image {
   font-size: 28px;
 }
 
+.hero-icon--rank-live {
+  gap: 0;
+  flex-direction: row;
+  line-height: 1;
+}
+
+.hero-rank-ordinal {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  transform: translateY(1px);
+}
+
+.hero-rank-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #eff6ff;
+}
+
+.hero-rank-suffix {
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(191, 219, 254, 0.92);
+  line-height: 1;
+  transform: translateY(3px);
+}
+
 .hero-card-stats {
   background: linear-gradient(135deg, rgba(13, 26, 24, 0.72) 0%, rgba(11, 28, 21, 0.68) 100%);
   border-color: rgba(16, 185, 129, 0.2);
@@ -1485,6 +1513,44 @@ body.site-bg-mode-custom .site-bg-image {
   border-radius: 50%;
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
   font-size: 28px;
+}
+
+.hero-icon--count-live {
+  gap: 0;
+  flex-direction: column;
+  line-height: 1;
+  padding-top: 1px;
+}
+
+.hero-count-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ecfdf5;
+}
+
+.hero-count-label {
+  font-size: 6.1px;
+  font-weight: 800;
+  letter-spacing: 0.45px;
+  color: rgba(167, 243, 208, 0.82);
+  transform: translateY(-1px);
+}
+
+.hero-icon--count-md .hero-count-value {
+  font-size: 14px;
+}
+
+.hero-icon--count-md .hero-count-label {
+  font-size: 5.4px;
+}
+
+.hero-icon--count-sm .hero-count-value {
+  font-size: 12px;
+}
+
+.hero-icon--count-sm .hero-count-label {
+  font-size: 4.9px;
+  letter-spacing: 0.3px;
 }
 
 /* 📅 CALENDRIER CARD */
@@ -1614,6 +1680,28 @@ body.site-bg-mode-custom .site-bg-image {
 .hero-icon--calendrier > * {
   transform: translateY(1px);
   line-height: 1;
+}
+
+.hero-icon--date-live {
+  gap: 0;
+  flex-direction: column;
+  padding-top: 2px;
+}
+
+.hero-date-day {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff5f5;
+  line-height: 1;
+}
+
+.hero-date-month {
+  font-size: 8.4px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  color: rgba(254, 202, 202, 0.82);
+  line-height: 1;
+  transform: translateY(-4px);
 }
 
 /* Logo Seerr dans la navbar */

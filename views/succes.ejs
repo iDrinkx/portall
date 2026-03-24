@@ -1,4 +1,4 @@
-<style>
+﻿<style>
   .badges-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -29,7 +29,7 @@
     display: inline-block;
   }
   <% if (typeof embed !== 'undefined' && embed) { %>
-  /* ════ MODE EMBED — ID #badges-embed pour spécificité max ════ */
+  /* â•â•â•â• MODE EMBED â€” ID #badges-embed pour spÃ©cificitÃ© max â•â•â•â• */
   #badges-embed {
     display: block !important;
     grid-template-columns: none !important;
@@ -193,7 +193,7 @@
     }
   }
 
-  /* ACHIEVEMENT CARD — Glassmorphism design */
+  /* ACHIEVEMENT CARD â€” Glassmorphism design */
   .achievement-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
     backdrop-filter: blur(10px);
@@ -232,7 +232,7 @@
     filter: grayscale(100%) brightness(0.8);
   }
 
-  /* Couleurs de bordure par catégorie avec gradients au survol */
+  /* Couleurs de bordure par catÃ©gorie avec gradients au survol */
   .achievement-card.unlocked.temporels  { border-color: #E67E22; }
   .achievement-card.unlocked.temporels:hover  { box-shadow: 0 0 20px #E67E22AA, 0 12px 30px rgba(0, 0, 0, 0.5); }
 
@@ -254,9 +254,9 @@
   .achievement-card.unlocked.collections { border-color: #E5A00D; }
   .achievement-card.unlocked.collections:hover { box-shadow: 0 0 20px #E5A00DAA, 0 12px 30px rgba(0, 0, 0, 0.5); }
 
-  /* Checkmark débloqué avec animation */
+  /* Checkmark debloque avec animation */
   .achievement-card.unlocked::after {
-    content: '✓';
+    content: '\2713';
     position: absolute;
     bottom: 5px;
     left: 6px;
@@ -273,7 +273,7 @@
     opacity: 1;
   }
 
-  /* Icon avec meilleure présentation */
+  /* Icon avec meilleure prÃ©sentation */
   .achievement-icon {
     font-size: 28px;
     display: block;
@@ -318,7 +318,7 @@
     opacity: 0.7;
   }
 
-  /* XP Label - affiché sous la carte sur mobile */
+  /* XP Label - affichÃ© sous la carte sur mobile */
   .ach-card-xp-label {
     display: none;
     width: 100%;
@@ -330,7 +330,7 @@
     pointer-events: none;
   }
 
-  /* Tooltip - affiche le nom du succès au survol (desktop) */
+  /* Tooltip - affiche le nom du succÃ¨s au survol (desktop) */
   .achievement-tooltip {
     position: absolute;
     top: -38px;
@@ -357,7 +357,7 @@
     top: -33px;
   }
 
-  /* Éléments cachés utilisés uniquement pour les mises à jour JS */
+  /* Ã‰lÃ©ments cachÃ©s utilisÃ©s uniquement pour les mises Ã  jour JS */
   .achievement-hidden-data { display: none; }
 
   /* Mini progression dans la carte (locked only) */
@@ -418,7 +418,7 @@
     transition: width 0.5s ease;
   }
 
-  /* ── MODAL ── */
+  /* â”€â”€ MODAL â”€â”€ */
   .ach-modal-overlay {
     display: none;
     position: fixed;
@@ -556,7 +556,7 @@
       gap: 10px;
     }
 
-    /* Carte carrée, emoji centré comme les débloqués */
+    /* Carte carrÃ©e, emoji centrÃ© comme les dÃ©bloquÃ©s */
     .achievement-card {
       flex-direction: row;
       justify-content: center;
@@ -740,7 +740,7 @@
   <% }); %>
 </div>
 
-<!-- MODAL SUCCÈS -->
+<!-- MODAL SUCCÃˆS -->
 <div class="ach-modal-overlay" id="achModalOverlay" role="dialog" aria-modal="true">
   <div class="ach-modal" id="achModal">
     <button class="ach-modal-close" id="achModalClose" aria-label="<%= t("success.close") %>">&times;</button>
@@ -760,16 +760,16 @@
 <script>
   (function initSucces() {
     <% if (typeof embed !== 'undefined' && embed) { %>
-    // Mode embed : DOM déjà chargé, exécution immédiate
+    // Mode embed : DOM dÃ©jÃ  chargÃ©, exÃ©cution immÃ©diate
     Promise.resolve().then(run);
     <% } else { %>
     document.addEventListener("DOMContentLoaded", run);
     <% } %>
 
     function run() {
-    console.log("🏆 Page Badges chargée!");
+    console.log("ðŸ† Page Badges chargÃ©e!");
 
-    // ── Modal ──────────────────────────────────────────────────────────────
+    // â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const overlay  = document.getElementById('achModalOverlay');
     const modal    = document.getElementById('achModal');
     const btnClose = document.getElementById('achModalClose');
@@ -833,7 +833,7 @@
         progSection.style.display = 'none';
       }
 
-      // Couleur bordure du modal selon catégorie
+      // Couleur bordure du modal selon catÃ©gorie
       modal.className = 'ach-modal' + (cat ? ' ach-modal-border--' + cat : '');
 
       mountOverlayToBody();
@@ -1000,44 +1000,7 @@
       pollSuccessRefreshStatus();
     }
 
-    function updateSuccessRefreshTimer() {
-      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
 
-      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
-      if (!updatedAtMs) return;
-
-      var now = Date.now();
-      var ageSeconds = Math.max(0, Math.floor((now - updatedAtMs) / 1000));
-      var remainingSeconds = successRefreshMeta.ttlMs > 0
-        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
-        : 0;
-
-      var text = 'Succès actualisés il y a ' + formatRefreshDuration(ageSeconds);
-      if (successRefreshMeta.ttlMs > 0) {
-        text += remainingSeconds > 0
-          ? ' • frais pour encore ' + formatRefreshDuration(remainingSeconds)
-          : ' • refresh recommandé';
-      }
-      successRefreshTimerEl.textContent = text;
-    }
-
-    function updateSuccessRefreshTimer() {
-      if (!successRefreshTimerEl || !successRefreshMeta.updatedAt) return;
-
-      var updatedAtMs = new Date(successRefreshMeta.updatedAt).getTime();
-      if (!updatedAtMs) return;
-
-      var now = Date.now();
-      var remainingSeconds = successRefreshMeta.ttlMs > 0
-        ? Math.max(0, Math.ceil((updatedAtMs + successRefreshMeta.ttlMs - now) / 1000))
-        : 0;
-
-      successRefreshTimerEl.textContent = successRefreshMeta.ttlMs > 0
-        ? (remainingSeconds > 0
-          ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
-          : 'Prochaine actualisation : recommandée')
-        : 'Données succès à jour';
-    }
 
     function updateSuccessRefreshTimer() {
       if (!successRefreshTimerEl) return;
@@ -1055,12 +1018,12 @@
         ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
           ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
           : 'Prochaine actualisation : imminente')
-        : 'Données succès à jour';
+        : 'DonnÃ©es succÃ¨s Ã  jour';
 
       var autoRefreshCooldownActive = successLastAutoRefreshAt > 0 && (now - successLastAutoRefreshAt) < 30000;
 
       if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && autoRefreshCooldownActive) {
-        successRefreshTimerEl.textContent = 'Actualisation récente, synchronisation en attente...';
+        successRefreshTimerEl.textContent = 'Actualisation rÃ©cente, synchronisation en attente...';
         return;
       }
 
@@ -1112,7 +1075,7 @@
       if (!successRefreshMeta.updatedAt && !successRefreshMeta.needsRefresh) return;
 
       if (successRefreshMeta.running) {
-        successRefreshTimerEl.textContent = 'Actualisation en arrière-plan...';
+        successRefreshTimerEl.textContent = 'Actualisation en arriÃ¨re-plan...';
         ensureSuccessStatusPolling();
         return;
       }
@@ -1127,7 +1090,7 @@
       var autoRefreshCooldownActive = successLastAutoRefreshAt > 0 && (now - successLastAutoRefreshAt) < 30000;
 
       if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && autoRefreshCooldownActive) {
-        successRefreshTimerEl.textContent = 'Actualisation automatique récente...';
+        successRefreshTimerEl.textContent = 'Actualisation automatique rÃ©cente...';
         return;
       }
 
@@ -1135,7 +1098,7 @@
         ? ((remainingSeconds > 0 && !successRefreshMeta.needsRefresh)
           ? 'Prochaine actualisation : ' + formatRefreshDuration(remainingSeconds)
           : 'Prochaine actualisation : imminente')
-        : 'Données succès à jour';
+        : 'DonnÃ©es succÃ¨s Ã  jour';
 
       if (successRefreshMeta.ttlMs > 0 && remainingSeconds <= 0 && !successAutoRefreshPending && isSuccessEmbedVisible()) {
         successAutoRefreshPending = true;
@@ -1170,10 +1133,10 @@
       successRefreshTimerHandle = setInterval(renderSuccessRefreshTimer, 1000);
       window.__portallSuccessRefreshTimerHandle = successRefreshTimerHandle;
     }
-    // L'affichage est préparé côté serveur à partir de l'état persisté en DB.
-    // On coupe ici l'ancien recalcul navigateur pour garder une seule source de vérité.
+    // L'affichage est prÃ©parÃ© cÃ´tÃ© serveur Ã  partir de l'Ã©tat persistÃ© en DB.
+    // On coupe ici l'ancien recalcul navigateur pour garder une seule source de vÃ©ritÃ©.
     return;
-    // ──────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const BASE = '<%= basePath %>';
     const JOINED_AT_MS = (() => {
@@ -1195,7 +1158,7 @@
       'color:#E5A00D', 'display:flex', 'align-items:center', 'gap:8px',
       'box-shadow:0 4px 20px rgba(0,0,0,.5)', 'transition:opacity .4s ease'
     ].join(';');
-    loadingBanner.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> <%= t("success.loadingProgress") %>';
+    loadingBanner.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">âŸ³</span> <%= t("success.loadingProgress") %>';
     document.body.appendChild(loadingBanner);
 
     function hideBanner() {
@@ -1212,11 +1175,11 @@
           const movieCount   = stats.watchStats?.movieCount || 0;
           const episodeCount = stats.watchStats?.episodeCount || 0;
 
-          // Données encore vides → Tautulli n'a pas encore répondu, on réessaie
+          // DonnÃ©es encore vides â†’ Tautulli n'a pas encore rÃ©pondu, on rÃ©essaie
           const isEmpty = sessionCount === 0 && totalHours === 0 && movieCount === 0 && episodeCount === 0;
           if (isEmpty && retryCount < MAX_RETRIES) {
             retryCount++;
-            console.log('[BADGES-JS] Données vides, retry ' + retryCount + '/' + MAX_RETRIES + '…');
+            console.log('[BADGES-JS] DonnÃ©es vides, retry ' + retryCount + '/' + MAX_RETRIES + 'â€¦');
             setTimeout(fetchAndApply, RETRY_DELAY);
             return;
           }
@@ -1240,7 +1203,7 @@
               : 0
           };
 
-          console.log('[BADGES-JS] ✅ Data reçue (retry=' + retryCount + '):', data);
+          console.log('[BADGES-JS] âœ… Data reÃ§ue (retry=' + retryCount + '):', data);
           applyAll(data);
         })
         .catch(err => {
@@ -1263,7 +1226,7 @@
       updateProgress('old-timer',         Math.min(data.daysSince, 1825), 1825);
       updateProgress('decade-legend',     Math.min(data.daysSince, 3650), 3650);
 
-      // Activités
+      // ActivitÃ©s
       updateProgress('first-watch',  Math.min(data.sessionCount, 1),   1);
       updateProgress('regular',      Math.min(data.sessionCount, 7),   7);
       updateProgress('night-owl',    Math.min(data.nightCount,   30),  30);
@@ -1279,7 +1242,7 @@
       updateProgress('cinema-god',        Math.min(data.movieCount, 1000), 1000);
       updateProgress('cinema-universe',   Math.min(data.movieCount, 2000), 2000);
 
-      // Séries
+      // SÃ©ries
       updateProgress('binge-watcher',        Math.min(data.episodeCount, 10),   10);
       updateProgress('series-addict',        Math.min(data.episodeCount, 100),  100);
       updateProgress('series-master',        Math.min(data.episodeCount, 500),  500);
@@ -1308,10 +1271,10 @@
       if (cardPct)  { cardPct.textContent = percent + '%'; }
     }
 
-    // Lancer immédiatement
+    // Lancer immÃ©diatement
     fetchAndApply();
 
-    // ── Évaluation arrière-plan : unlock/révoquer badges via Tautulli ──
+    // â”€â”€ Ã‰valuation arriÃ¨re-plan : unlock/rÃ©voquer badges via Tautulli â”€â”€
     fetch(BASE + '/api/badges-eval')
       .then(r => r.ok ? r.json() : null)
       .then(result => {
@@ -1325,7 +1288,7 @@
           if (!card || card.classList.contains('unlocked')) continue;
           card.classList.remove('locked');
           card.classList.add('unlocked');
-          // Mettre à jour les data attributes pour le modal
+          // Mettre Ã  jour les data attributes pour le modal
           const dateLabel = <%- JSON.stringify(t("success.unlockedOn", { date: "__DATE__" })) %>.replace('__DATE__', date);
           const unlockedDesc = card.dataset.descUnlocked || card.dataset.desc || '';
           card.dataset.desc = unlockedDesc;
@@ -1334,7 +1297,7 @@
           unlockedDelta++;
         }
 
-        // Appliquer les révocations (badges collection perdus)
+        // Appliquer les rÃ©vocations (badges collection perdus)
         for (const id of (revoked || [])) {
           const card = document.querySelector('[data-badge-id="' + id + '"]');
           if (!card || card.classList.contains('locked')) continue;
@@ -1344,12 +1307,12 @@
           unlockedDelta--;
         }
 
-        // Mettre à jour les barres de progression des collections
+        // Mettre Ã  jour les barres de progression des collections
         for (const [id, prog] of Object.entries(progress || {})) {
           if (prog && prog.total > 0) updateProgress(id, Math.min(prog.current, prog.total), prog.total);
         }
 
-        // Mettre à jour les compteurs stats si des changements ont eu lieu
+        // Mettre Ã  jour les compteurs stats si des changements ont eu lieu
         if (unlockedDelta !== 0) {
           const ulEl = document.getElementById('unlockedCount');
           const lkEl = document.getElementById('lockedCount');
@@ -1362,10 +1325,11 @@
           }
         }
 
-        // Relancer fetchAndApply avec les vraies données si Tautulli a répondu
+        // Relancer fetchAndApply avec les vraies donnÃ©es si Tautulli a rÃ©pondu
         if (data && (data.sessionCount > 0 || data.totalHours > 0)) applyAll(data);
       })
       .catch(() => {});
     } // end run()
   })(); // end initSucces
 </script>
+

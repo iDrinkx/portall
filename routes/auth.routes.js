@@ -320,13 +320,13 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     logAuth.info(`Vérification Wizarr ignorée pour admin Plex (${getSafeUserLabel(user)})`);
   }
 
-  if (isAdmin) {
-    try {
-      const { refreshClassementCache } = require("../utils/cron-classement-refresh");
-      refreshClassementCache().catch(err => {
-        logAuth.warn(`Refresh classement post-login admin échoué: ${err.message}`);
-      });
-    } catch (err) {
+	if (isAdmin) {
+	    try {
+	      const { refreshClassementCache } = require("../utils/cron-classement-refresh");
+	      refreshClassementCache({ includeSecretEvaluation: false }).catch(err => {
+	        logAuth.warn(`Refresh classement post-login admin échoué: ${err.message}`);
+	      });
+	    } catch (err) {
       logAuth.warn(`Impossible de lancer le refresh classement post-login: ${err.message}`);
     }
   }

@@ -6,154 +6,194 @@
 </div>
 
 <%
-  const dashboardHtmlAboveBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
-    return block && block.position === "above";
+  const builtinCardMap = new Map((dashboardBuiltinCards || []).map(function(card) { return [card.key, card]; }));
+  const customCardMap = new Map((dashboardCustomCards || []).map(function(card) { return [String(card.id), card]; }));
+  const htmlBlockMap = new Map((dashboardCustomHtmlBlocks || []).map(function(block) { return [String(block.id), block]; }));
+  const sectionMap = new Map((dashboardSectionItems || []).map(function(section) { return [section.key, section]; }));
+  const layoutItems = Array.isArray(dashboardLayoutItems) ? dashboardLayoutItems : [];
+  const cardGroups = [];
+  let currentCardGroup = [];
+
+  function flushCardGroup() {
+    if (currentCardGroup.length) {
+      cardGroups.push({ type: "cards", items: currentCardGroup.slice() });
+      currentCardGroup = [];
+    }
+  }
+
+  layoutItems.forEach(function(item) {
+    if (!item) return;
+
+    if (item.type === "builtin" && item.enabled !== false) {
+      const card = builtinCardMap.get(item.refKey);
+      if (card) currentCardGroup.push({ type: "builtin-card", card: card });
+      return;
+    }
+
+    if (item.type === "custom" && item.enabled !== false) {
+      const card = customCardMap.get(String(item.refKey));
+      if (card) currentCardGroup.push({ type: "custom-card", card: card });
+      return;
+    }
+
+    flushCardGroup();
+
+    if (item.type === "html" && item.enabled !== false) {
+      const block = htmlBlockMap.get(String(item.refKey));
+      if (block && block.rendered) cardGroups.push({ type: "html", block: block });
+      return;
+    }
+
+    if (item.type === "section" && item.enabled !== false) {
+      const section = sectionMap.get(item.refKey);
+      if (section) cardGroups.push({ type: "section", section: section });
+    }
   });
-  const dashboardHtmlBelowBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
-    return !block || block.position !== "above";
-  });
+
+  flushCardGroup();
 %>
 
-<% if (dashboardHtmlAboveBlocks.length) { %>
-  <% dashboardHtmlAboveBlocks.forEach(function(block) { %>
-  <div class="dashboard-custom-html">
-    <%- block.rendered %>
-  </div>
-  <% }) %>
-<% } %>
-
-<%- include('../partials/uptime-kuma-panel', { uptimeKuma, layout: 'dashboard' }) %>
-
-<% if (dashboardHtmlBelowBlocks.length) { %>
-  <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
-  <div class="dashboard-custom-html">
-    <%- block.rendered %>
-  </div>
-  <% }) %>
-<% } else if (!(dashboardCustomHtmlBlocks || []).length && dashboardCustomHtml) { %>
-  <div class="dashboard-custom-html">
-    <%- dashboardCustomHtml %>
-  </div>
-<% } %>
-
-<% if (dashboardServerStatsEnabled) { %>
-  <!-- SERVER STATS BAR -->
-  <div class="server-stats-bar" id="serverStatsBar">
-    <div class="ssb-item" id="ssb-movies">
-      <span class="ssb-icon">🎬</span>
-      <span class="ssb-num skel" id="ssb-movies-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
-      <span class="ssb-sub"></span>
+<% cardGroups.forEach(function(group) { %>
+  <% if (group.type === "html") { %>
+    <div class="dashboard-custom-html">
+      <%- group.block.rendered %>
     </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-shows">
-      <span class="ssb-icon">📺</span>
-      <span class="ssb-num skel" id="ssb-shows-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
-      <span class="ssb-sub" id="ssb-episodes"></span>
+  <% } else if (group.type === "section" && group.section.key === "uptime-kuma") { %>
+    <%- include('../partials/uptime-kuma-panel', { uptimeKuma, layout: 'dashboard' }) %>
+  <% } else if (group.type === "section" && group.section.key === "server-stats" && dashboardServerStatsEnabled) { %>
+    <div class="server-stats-bar" id="serverStatsBar">
+      <div class="ssb-item" id="ssb-movies">
+        <span class="ssb-icon">🎬</span>
+        <span class="ssb-num skel" id="ssb-movies-num"></span>
+        <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
+        <span class="ssb-sub"></span>
+      </div>
+      <div class="ssb-divider"></div>
+      <div class="ssb-item" id="ssb-shows">
+        <span class="ssb-icon">📺</span>
+        <span class="ssb-num skel" id="ssb-shows-num"></span>
+        <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
+        <span class="ssb-sub" id="ssb-episodes"></span>
+      </div>
+      <div class="ssb-divider"></div>
+      <div class="ssb-item" id="ssb-music">
+        <span class="ssb-icon">🎵</span>
+        <span class="ssb-num skel" id="ssb-music-num"></span>
+        <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
+        <span class="ssb-sub"></span>
+      </div>
+      <div class="ssb-divider" id="ssb-div-audio"></div>
+      <div class="ssb-item" id="ssb-audio">
+        <span class="ssb-icon">🎧</span>
+        <span class="ssb-num skel" id="ssb-audio-num"></span>
+        <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
+        <span class="ssb-sub"></span>
+      </div>
+      <div class="ssb-divider" id="ssb-div-books"></div>
+      <div class="ssb-item" id="ssb-books">
+        <span class="ssb-icon">📚</span>
+        <span class="ssb-num skel" id="ssb-books-num"></span>
+        <span class="ssb-label">Livres</span>
+        <span class="ssb-sub"></span>
+      </div>
     </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-music">
-      <span class="ssb-icon">🎵</span>
-      <span class="ssb-num skel" id="ssb-music-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider" id="ssb-div-audio"></div>
-    <div class="ssb-item" id="ssb-audio">
-      <span class="ssb-icon">🎧</span>
-      <span class="ssb-num skel" id="ssb-audio-num"></span>
-      <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider" id="ssb-div-books"></div>
-    <div class="ssb-item" id="ssb-books">
-      <span class="ssb-icon">📚</span>
-      <span class="ssb-num skel" id="ssb-books-num"></span>
-      <span class="ssb-label">Livres</span>
-      <span class="ssb-sub"></span>
-    </div>
-</div>
-<% } %>
-
-<!-- HERO CARDS -->
-<div class="hero-cards">
-
-  <% (dashboardBuiltinCards || []).forEach(function(card) { %>
-    <a href="<%= card.href %>" class="hero-card <%= card.className %>">
-      <div class="hero-card-content">
-        <div class="hero-card-icon-wrap">
-          <% if (card.kind === "profile") { %>
-            <% if (user.thumb) { %>
-              <div class="hero-avatar-ring" id="heroAvatarRing">
-                <div class="rank-ring" id="heroRankRing"></div>
-                <img src="<%= user.thumb %>" class="hero-avatar" id="heroAvatar" alt="<%= user.username %>" />
+  <% } else if (group.type === "cards" && group.items.length) { %>
+    <div class="hero-cards">
+      <% group.items.forEach(function(entry) { const card = entry.card; %>
+        <% if (entry.type === "builtin-card") { %>
+          <a href="<%= card.href %>" class="hero-card <%= card.className %>">
+            <div class="hero-card-content">
+              <div class="hero-card-icon-wrap">
+                <% if (card.kind === "profile") { %>
+                  <% if (user.thumb) { %>
+                    <div class="hero-avatar-ring" id="heroAvatarRing">
+                      <div class="rank-ring" id="heroRankRing"></div>
+                      <img src="<%= user.thumb %>" class="hero-avatar" id="heroAvatar" alt="<%= user.username %>" />
+                    </div>
+                  <% } else { %>
+                    <div class="hero-avatar-placeholder">👤</div>
+                  <% } %>
+                <% } else if (card.visual && card.visual.type === "rank") { %>
+                  <% const rankValue = Number(card.visual.value || 0); %>
+                  <% const rankSuffix = rankValue === 1 ? "er" : "e"; %>
+                  <div class="hero-icon <%= card.iconClass %> hero-icon--rank-live">
+                    <span class="hero-rank-ordinal">
+                      <span class="hero-rank-value"><%= rankValue %></span>
+                      <span class="hero-rank-suffix"><%= rankSuffix %></span>
+                    </span>
+                  </div>
+                <% } else if (card.visual && card.visual.type === "count") { %>
+                  <div class="hero-icon <%= card.iconClass %> hero-icon--count-live hero-icon--count-<%= card.visual.size || 'lg' %>">
+                    <span class="hero-count-value"><%= card.visual.value %></span>
+                    <span class="hero-count-label">LECTURES</span>
+                  </div>
+                <% } else if (card.visual && card.visual.type === "date") { %>
+                  <div class="hero-icon <%= card.iconClass %> hero-icon--date-live">
+                    <span class="hero-date-day"><%= card.visual.day %></span>
+                    <span class="hero-date-month"><%= card.visual.month %></span>
+                  </div>
+                <% } else if (card.kind === "image") { %>
+                  <div class="hero-icon <%= card.iconClass %>">
+                    <img src="<%= card.iconSrc %>" alt="<%= card.iconAlt %>" class="hero-icon-logo">
+                  </div>
+                <% } else { %>
+                  <div class="hero-icon <%= card.iconClass %>"><%= card.icon %></div>
+                <% } %>
               </div>
-            <% } else { %>
-              <div class="hero-avatar-placeholder">👤</div>
-            <% } %>
-          <% } else if (card.kind === "image") { %>
-            <div class="hero-icon <%= card.iconClass %>">
-              <img src="<%= card.iconSrc %>" alt="<%= card.iconAlt %>" class="hero-icon-logo">
+              <div class="hero-card-info">
+                <p class="hero-card-label"><%= card.label %></p>
+                <h2 class="hero-card-title"><%= card.title %></h2>
+                <p class="hero-card-desc"><%= card.description %></p>
+              </div>
+              <div class="hero-card-arrow">→</div>
             </div>
-          <% } else { %>
-            <div class="hero-icon <%= card.iconClass %>"><%= card.icon %></div>
-          <% } %>
-        </div>
-        <div class="hero-card-info">
-          <p class="hero-card-label"><%= card.label %></p>
-          <h2 class="hero-card-title"><%= card.title %></h2>
-          <p class="hero-card-desc"><%= card.description %></p>
-        </div>
-        <div class="hero-card-arrow">→</div>
-      </div>
-    </a>
-  <% }) %>
-
-  <% (dashboardCustomCards || []).forEach(function(card) { %>
-    <a
-      href="<%= card.href %>"
-      class="hero-card hero-card-custom"
-      <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
-      style="
-        --custom-bg-start: <%= card.color.bgStart %>;
-        --custom-bg-end: <%= card.color.bgEnd %>;
-        --custom-border: <%= card.color.border %>;
-        --custom-border-hover: <%= card.color.borderHover %>;
-        --custom-glow: <%= card.color.glow %>;
-        --custom-accent-a: <%= card.color.accentA %>;
-        --custom-accent-b: <%= card.color.accentB %>;
-        --custom-label: <%= card.color.label %>;
-        --custom-arrow: <%= card.color.arrow %>;
-        --custom-icon-border: <%= card.color.iconBorder %>;
-        --custom-icon-glow: <%= card.color.iconGlow %>;
-      "
-    >
-      <div class="hero-card-content">
-        <div class="hero-card-icon-wrap">
-          <div class="hero-icon hero-icon--custom <% if ((card.integrationKey || "") === "komga_auto" || (card.integrationKey || "") === "jellyfin_auto" || (card.integrationKey || "") === "romm_auto") { %>hero-icon--logo-mode<% } %>">
-            <% if ((card.integrationKey || "") === "komga_auto") { %>
-              <img src="<%= basePath %>/img/komga-icon.svg" alt="Komga" class="hero-icon-custom-logo">
-            <% } else if ((card.integrationKey || "") === "jellyfin_auto") { %>
-              <img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="hero-icon-custom-logo hero-icon-custom-logo--jellyfin">
-            <% } else if ((card.integrationKey || "") === "romm_auto") { %>
-              <img src="<%= basePath %>/img/romm-icon.svg" alt="RomM" class="hero-icon-custom-logo">
-            <% } else { %>
-              <span class="hero-icon-custom-char"><%= card.icon || "✨" %></span>
-            <% } %>
-          </div>
-        </div>
-        <div class="hero-card-info">
-          <p class="hero-card-label"><%= card.label %></p>
-          <h2 class="hero-card-title"><%= card.title %></h2>
-          <p class="hero-card-desc"><%= card.description %></p>
-        </div>
-        <div class="hero-card-arrow">→</div>
-      </div>
-    </a>
-  <% }); %>
-
-</div>
+          </a>
+        <% } else if (entry.type === "custom-card") { %>
+          <a
+            href="<%= card.href %>"
+            class="hero-card hero-card-custom"
+            <% if (card.external) { %>target="_blank" rel="noopener noreferrer"<% } %>
+            style="
+              --custom-bg-start: <%= card.color.bgStart %>;
+              --custom-bg-end: <%= card.color.bgEnd %>;
+              --custom-border: <%= card.color.border %>;
+              --custom-border-hover: <%= card.color.borderHover %>;
+              --custom-glow: <%= card.color.glow %>;
+              --custom-accent-a: <%= card.color.accentA %>;
+              --custom-accent-b: <%= card.color.accentB %>;
+              --custom-label: <%= card.color.label %>;
+              --custom-arrow: <%= card.color.arrow %>;
+              --custom-icon-border: <%= card.color.iconBorder %>;
+              --custom-icon-glow: <%= card.color.iconGlow %>;
+            "
+          >
+            <div class="hero-card-content">
+              <div class="hero-card-icon-wrap">
+                <div class="hero-icon hero-icon--custom <% if ((card.integrationKey || "") === "komga_auto" || (card.integrationKey || "") === "jellyfin_auto" || (card.integrationKey || "") === "romm_auto") { %>hero-icon--logo-mode<% } %>">
+                  <% if ((card.integrationKey || "") === "komga_auto") { %>
+                    <img src="<%= basePath %>/img/komga-icon.svg" alt="Komga" class="hero-icon-custom-logo">
+                  <% } else if ((card.integrationKey || "") === "jellyfin_auto") { %>
+                    <img src="<%= basePath %>/img/jellyfin-icon.svg" alt="Jellyfin" class="hero-icon-custom-logo hero-icon-custom-logo--jellyfin">
+                  <% } else if ((card.integrationKey || "") === "romm_auto") { %>
+                    <img src="<%= basePath %>/img/romm-icon.svg" alt="RomM" class="hero-icon-custom-logo">
+                  <% } else { %>
+                    <span class="hero-icon-custom-char"><%= card.icon || "✨" %></span>
+                  <% } %>
+                </div>
+              </div>
+              <div class="hero-card-info">
+                <p class="hero-card-label"><%= card.label %></p>
+                <h2 class="hero-card-title"><%= card.title %></h2>
+                <p class="hero-card-desc"><%= card.description %></p>
+              </div>
+              <div class="hero-card-arrow">→</div>
+            </div>
+          </a>
+        <% } %>
+      <% }); %>
+    </div>
+  <% } %>
+<% }); %>
 
 <script src="<%= basePath %>/js/dashboard.js"></script>
 <script>
@@ -228,7 +268,7 @@
   if (!userId || userId === 'guest') return;
 
   const XP_KEY = 'xp_snapshot_' + userId;
-  const XP_TTL = 5 * 60 * 1000; // 5 min (synchro avec refresh classement)
+  const XP_TTL = 5 * 60 * 1000; // 5 min de cache client pour eviter les flashes visuels
 
   function _rankGrad(c) {
     return `conic-gradient(from -90deg, ${c}2e 0deg, ${c} 90deg, ${c}cc 180deg, ${c} 270deg, ${c}2e 360deg)`;
