@@ -1157,7 +1157,9 @@
           <h3 class="settings-card-title"><%= t("settings.connections.title") %></h3>
           <p class="settings-card-sub"><%= t("settings.connections.desc") %></p>
 
-          <form id="configForm">
+          <form id="configForm" autocomplete="off">
+            <input type="text" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;pointer-events:none;">
+            <input type="password" autocomplete="current-password" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;pointer-events:none;">
             <div class="config-grid">
               <% (configSections || []).forEach(function(section) { %>
                 <div class="config-section">
@@ -1172,13 +1174,18 @@
                         </label>
                         <input
                           id="config-<%= field.key %>"
-                          name="<%= field.key %>"
-                          type="<%= field.secret ? 'password' : 'text' %>"
+                          data-config-key="<%= field.key %>"
+                          type="<%= field.secret ? 'password' : (field.type || 'text') %>"
                           value="<%= field.value || '' %>"
                           placeholder="<%= field.secret && field.configured ? 'Valeur deja configuree' : '' %>"
                           data-configured="<%= field.configured ? 'true' : 'false' %>"
                           data-dirty="false"
-                          autocomplete="off"
+                          autocomplete="<%= field.secret ? 'new-password' : (field.type === 'url' ? 'url' : 'off') %>"
+                          autocapitalize="off"
+                          autocorrect="off"
+                          data-lpignore="<%= field.secret ? 'true' : 'false' %>"
+                          data-1p-ignore="<%= field.secret ? 'true' : 'false' %>"
+                          data-form-type="<%= field.secret ? 'other' : '' %>"
                           spellcheck="false"
                         >
                       </div>
@@ -1737,7 +1744,7 @@
     });
 
     if (saveConfigBtn && configForm && configState) {
-      Array.from(configForm.querySelectorAll("input")).forEach(function (input) {
+      Array.from(configForm.querySelectorAll("input[data-config-key]")).forEach(function (input) {
         input.addEventListener("input", function () {
           input.dataset.dirty = "true";
         });
@@ -1745,8 +1752,9 @@
 
       saveConfigBtn.addEventListener("click", async function () {
         const payload = {};
-        Array.from(configForm.querySelectorAll("input[name]")).forEach(function (input) {
-          const key = input.name;
+        Array.from(configForm.querySelectorAll("input[data-config-key]")).forEach(function (input) {
+          const key = input.dataset.configKey;
+          if (!key) return;
           const value = String(input.value || "").trim();
           const isSecret = input.type === "password";
           const wasConfigured = input.dataset.configured === "true";
