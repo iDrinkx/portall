@@ -1145,9 +1145,10 @@ body.site-bg-mode-custom .site-bg-image {
 
   .login-status-panel--dashboard .login-status-item__state-block {
     width: 100%;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(146px, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
+    justify-items: start;
     text-align: left;
     min-height: 40px;
     gap: 12px;
@@ -1157,7 +1158,7 @@ body.site-bg-mode-custom .site-bg-image {
     margin-top: 0;
     text-align: right;
     white-space: nowrap;
-    flex: 0 0 auto;
+    justify-self: end;
   }
 
   .login-status-panel--dashboard .login-status-item__meta {
@@ -1174,8 +1175,8 @@ body.site-bg-mode-custom .site-bg-image {
   }
 
   .login-status-panel--dashboard .login-status-state {
-    flex: 0 0 auto;
-    margin-left: 6px;
+    justify-self: start;
+    margin-left: 10px;
   }
 }
 
