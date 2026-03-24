@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 const log = require('./logger');
-const { UserQueries } = require('./database');
+const { UserQueries, AchievementSnapshotQueries } = require('./database');
 const { XP_SYSTEM } = require('./xp-system');
 const {
   getUserStatsFromTautulli,
@@ -9,7 +9,7 @@ const {
   getTimeBasedSessionCounts,
   isTautulliReady
 } = require('./tautulli-direct');
-const { refreshUserAchievementState } = require('./achievement-state');
+const { refreshUserAchievementState, isSnapshotFullyEvaluated } = require('./achievement-state');
 const { getAllWizarrUsers, getAllWizarrUsersDetailed } = require('./wizarr');
 const { getConfigValue } = require('./config');
 
@@ -366,6 +366,9 @@ async function buildClassementSnapshot(options = {}) {
         nightCount: Number(nightCount || 0),
         morningCount: Number(morningCount || 0)
       };
+      const dbUser = UserQueries.getByUsername(stats.username);
+      const existingSnapshot = dbUser?.id ? AchievementSnapshotQueries.getForUser(dbUser.id) : null;
+      const shouldForceFullEvaluation = includeSecretEvaluation || !isSnapshotFullyEvaluated(existingSnapshot);
       const progressionState = await refreshUserAchievementState({
         username: stats.username,
         id: wizarrUser?.plexUserId || stats.userId || null,
@@ -373,7 +376,7 @@ async function buildClassementSnapshot(options = {}) {
         joinedAtTimestamp: joinedAtTs || null
       }, {
         precomputedStats: statsHint,
-        includeSecretEvaluation
+        includeSecretEvaluation: shouldForceFullEvaluation
       });
       const snapshot = progressionState?.snapshot || {};
       const rank = snapshot.rank || XP_SYSTEM.getRankByLevel(snapshot.level || 1);

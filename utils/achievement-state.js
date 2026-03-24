@@ -544,6 +544,7 @@ module.exports = {
   SUCCESS_REFRESH_TTL_MS,
   buildAchievementData,
   buildRenderProgressMap,
+  isSnapshotFullyEvaluated,
   getUserAchievementState,
   refreshUserAchievementState,
   queueBackgroundAchievementRefresh,

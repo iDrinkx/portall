@@ -103,6 +103,23 @@ async function grabSeerrCookie(authToken, res) {
   }
 }
 
+async function awaitWithSoftTimeout(promise, timeoutMs) {
+  let timeout = null;
+  const timeoutPromise = new Promise(resolve => {
+    timeout = setTimeout(() => resolve(false), Math.max(100, Number(timeoutMs || 0)));
+    if (typeof timeout.unref === "function") timeout.unref();
+  });
+
+  try {
+    await Promise.race([
+      Promise.resolve(promise).then(() => true).catch(() => false),
+      timeoutPromise
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 function ensureSetupComplete(req, res, next) {
   if (isSetupComplete()) return next();
   return res.redirect((req.basePath || "") + "/setup");
@@ -226,7 +243,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     isAdmin = true;
   }
 
-  if (plexUrl && adminLookupToken) {
+  if (plexUrl && adminLookupToken && !isAdmin) {
     try {
       const userId = parseInt(user.id);
       const [ownerId, machineId] = await Promise.all([
@@ -297,7 +314,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
 
   // Poser le cookie Seerr avant le redirect pour éviter "headers already sent"
   try {
-    await grabSeerrCookie(authToken, res);
+    await awaitWithSoftTimeout(grabSeerrCookie(authToken, res), 1500);
   } catch (err) {
     logAuth.warn(`Seerr SSO — ${err.message}`);
   }
