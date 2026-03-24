@@ -2201,20 +2201,28 @@ router.get("/api/admin/config", requireAuth, requireAdmin, (req, res) => {
 });
 
 router.get("/api/admin/config/diagnostics", requireAuth, requireAdmin, async (_req, res) => {
-  const diagnostics = await runAdminConfigDiagnostics();
-  res.json(diagnostics);
+  try {
+    const diagnostics = await runAdminConfigDiagnostics();
+    res.json(diagnostics);
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Diagnostics impossibles" });
+  }
 });
 
 router.post("/api/admin/config", requireAuth, requireAdmin, async (req, res) => {
-  saveEditableConfig(req.body || {});
-  log.create("[Admin]").info(`Connexions mises à jour par ${req.session.user.username}`);
-  const diagnostics = await runAdminConfigDiagnostics();
-  res.json({
-    success: true,
-    sections: getConfigSections({ includeSecretValues: false }),
-    values: getEditableConfigValues({ includeSecretValues: false }),
-    diagnostics
-  });
+  try {
+    saveEditableConfig(req.body || {});
+    log.create("[Admin]").info(`Connexions mises à jour par ${req.session.user.username}`);
+    const diagnostics = await runAdminConfigDiagnostics();
+    res.json({
+      success: true,
+      sections: getConfigSections({ includeSecretValues: false }),
+      values: getEditableConfigValues({ includeSecretValues: false }),
+      diagnostics
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Impossible d'enregistrer les connexions" });
+  }
 });
 
 router.get("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) => {

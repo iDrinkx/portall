@@ -1417,13 +1417,30 @@
       }).join("");
     }
 
+    async function parseJsonResponse(resp) {
+      const raw = await resp.text();
+      let data = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch (_) {
+        data = null;
+      }
+
+      if (!data) {
+        const compact = String(raw || "").replace(/\s+/g, " ").trim();
+        throw new Error(compact ? compact.slice(0, 140) : ("HTTP " + resp.status));
+      }
+
+      return data;
+    }
+
     async function runConfigDiagnostics() {
       if (!configDiagnosticsState || !configDiagnosticsList) return;
       if (runConfigDiagnosticsBtn) runConfigDiagnosticsBtn.disabled = true;
       configDiagnosticsState.textContent = "Verification des connexions en cours...";
       try {
         const resp = await fetch(bp + "/api/admin/config/diagnostics");
-        const data = await resp.json();
+        const data = await parseJsonResponse(resp);
         if (!resp.ok) throw new Error((data && (data.message || data.error)) || ("HTTP " + resp.status));
         renderConfigDiagnostics(data);
       } catch (err) {
@@ -1901,7 +1918,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
-          const data = await resp.json();
+          const data = await parseJsonResponse(resp);
           if (!resp.ok) throw new Error((data && (data.message || data.error)) || ("HTTP " + resp.status));
           Array.from(configForm.querySelectorAll('input[type="password"]')).forEach(function (input) {
             input.value = "";
