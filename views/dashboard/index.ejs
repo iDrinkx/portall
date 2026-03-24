@@ -114,9 +114,13 @@
                     <div class="hero-avatar-placeholder">👤</div>
                   <% } %>
                 <% } else if (card.visual && card.visual.type === "rank") { %>
+                  <% const rankValue = Number(card.visual.value || 0); %>
+                  <% const rankSuffix = rankValue === 1 ? "er" : "e"; %>
                   <div class="hero-icon <%= card.iconClass %> hero-icon--rank-live">
-                    <span class="hero-rank-prefix">N°</span>
-                    <span class="hero-rank-value"><%= card.visual.value %></span>
+                    <span class="hero-rank-ordinal">
+                      <span class="hero-rank-value"><%= rankValue %></span>
+                      <span class="hero-rank-suffix"><%= rankSuffix %></span>
+                    </span>
                   </div>
                 <% } else if (card.visual && card.visual.type === "count") { %>
                   <div class="hero-icon <%= card.iconClass %> hero-icon--count-live hero-icon--count-<%= card.visual.size || 'lg' %>">

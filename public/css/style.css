@@ -1457,14 +1457,15 @@ body.site-bg-mode-custom .site-bg-image {
 
 .hero-icon--rank-live {
   gap: 0;
-  flex-direction: column;
+  flex-direction: row;
   line-height: 1;
 }
 
-.hero-rank-prefix {
-  font-size: 9px;
-  font-weight: 800;
-  color: rgba(96, 165, 250, 0.78);
+.hero-rank-ordinal {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
   transform: translateY(1px);
 }
 
@@ -1472,6 +1473,14 @@ body.site-bg-mode-custom .site-bg-image {
   font-size: 22px;
   font-weight: 800;
   color: #eff6ff;
+}
+
+.hero-rank-suffix {
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(191, 219, 254, 0.92);
+  line-height: 1;
+  transform: translateY(3px);
 }
 
 .hero-card-stats {
