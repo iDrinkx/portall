@@ -1196,14 +1196,13 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     classementPosition = null;
   }
 
-  let lastPlayedThumb = null;
+  let totalSessionCount = null;
   try {
-    const lastPlayed = getLastPlayedItem(String(req.session.user?.username || ""));
-    if (lastPlayed?.thumb) {
-      lastPlayedThumb = `${req.basePath || ""}/api/plex-thumb?path=${encodeURIComponent(lastPlayed.thumb)}`;
-    }
+    const userStats = getUserStatsFromTautulli(String(req.session.user?.username || ""));
+    const parsedCount = Number(userStats?.sessionCount || 0);
+    totalSessionCount = Number.isFinite(parsedCount) ? parsedCount : null;
   } catch (_) {
-    lastPlayedThumb = null;
+    totalSessionCount = null;
   }
 
   const calendarNow = new Date();
@@ -1234,13 +1233,12 @@ router.get("/dashboard", requireAuth, async (req, res) => {
         };
       }
 
-      if (card.key === "mes-stats" && lastPlayedThumb) {
+      if (card.key === "mes-stats" && Number.isFinite(totalSessionCount) && totalSessionCount > 0) {
         return {
           ...card,
           visual: {
-            type: "thumb",
-            src: lastPlayedThumb,
-            alt: res.locals.t ? res.locals.t("dashboardBuiltins.mes-stats.title") : "Derniere lecture"
+            type: "count",
+            value: totalSessionCount
           }
         };
       }
