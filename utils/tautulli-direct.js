@@ -1103,6 +1103,7 @@ function getUserStatsFromTautulli(username) {
       userId: stats.user_id,
       username: stats.username,
       sessionCount: stats.session_count || 0,
+      videoSessionCount: (stats.movie_count || 0) + (stats.episode_count || 0),
       totalHours: totalHours,
       movieCount: stats.movie_count || 0,
       movieHours: movieHours,

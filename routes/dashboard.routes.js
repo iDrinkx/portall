@@ -1207,7 +1207,7 @@ router.get("/dashboard", requireAuth, async (req, res) => {
   let totalSessionCount = null;
   try {
     const userStats = getUserStatsFromTautulli(String(req.session.user?.username || ""));
-    const parsedCount = Number(userStats?.sessionCount || 0);
+    const parsedCount = Number(userStats?.videoSessionCount || userStats?.sessionCount || 0);
     totalSessionCount = Number.isFinite(parsedCount) ? parsedCount : null;
   } catch (_) {
     totalSessionCount = null;
