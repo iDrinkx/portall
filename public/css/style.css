@@ -1529,7 +1529,7 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-count-label {
-  font-size: 5.5px;
+  font-size: 6.1px;
   font-weight: 800;
   letter-spacing: 0.45px;
   color: rgba(167, 243, 208, 0.82);
@@ -1541,7 +1541,7 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-icon--count-md .hero-count-label {
-  font-size: 5px;
+  font-size: 5.4px;
 }
 
 .hero-icon--count-sm .hero-count-value {
@@ -1549,7 +1549,7 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-icon--count-sm .hero-count-label {
-  font-size: 4.6px;
+  font-size: 4.9px;
   letter-spacing: 0.3px;
 }
 
@@ -1701,7 +1701,7 @@ body.site-bg-mode-custom .site-bg-image {
   letter-spacing: 0.7px;
   color: rgba(254, 202, 202, 0.82);
   line-height: 1;
-  transform: translateY(-1px);
+  transform: translateY(-3px);
 }
 
 /* Logo Seerr dans la navbar */
