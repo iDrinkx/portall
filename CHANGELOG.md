@@ -1,3 +1,22 @@
+## [1.41.1](https://github.com/iDrinkx/portall/compare/v1.41.0...v1.41.1) (2026-03-24)
+
+### Corrections de bugs
+
+* alligement kuma ([67d68e2](https://github.com/iDrinkx/portall/commit/67d68e230e7f8deb551a80983aed6c840ab8950d))
+* allignement kuma ([7463114](https://github.com/iDrinkx/portall/commit/7463114963bdcb5a109862aec3e1078ddad205ba))
+* allignement mobile ([0495708](https://github.com/iDrinkx/portall/commit/0495708b83fca66d0c2d691eeebcf214e7b88990))
+* apparence kuma + nombre de livre komga ([7ea0975](https://github.com/iDrinkx/portall/commit/7ea097596d05ef57281d2bdf50f40f13e22661f8))
+* bibli mobile ([a4da5eb](https://github.com/iDrinkx/portall/commit/a4da5eb1b07f086f4b7d8ce38f97598aa6155eac))
+* hauteur dashboard ([8fb2f38](https://github.com/iDrinkx/portall/commit/8fb2f383edb68c179d6de5aa0ccaefefc3ccbb6d))
+* kuma dashboard + refonte version pc ([b501e19](https://github.com/iDrinkx/portall/commit/b501e19f3c5c5a00d84f5b92ce432966946d59b6))
+* kuma mobile ([3ccd58f](https://github.com/iDrinkx/portall/commit/3ccd58fc516d5b392f1b68b82b5696ccd2fb8762))
+* largeur durée kuma ([5b3e1f9](https://github.com/iDrinkx/portall/commit/5b3e1f97705fa9adc23016fe88da64c07d834474))
+* libeller komga ([28cf9dc](https://github.com/iDrinkx/portall/commit/28cf9dc9b87b66c72ce592229a7ccdaff3b1c81a))
+* seerr profil partch ([3459c35](https://github.com/iDrinkx/portall/commit/3459c3568443235e7f5eee3be264b0515f80b911))
+* trois points mobile ([c875c87](https://github.com/iDrinkx/portall/commit/c875c8781fa6658ddaf2415f46a6f22e8a3d915b))
+* version mobile du dash ([52b3938](https://github.com/iDrinkx/portall/commit/52b3938119391026b17720a5eab57b6cca619ad3))
+* visuel dashboard ([c46696d](https://github.com/iDrinkx/portall/commit/c46696d1b8754b571ab1b2cf514e2364c916f1a4))
+
 ## [1.41.0](https://github.com/iDrinkx/portall/compare/v1.40.0...v1.41.0) (2026-03-23)
 
 ### Nouvelles fonctionnalites
