@@ -12,6 +12,66 @@
   const dashboardHtmlBelowBlocks = (dashboardCustomHtmlBlocks || []).filter(function(block) {
     return !block || block.position !== "above";
   });
+  const dashboardSections = Array.isArray(dashboardSectionItems)
+    ? dashboardSectionItems.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); })
+    : [];
+  const dashboardSectionsAbove = dashboardSections.filter(function(section) {
+    return section && section.position !== "below";
+  });
+  const dashboardSectionsBelow = dashboardSections.filter(function(section) {
+    return section && section.position === "below";
+  });
+
+  function renderDashboardSection(section) {
+    if (!section || section.enabled === false) return;
+    if (section.key === "uptime-kuma") {
+%>
+      <%- include('../partials/uptime-kuma-panel', { uptimeKuma, layout: 'dashboard' }) %>
+<%
+      return;
+    }
+    if (section.key === "server-stats" && dashboardServerStatsEnabled) {
+%>
+      <!-- SERVER STATS BAR -->
+      <div class="server-stats-bar" id="serverStatsBar">
+        <div class="ssb-item" id="ssb-movies">
+          <span class="ssb-icon">🎬</span>
+          <span class="ssb-num skel" id="ssb-movies-num"></span>
+          <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
+          <span class="ssb-sub"></span>
+        </div>
+        <div class="ssb-divider"></div>
+        <div class="ssb-item" id="ssb-shows">
+          <span class="ssb-icon">📺</span>
+          <span class="ssb-num skel" id="ssb-shows-num"></span>
+          <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
+          <span class="ssb-sub" id="ssb-episodes"></span>
+        </div>
+        <div class="ssb-divider"></div>
+        <div class="ssb-item" id="ssb-music">
+          <span class="ssb-icon">🎵</span>
+          <span class="ssb-num skel" id="ssb-music-num"></span>
+          <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
+          <span class="ssb-sub"></span>
+        </div>
+        <div class="ssb-divider" id="ssb-div-audio"></div>
+        <div class="ssb-item" id="ssb-audio">
+          <span class="ssb-icon">🎧</span>
+          <span class="ssb-num skel" id="ssb-audio-num"></span>
+          <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
+          <span class="ssb-sub"></span>
+        </div>
+        <div class="ssb-divider" id="ssb-div-books"></div>
+        <div class="ssb-item" id="ssb-books">
+          <span class="ssb-icon">📚</span>
+          <span class="ssb-num skel" id="ssb-books-num"></span>
+          <span class="ssb-label">Livres</span>
+          <span class="ssb-sub"></span>
+        </div>
+      </div>
+<%
+    }
+  }
 %>
 
 <% if (dashboardHtmlAboveBlocks.length) { %>
@@ -22,7 +82,7 @@
   <% }) %>
 <% } %>
 
-<%- include('../partials/uptime-kuma-panel', { uptimeKuma, layout: 'dashboard' }) %>
+<% dashboardSectionsAbove.forEach(renderDashboardSection); %>
 
 <% if (dashboardHtmlBelowBlocks.length) { %>
   <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
@@ -34,46 +94,6 @@
   <div class="dashboard-custom-html">
     <%- dashboardCustomHtml %>
   </div>
-<% } %>
-
-<% if (dashboardServerStatsEnabled) { %>
-  <!-- SERVER STATS BAR -->
-  <div class="server-stats-bar" id="serverStatsBar">
-    <div class="ssb-item" id="ssb-movies">
-      <span class="ssb-icon">🎬</span>
-      <span class="ssb-num skel" id="ssb-movies-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-shows">
-      <span class="ssb-icon">📺</span>
-      <span class="ssb-num skel" id="ssb-shows-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
-      <span class="ssb-sub" id="ssb-episodes"></span>
-    </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-music">
-      <span class="ssb-icon">🎵</span>
-      <span class="ssb-num skel" id="ssb-music-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider" id="ssb-div-audio"></div>
-    <div class="ssb-item" id="ssb-audio">
-      <span class="ssb-icon">🎧</span>
-      <span class="ssb-num skel" id="ssb-audio-num"></span>
-      <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider" id="ssb-div-books"></div>
-    <div class="ssb-item" id="ssb-books">
-      <span class="ssb-icon">📚</span>
-      <span class="ssb-num skel" id="ssb-books-num"></span>
-      <span class="ssb-label">Livres</span>
-      <span class="ssb-sub"></span>
-    </div>
-</div>
 <% } %>
 
 <!-- HERO CARDS -->
@@ -154,6 +174,8 @@
   <% }); %>
 
 </div>
+
+<% dashboardSectionsBelow.forEach(renderDashboardSection); %>
 
 <script src="<%= basePath %>/js/dashboard.js"></script>
 <script>

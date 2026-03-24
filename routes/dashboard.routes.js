@@ -38,6 +38,11 @@ const {
   buildDashboardBuiltinCards
 } = require("../utils/dashboard-builtins");
 const {
+  getDashboardSectionAdminItems,
+  getDashboardSectionConfig,
+  saveDashboardSectionConfig
+} = require("../utils/dashboard-sections");
+const {
   getDashboardCustomHtml,
   getDashboardCustomHtmlBlocks,
   getDashboardCustomHtmlBlocksRaw,
@@ -1128,7 +1133,8 @@ async function getWizarrSubscription(user) {
 
 router.get("/dashboard", requireAuth, async (req, res) => {
   const colorMap = getColorMap();
-  const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
+  const dashboardSectionItems = getDashboardSectionConfig();
+  const dashboardServerStatsEnabled = !!dashboardSectionItems.find(item => item.key === "server-stats" && item.enabled !== false);
   const dashboardBuiltinCards = buildDashboardBuiltinCards(req.session.user, req.basePath || "", res.locals.t);
   const dashboardCustomCards = DashboardCardQueries.list()
     .map(card => {
@@ -1171,6 +1177,7 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     dashboardCustomHtml: getDashboardCustomHtml(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
     dashboardServerStatsEnabled,
+    dashboardSectionItems,
     uptimeKuma
   });
 });
@@ -1310,9 +1317,9 @@ router.get("/calendrier", requireAuth, (req, res) => {
 
 router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
   const leaderboardBlurEnabled = AppSettingQueries.getBool("leaderboard_blur_enabled", true);
-  const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
   const navSubscriptionPillEnabled = AppSettingQueries.getBool("nav_subscription_pill_enabled", true);
   const dashboardBuiltinItems = getDashboardBuiltinAdminItems(res.locals.t);
+  const dashboardSectionItems = getDashboardSectionAdminItems(res.locals.t);
   const siteBackground = getSiteBackgroundSettings();
   const customCards = DashboardCardQueries.list();
   const availableColorKeys = getAvailableColorKeys(customCards);
@@ -1339,13 +1346,13 @@ router.get("/parametres", requireAuth, requireAdmin, (req, res) => {
     user: req.session.user,
     basePath: req.basePath,
     leaderboardBlurEnabled,
-    dashboardServerStatsEnabled,
     navSubscriptionPillEnabled,
     siteBackground,
     backgroundPresets: BACKGROUND_PRESETS,
     supportedLocales: SUPPORTED_LOCALES,
     siteLanguage: getSiteLanguage(),
     dashboardBuiltinItems,
+    dashboardSectionItems,
     dashboardCustomHtmlRaw: getDashboardCustomHtmlRaw(),
     dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocksRaw(),
     dashboardCustomHtmlPreview: getDashboardCustomHtml(),
@@ -1831,6 +1838,21 @@ router.post("/api/admin/dashboard-builtins", requireAuth, requireAdmin, (req, re
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
   const savedItems = saveDashboardBuiltinConfig(items);
   log.create("[Admin]").info(`Ordre des cartes dashboard mis a jour par ${req.session.user.username}`);
+  res.json({ success: true, items: savedItems });
+});
+
+router.get("/api/admin/dashboard-sections", requireAuth, requireAdmin, (req, res) => {
+  res.json({ items: getDashboardSectionAdminItems(res.locals.t) });
+});
+
+router.post("/api/admin/dashboard-sections", requireAuth, requireAdmin, (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const savedItems = saveDashboardSectionConfig(items);
+  const serverStatsItem = savedItems.find(item => item.key === "server-stats");
+  if (serverStatsItem) {
+    AppSettingQueries.setBool("dashboard_server_stats_enabled", serverStatsItem.enabled !== false);
+  }
+  log.create("[Admin]").info(`Agencement des sections dashboard mis a jour par ${req.session.user.username}`);
   res.json({ success: true, items: savedItems });
 });
 

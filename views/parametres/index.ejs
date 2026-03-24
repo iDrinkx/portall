@@ -865,22 +865,6 @@
         <div class="settings-card">
         <div class="settings-row">
           <div>
-            <h3><%= t("settings.general.serverStats.title") %></h3>
-            <p><%= t("settings.general.serverStats.desc") %></p>
-          </div>
-          <label class="switch" aria-label="Activer ou desactiver la barre de stats serveur du dashboard">
-            <input id="dashboardServerStatsToggle" type="checkbox" <%= dashboardServerStatsEnabled ? "checked" : "" %>>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="settings-state" id="dashboardServerStatsState">
-          <%- t("settings.state.current", { state: dashboardServerStatsEnabled ? t("settings.state.enabled") : t("settings.state.disabled") }) %>
-        </div>
-        </div>
-
-        <div class="settings-card">
-        <div class="settings-row">
-          <div>
             <h3><%= t("settings.general.navPill.title") %></h3>
             <p><%= t("settings.general.navPill.desc") %></p>
           </div>
@@ -959,6 +943,34 @@
           <% }) %>
         </div>
         <div class="settings-inline-note" id="dashboardBuiltinState"><%= t("settings.dashboardBuiltins.note") %></div>
+        </div>
+
+        <div class="settings-card">
+        <h3 class="settings-card-title"><%= t("settings.dashboardSections.title") %></h3>
+        <p class="settings-card-sub"><%= t("settings.dashboardSections.desc") %></p>
+        <div class="builtin-cards-list" id="dashboardSectionList">
+          <% (dashboardSectionItems || []).forEach(function(item, index) { %>
+            <div class="builtin-card-row" data-section-key="<%= item.key %>">
+              <div class="dash-card-meta">
+                <div class="dash-card-main"><%= item.label %></div>
+                <div class="dash-card-sub"><%= item.description %></div>
+              </div>
+              <div class="builtin-card-actions">
+                <label class="switch" aria-label="Activer ou desactiver <%= item.label %>">
+                  <input type="checkbox" data-section-enabled <%= item.enabled ? "checked" : "" %>>
+                  <span class="slider"></span>
+                </label>
+                <select class="settings-inline-select" data-section-position>
+                  <option value="above" <%= item.position === "above" ? "selected" : "" %>><%= t("settings.dashboardSections.position.above") %></option>
+                  <option value="below" <%= item.position === "below" ? "selected" : "" %>><%= t("settings.dashboardSections.position.below") %></option>
+                </select>
+                <button class="builtin-card-order-btn" type="button" data-section-move="up" <%= index === 0 ? "disabled" : "" %>><%= t("settings.dashboardBuiltins.up") %></button>
+                <button class="builtin-card-order-btn" type="button" data-section-move="down" <%= index === (dashboardSectionItems || []).length - 1 ? "disabled" : "" %>><%= t("settings.dashboardBuiltins.down") %></button>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+        <div class="settings-inline-note" id="dashboardSectionState"><%= t("settings.dashboardSections.note") %></div>
         </div>
 
         <div class="settings-card">
@@ -1221,12 +1233,12 @@
     const bp = window.APP_BASE_PATH || "";
     const toggle = document.getElementById("leaderboardBlurToggle");
     const state = document.getElementById("settingsState");
-    const dashboardServerStatsToggle = document.getElementById("dashboardServerStatsToggle");
-    const dashboardServerStatsState = document.getElementById("dashboardServerStatsState");
     const navSubscriptionPillToggle = document.getElementById("navSubscriptionPillToggle");
     const navSubscriptionPillState = document.getElementById("navSubscriptionPillState");
     const dashboardBuiltinList = document.getElementById("dashboardBuiltinList");
     const dashboardBuiltinState = document.getElementById("dashboardBuiltinState");
+    const dashboardSectionList = document.getElementById("dashboardSectionList");
+    const dashboardSectionState = document.getElementById("dashboardSectionState");
     const addBtn = document.getElementById("addDashboardCardBtn");
     const dashCardState = document.getElementById("dashCardState");
     const dashCardsList = document.getElementById("dashboardCardsList");
@@ -1280,10 +1292,12 @@
     let editingCardId = null;
     let canCreate = true;
     let dashboardBuiltinsInFlight = false;
+    let dashboardSectionsInFlight = false;
     let siteBackgroundFileDataUrl = <%- JSON.stringify(siteBackground && String(siteBackground.customUrl || "").startsWith("data:image/") ? siteBackground.customUrl : "").replace(/<\//g, "<\\/") %>;
     let siteBackgroundCustomSource = siteBackgroundFileDataUrl ? "file" : "url";
     const SITE_BACKGROUND_RECOMMENDED_MAX_BYTES = 8 * 1024 * 1024;
     let dashboardBuiltinItems = <%- JSON.stringify(dashboardBuiltinItems || []).replace(/<\//g, "<\\/") %>;
+    let dashboardSectionItems = <%- JSON.stringify(dashboardSectionItems || []).replace(/<\//g, "<\\/") %>;
     let dashboardHtmlBlockItems = <%- JSON.stringify((dashboardCustomHtmlBlocks && dashboardCustomHtmlBlocks.length ? dashboardCustomHtmlBlocks : [{ id: "block-1", html: dashboardCustomHtmlRaw || "" }]) || []).replace(/<\//g, "<\\/") %>;
     const backgroundPresetLabels = {
       particles: "<%= t('settings.background.presets.particles') %>",
@@ -1444,6 +1458,33 @@
       }).join("");
     }
 
+    function renderDashboardSectionList() {
+      if (!dashboardSectionList) return;
+
+      dashboardSectionList.innerHTML = dashboardSectionItems.map(function (item, index) {
+        const isFirst = index === 0;
+        const isLast = index === dashboardSectionItems.length - 1;
+        return `<div class="builtin-card-row" data-section-key="${escAttr(item.key)}">
+          <div class="dash-card-meta">
+            <div class="dash-card-main">${escHtml(item.label)}</div>
+            <div class="dash-card-sub">${escHtml(item.description)}</div>
+          </div>
+          <div class="builtin-card-actions">
+            <label class="switch" aria-label="Activer ou desactiver ${escAttr(item.label)}">
+              <input type="checkbox" data-section-enabled ${item.enabled ? "checked" : ""}>
+              <span class="slider"></span>
+            </label>
+            <select class="settings-inline-select" data-section-position>
+              <option value="above" ${item.position === "above" ? "selected" : ""}><%= t("settings.dashboardSections.position.above") %></option>
+              <option value="below" ${item.position === "below" ? "selected" : ""}><%= t("settings.dashboardSections.position.below") %></option>
+            </select>
+            <button class="builtin-card-order-btn" type="button" data-section-move="up" ${isFirst ? "disabled" : ""}><%= t("settings.dashboardBuiltins.up") %></button>
+            <button class="builtin-card-order-btn" type="button" data-section-move="down" ${isLast ? "disabled" : ""}><%= t("settings.dashboardBuiltins.down") %></button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
     async function saveDashboardBuiltins(previousItems) {
       if (!dashboardBuiltinState) return;
         dashboardBuiltinState.textContent = "<%= t('settings.dashboardBuiltins.note') %>";
@@ -1475,6 +1516,46 @@
         dashboardBuiltinItems = previousItems.map(function (item) { return { ...item }; });
         renderDashboardBuiltinList();
         dashboardBuiltinState.textContent = "<%= t('settings.dashboardBuiltins.note') %>";
+      }
+    }
+
+    async function saveDashboardSections(previousItems) {
+      if (!dashboardSectionState) return;
+      dashboardSectionState.textContent = "<%= t('settings.dashboardSections.note') %>";
+
+      try {
+        const payload = dashboardSectionItems.map(function (item, index) {
+          return {
+            key: item.key,
+            enabled: item.enabled !== false,
+            position: item.position === "below" ? "below" : "above",
+            order: index
+          };
+        });
+        const resp = await fetch(bp + "/api/admin/dashboard-sections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: payload })
+        });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        dashboardSectionItems = (data.items || []).map(function (item) {
+          const current = dashboardSectionItems.find(function (entry) { return entry.key === item.key; });
+          return {
+            key: item.key,
+            enabled: item.enabled !== false,
+            position: item.position === "below" ? "below" : "above",
+            order: item.order,
+            label: current ? current.label : item.key,
+            description: current ? current.description : ""
+          };
+        }).sort(function (a, b) { return a.order - b.order; });
+        renderDashboardSectionList();
+        dashboardSectionState.textContent = "<%= t('settings.dashboardSections.note') %>";
+      } catch (_) {
+        dashboardSectionItems = previousItems.map(function (item) { return { ...item }; });
+        renderDashboardSectionList();
+        dashboardSectionState.textContent = "<%= t('settings.dashboardSections.note') %>";
       }
     }
 
@@ -1611,33 +1692,6 @@
       }
     });
 
-    let dashboardServerStatsInFlight = false;
-    if (dashboardServerStatsToggle && dashboardServerStatsState) {
-      dashboardServerStatsToggle.addEventListener("change", async function () {
-        if (dashboardServerStatsInFlight) return;
-        dashboardServerStatsInFlight = true;
-        dashboardServerStatsToggle.disabled = true;
-        const enabled = !!dashboardServerStatsToggle.checked;
-
-        try {
-          const resp = await fetch(bp + "/api/admin/settings/dashboard-server-stats", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled })
-          });
-
-          if (!resp.ok) throw new Error("HTTP " + resp.status);
-          const data = await resp.json();
-          dashboardServerStatsState.innerHTML = `<%- t("settings.state.current", { state: "__STATE__" }) %>`.replace("__STATE__", data.enabled ? "<%= t('settings.state.enabled') %>" : "<%= t('settings.state.disabled') %>");
-        } catch (_) {
-          dashboardServerStatsToggle.checked = !enabled;
-        } finally {
-          dashboardServerStatsToggle.disabled = false;
-          dashboardServerStatsInFlight = false;
-        }
-      });
-    }
-
     let navSubscriptionPillInFlight = false;
     if (navSubscriptionPillToggle && navSubscriptionPillState) {
       navSubscriptionPillToggle.addEventListener("change", async function () {
@@ -1711,6 +1765,56 @@
         dashboardBuiltinsInFlight = true;
         await saveDashboardBuiltins(previousItems);
         dashboardBuiltinsInFlight = false;
+      });
+    }
+
+    if (dashboardSectionList && dashboardSectionState) {
+      renderDashboardSectionList();
+
+      dashboardSectionList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-section-move]");
+        if (!button || dashboardSectionsInFlight) return;
+
+        const row = button.closest("[data-section-key]");
+        if (!row) return;
+
+        const key = row.getAttribute("data-section-key");
+        const index = dashboardSectionItems.findIndex(function (item) { return item.key === key; });
+        if (index === -1) return;
+
+        const direction = button.getAttribute("data-section-move");
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= dashboardSectionItems.length) return;
+
+        const previousItems = dashboardSectionItems.map(function (item) { return { ...item }; });
+        const moved = dashboardSectionItems[index];
+        dashboardSectionItems.splice(index, 1);
+        dashboardSectionItems.splice(targetIndex, 0, moved);
+        renderDashboardSectionList();
+
+        dashboardSectionsInFlight = true;
+        await saveDashboardSections(previousItems);
+        dashboardSectionsInFlight = false;
+      });
+
+      dashboardSectionList.addEventListener("change", async function (event) {
+        const row = event.target.closest("[data-section-key]");
+        if (!row) return;
+        if (dashboardSectionsInFlight) return;
+
+        const key = row.getAttribute("data-section-key");
+        const index = dashboardSectionItems.findIndex(function (item) { return item.key === key; });
+        if (index === -1) return;
+
+        const previousItems = dashboardSectionItems.map(function (item) { return { ...item }; });
+        const select = row.querySelector("[data-section-position]");
+        const enabledInput = row.querySelector("[data-section-enabled]");
+        dashboardSectionItems[index].position = select && select.value === "below" ? "below" : "above";
+        dashboardSectionItems[index].enabled = enabledInput ? !!enabledInput.checked : true;
+
+        dashboardSectionsInFlight = true;
+        await saveDashboardSections(previousItems);
+        dashboardSectionsInFlight = false;
       });
     }
 
