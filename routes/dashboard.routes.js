@@ -1187,11 +1187,19 @@ router.get("/dashboard", requireAuth, async (req, res) => {
 
   let classementPosition = null;
   try {
-    const { getClassementCache } = require("../utils/cron-classement-refresh");
-    const cacheData = getClassementCache();
-    const byLevel = Array.isArray(cacheData?.data?.byLevel) ? cacheData.data.byLevel : [];
-    const rankIndex = byLevel.findIndex(entry => normalizeLeaderboardUsername(entry?.username || "") === usernameNormalized);
-    if (rankIndex >= 0) classementPosition = rankIndex + 1;
+    const { getClassementCache, refreshClassementCache } = require("../utils/cron-classement-refresh");
+    const resolveClassementPosition = () => {
+      const cacheData = getClassementCache();
+      const byLevel = Array.isArray(cacheData?.data?.byLevel) ? cacheData.data.byLevel : [];
+      const rankIndex = byLevel.findIndex(entry => normalizeLeaderboardUsername(entry?.username || "") === usernameNormalized);
+      return rankIndex >= 0 ? rankIndex + 1 : null;
+    };
+
+    classementPosition = resolveClassementPosition();
+    if (classementPosition === null) {
+      await refreshClassementCache();
+      classementPosition = resolveClassementPosition();
+    }
   } catch (_) {
     classementPosition = null;
   }
