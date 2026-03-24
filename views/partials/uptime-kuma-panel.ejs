@@ -1,6 +1,19 @@
 <%
   const uptimeLayout = layout === "dashboard" ? "dashboard" : "login";
-  const statusData = uptimeKuma && uptimeKuma.enabled ? uptimeKuma : null;
+  const rawStatusData = uptimeKuma && uptimeKuma.enabled ? uptimeKuma : null;
+  const filteredServices = rawStatusData && Array.isArray(rawStatusData.services)
+    ? rawStatusData.services.filter(service => {
+        const serviceName = String(service?.name || "").trim().toLowerCase();
+        const tags = Array.isArray(service?.tags)
+          ? service.tags.map(tag => String(tag?.name || "").trim().toLowerCase()).filter(Boolean)
+          : [];
+        const values = [serviceName, ...tags];
+        return !values.includes("portall") && !values.includes("site web");
+      })
+    : [];
+  const statusData = rawStatusData
+    ? { ...rawStatusData, services: filteredServices }
+    : null;
   const overallStatusLabel = !statusData
     ? ""
     : (statusData.overall === "operational"

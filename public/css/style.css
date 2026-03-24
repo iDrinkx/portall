@@ -1145,16 +1145,20 @@ body.site-bg-mode-custom .site-bg-image {
 
   .login-status-panel--dashboard .login-status-item__state-block {
     width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
     align-items: center;
     text-align: right;
+    min-height: 40px;
   }
 
   .login-status-panel--dashboard .login-status-item__since {
     margin-top: 0;
     text-align: right;
-    justify-self: end;
+    margin-left: auto;
+    white-space: nowrap;
   }
 
   .login-status-panel--dashboard .login-status-item__meta {
@@ -1171,7 +1175,9 @@ body.site-bg-mode-custom .site-bg-image {
   }
 
   .login-status-panel--dashboard .login-status-state {
-    justify-self: center;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
 
@@ -2557,27 +2563,33 @@ body.site-bg-mode-custom .site-bg-image {
 
 @media (max-width: 600px) {
   .server-stats-bar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr;
-    align-items: center;
-    padding: 16px 10px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 12px;
     gap: 0;
     row-gap: 0;
+    scrollbar-width: none;
   }
+  .server-stats-bar::-webkit-scrollbar { display: none; }
   .ssb-item {
-    min-width: 0;
-    padding: 0 4px;
+    min-width: 108px;
+    padding: 6px 8px;
     align-self: stretch;
-    justify-content: start;
-    display: grid;
-    grid-template-rows: 18px 34px 28px 28px;
-    align-items: start;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
     justify-items: center;
-    min-height: 0;
-    gap: 0;
+    min-height: 82px;
+    gap: 2px;
+    flex: 0 0 auto;
   }
   .ssb-divider {
     align-self: center;
+    flex: 0 0 auto;
   }
   .ssb-num  { font-size: 17px; line-height: 1.05; }
   .ssb-label { font-size: 10px; letter-spacing: 0.5px; }
@@ -2588,13 +2600,13 @@ body.site-bg-mode-custom .site-bg-image {
     min-height: 0;
     width: 100%;
   }
-  .ssb-icon { height: 18px; margin-bottom: 0; align-items: center; }
-  .ssb-num { min-height: 34px; justify-content: center; text-align: center; }
-  .ssb-label { min-height: 28px; align-items: flex-start; }
+  .ssb-icon { height: 18px; margin-bottom: 1px; align-items: center; }
+  .ssb-num { min-height: 22px; justify-content: center; text-align: center; }
+  .ssb-label { min-height: 24px; align-items: center; }
   .ssb-sub {
-    min-height: 28px;
+    min-height: 22px;
     margin-top: 0;
-    align-items: flex-start;
+    align-items: center;
   }
 }
 
