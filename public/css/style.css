@@ -1456,16 +1456,16 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-icon--rank-live {
-  gap: 1px;
+  gap: 0;
   flex-direction: column;
   line-height: 1;
 }
 
 .hero-rank-prefix {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   color: rgba(96, 165, 250, 0.78);
-  transform: translateY(2px);
+  transform: translateY(1px);
 }
 
 .hero-rank-value {
@@ -1507,22 +1507,41 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-icon--count-live {
-  gap: 1px;
+  gap: 0;
   flex-direction: column;
   line-height: 1;
+  padding-top: 1px;
 }
 
 .hero-count-value {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: #ecfdf5;
 }
 
 .hero-count-label {
-  font-size: 7px;
+  font-size: 5.5px;
   font-weight: 800;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.45px;
   color: rgba(167, 243, 208, 0.82);
+  transform: translateY(-1px);
+}
+
+.hero-icon--count-md .hero-count-value {
+  font-size: 14px;
+}
+
+.hero-icon--count-md .hero-count-label {
+  font-size: 5px;
+}
+
+.hero-icon--count-sm .hero-count-value {
+  font-size: 12px;
+}
+
+.hero-icon--count-sm .hero-count-label {
+  font-size: 4.6px;
+  letter-spacing: 0.3px;
 }
 
 /* 📅 CALENDRIER CARD */

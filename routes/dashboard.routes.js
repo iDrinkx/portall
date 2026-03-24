@@ -1242,11 +1242,13 @@ router.get("/dashboard", requireAuth, async (req, res) => {
       }
 
       if (card.key === "mes-stats" && Number.isFinite(totalSessionCount) && totalSessionCount > 0) {
+        const countText = String(Math.max(0, Math.trunc(totalSessionCount)));
         return {
           ...card,
           visual: {
             type: "count",
-            value: totalSessionCount
+            value: countText,
+            size: countText.length >= 6 ? "sm" : (countText.length >= 5 ? "md" : "lg")
           }
         };
       }

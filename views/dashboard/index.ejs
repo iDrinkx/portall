@@ -115,13 +115,13 @@
                   <% } %>
                 <% } else if (card.visual && card.visual.type === "rank") { %>
                   <div class="hero-icon <%= card.iconClass %> hero-icon--rank-live">
-                    <span class="hero-rank-prefix">#</span>
+                    <span class="hero-rank-prefix">N°</span>
                     <span class="hero-rank-value"><%= card.visual.value %></span>
                   </div>
                 <% } else if (card.visual && card.visual.type === "count") { %>
-                  <div class="hero-icon <%= card.iconClass %> hero-icon--count-live">
+                  <div class="hero-icon <%= card.iconClass %> hero-icon--count-live hero-icon--count-<%= card.visual.size || 'lg' %>">
                     <span class="hero-count-value"><%= card.visual.value %></span>
-                    <span class="hero-count-label">LECT.</span>
+                    <span class="hero-count-label">LECTURES</span>
                   </div>
                 <% } else if (card.visual && card.visual.type === "date") { %>
                   <div class="hero-icon <%= card.iconClass %> hero-icon--date-live">
