@@ -1004,13 +1004,13 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-panel--dashboard .login-status-item {
-  min-height: 116px;
-  padding: 14px 15px;
+  min-height: 100px;
+  padding: 12px 15px;
 }
 
 .login-status-panel--dashboard .login-status-item__row {
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 6px;
   height: 100%;
   justify-items: center;
   align-content: center;
@@ -1023,14 +1023,14 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .login-status-panel--dashboard .login-status-item__headline {
-  min-height: 52px;
+  min-height: 40px;
   justify-content: center;
   align-items: center;
 }
 
 .login-status-panel--dashboard .login-status-item__service-brand {
   min-width: 0;
-  min-height: 52px;
+  min-height: 40px;
   justify-content: center;
   align-items: center;
 }
@@ -1138,6 +1138,8 @@ body.site-bg-mode-custom .site-bg-image {
   .login-status-panel--dashboard .login-status-item__row {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
+    justify-items: stretch;
+    align-content: stretch;
   }
 
   .login-status-panel--dashboard .login-status-item__state-block {
@@ -1147,6 +1149,19 @@ body.site-bg-mode-custom .site-bg-image {
 
   .login-status-panel--dashboard .login-status-item__since {
     text-align: right;
+  }
+
+  .login-status-panel--dashboard .login-status-item__meta {
+    justify-content: center;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .login-status-panel--dashboard .login-status-item__headline,
+  .login-status-panel--dashboard .login-status-item__service-brand {
+    min-height: 0;
+    justify-content: flex-start;
+    align-items: center;
   }
 }
 
@@ -2463,8 +2478,8 @@ body.site-bg-mode-custom .site-bg-image {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 3px;
+  justify-content: center;
+  gap: 2px;
   flex: 1;
   min-width: 90px;
   padding: 8px 12px;
@@ -2472,7 +2487,7 @@ body.site-bg-mode-custom .site-bg-image {
   background: rgba(255,255,255,0.01);
   position: relative;
   z-index: 1;
-  min-height: 98px;
+  min-height: 86px;
 }
 
 .ssb-divider {
@@ -2488,11 +2503,11 @@ body.site-bg-mode-custom .site-bg-image {
 .ssb-icon {
   font-size: 20px;
   line-height: 1;
-  height: 22px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: 1px;
 }
 
 .ssb-num {
@@ -2501,7 +2516,7 @@ body.site-bg-mode-custom .site-bg-image {
   color: #fff;
   letter-spacing: -0.5px;
   line-height: 1;
-  min-height: 24px;
+  min-height: 22px;
   display: inline-flex;
   align-items: center;
 }
@@ -2513,20 +2528,20 @@ body.site-bg-mode-custom .site-bg-image {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   text-align: center;
-  min-height: 28px;
+  min-height: 24px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
 }
 
 .ssb-sub {
   font-size: 10px;
   color: #8c96a6;
-  margin-top: 1px;
+  margin-top: 0;
   text-align: center;
-  min-height: 13px;
+  min-height: 11px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
 }
 
@@ -2544,12 +2559,24 @@ body.site-bg-mode-custom .site-bg-image {
     padding: 0 4px;
     align-self: stretch;
     justify-content: center;
+    min-height: 0;
+    gap: 4px;
   }
   .ssb-divider {
     align-self: center;
   }
   .ssb-num  { font-size: 17px; }
   .ssb-label { font-size: 10px; letter-spacing: 0.5px; }
+  .ssb-icon,
+  .ssb-num,
+  .ssb-label,
+  .ssb-sub {
+    min-height: 0;
+    height: auto;
+  }
+  .ssb-sub {
+    margin-top: 2px;
+  }
 }
 
 /* Animation d'apparition */
