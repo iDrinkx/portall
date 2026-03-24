@@ -22,6 +22,60 @@
   <% }) %>
 <% } %>
 
+<%- include('../partials/uptime-kuma-panel', { uptimeKuma, layout: 'dashboard' }) %>
+
+<% if (dashboardHtmlBelowBlocks.length) { %>
+  <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
+  <div class="dashboard-custom-html">
+    <%- block.rendered %>
+  </div>
+  <% }) %>
+<% } else if (!(dashboardCustomHtmlBlocks || []).length && dashboardCustomHtml) { %>
+  <div class="dashboard-custom-html">
+    <%- dashboardCustomHtml %>
+  </div>
+<% } %>
+
+<% if (dashboardServerStatsEnabled) { %>
+  <!-- SERVER STATS BAR -->
+  <div class="server-stats-bar" id="serverStatsBar">
+    <div class="ssb-item" id="ssb-movies">
+      <span class="ssb-icon">🎬</span>
+      <span class="ssb-num skel" id="ssb-movies-num"></span>
+      <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
+      <span class="ssb-sub"></span>
+    </div>
+    <div class="ssb-divider"></div>
+    <div class="ssb-item" id="ssb-shows">
+      <span class="ssb-icon">📺</span>
+      <span class="ssb-num skel" id="ssb-shows-num"></span>
+      <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
+      <span class="ssb-sub" id="ssb-episodes"></span>
+    </div>
+    <div class="ssb-divider"></div>
+    <div class="ssb-item" id="ssb-music">
+      <span class="ssb-icon">🎵</span>
+      <span class="ssb-num skel" id="ssb-music-num"></span>
+      <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
+      <span class="ssb-sub"></span>
+    </div>
+    <div class="ssb-divider" id="ssb-div-audio"></div>
+    <div class="ssb-item" id="ssb-audio">
+      <span class="ssb-icon">🎧</span>
+      <span class="ssb-num skel" id="ssb-audio-num"></span>
+      <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
+      <span class="ssb-sub"></span>
+    </div>
+    <div class="ssb-divider" id="ssb-div-books"></div>
+    <div class="ssb-item" id="ssb-books">
+      <span class="ssb-icon">📚</span>
+      <span class="ssb-num skel" id="ssb-books-num"></span>
+      <span class="ssb-label">Livres</span>
+      <span class="ssb-sub"></span>
+    </div>
+</div>
+<% } %>
+
 <!-- HERO CARDS -->
 <div class="hero-cards">
 
@@ -101,51 +155,6 @@
 
 </div>
 
-<% if (dashboardHtmlBelowBlocks.length) { %>
-  <% dashboardHtmlBelowBlocks.forEach(function(block) { %>
-  <div class="dashboard-custom-html">
-    <%- block.rendered %>
-  </div>
-  <% }) %>
-<% } else if (!(dashboardCustomHtmlBlocks || []).length && dashboardCustomHtml) { %>
-  <div class="dashboard-custom-html">
-    <%- dashboardCustomHtml %>
-  </div>
-<% } %>
-
-<% if (dashboardServerStatsEnabled) { %>
-  <!-- SERVER STATS BAR -->
-  <div class="server-stats-bar" id="serverStatsBar">
-    <div class="ssb-item" id="ssb-movies">
-      <span class="ssb-icon">🎬</span>
-      <span class="ssb-num skel" id="ssb-movies-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.movies") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-shows">
-      <span class="ssb-icon">📺</span>
-      <span class="ssb-num skel" id="ssb-shows-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.shows") %></span>
-      <span class="ssb-sub" id="ssb-episodes"></span>
-    </div>
-    <div class="ssb-divider"></div>
-    <div class="ssb-item" id="ssb-music">
-      <span class="ssb-icon">🎵</span>
-      <span class="ssb-num skel" id="ssb-music-num"></span>
-      <span class="ssb-label"><%= t("dashboard.serverStats.music") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-    <div class="ssb-divider" id="ssb-div-audio"></div>
-    <div class="ssb-item" id="ssb-audio">
-      <span class="ssb-icon">🎧</span>
-      <span class="ssb-num skel" id="ssb-audio-num"></span>
-      <span class="ssb-label"><%- t("dashboard.serverStats.audio").replace(" ", "<br>") %></span>
-      <span class="ssb-sub"></span>
-    </div>
-</div>
-<% } %>
-
 <script src="<%= basePath %>/js/dashboard.js"></script>
 <script>
   window.DASHBOARD_SERVER_STATS_ENABLED = <%= dashboardServerStatsEnabled ? "true" : "false" %>;
@@ -172,6 +181,14 @@
     set('ssb-shows-num',  fmt(d.shows));
     set('ssb-music-num',  fmt(d.musicTracks));
     set('ssb-audio-num',  fmt(d.audiobookCount));
+    if (typeof d.komgaBooks === 'number' && d.komgaBooks >= 0) {
+      set('ssb-books-num', fmt(d.komgaBooks));
+    } else {
+      const div  = document.getElementById('ssb-div-books');
+      const item = document.getElementById('ssb-books');
+      if (div)  div.style.display  = 'none';
+      if (item) item.style.display = 'none';
+    }
     if (d.episodes > 0) set('ssb-episodes', '<%= t("dashboard.serverStats.episodes", { count: "__COUNT__" }) %>'.replace('__COUNT__', fmt(d.episodes)));
     if (d.audiobookCount === 0) {
       const div  = document.getElementById('ssb-div-audio');

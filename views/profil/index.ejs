@@ -1768,8 +1768,8 @@
       s("totalRequests",    snap.totalRequests);
       s("pendingRequests",  snap.pendingRequests);
       s("availableRequests",snap.availableRequests);
-      s("movieQuotaMeta",   snap.movieQuotaMeta);
-      s("tvQuotaMeta",      snap.tvQuotaMeta);
+      applyQuotaMetaText(document.getElementById("movieQuotaMeta"), snap.movieQuotaMeta);
+      applyQuotaMetaText(document.getElementById("tvQuotaMeta"), snap.tvQuotaMeta);
       // Visionnage
       s("counterSessions",  snap.sessionCount);
       s("statTotalHours",   snap.totalHours);
@@ -1784,14 +1784,20 @@
 
   function formatQuotaMeta(quota, fallbackLabel = "Quota en cours") {
     if (!quota) return fallbackLabel;
+    if (isUnlimitedQuota(quota)) {
+      return "";
+    }
     const days = Number(quota.days);
     if (Number.isFinite(days) && days > 0) {
       return `Derniers ${days} jours`;
     }
-    if (quota.restricted === false && !Number.isFinite(Number(quota.limit))) {
-      return "Sans restriction";
-    }
     return fallbackLabel;
+  }
+
+  function applyQuotaMetaText(element, text) {
+    if (!element) return;
+    element.textContent = text || "";
+    element.style.display = text ? "" : "none";
   }
 
   function isUnlimitedQuota(quota) {
@@ -1799,9 +1805,9 @@
     const quotaText = String(quota.text || '').trim().toLowerCase();
     const limit = Number(quota.limit);
     const remaining = Number(quota.remaining);
-    return (quota.restricted === false && !Number.isFinite(limit))
+    return (quota.restricted === false && (!Number.isFinite(limit) || limit <= 0))
       || quotaText.includes('illimit')
-      || (!Number.isFinite(limit) && !Number.isFinite(remaining));
+      || ((!Number.isFinite(limit) || limit <= 0) && !Number.isFinite(remaining));
   }
 
   function getQuotaProgressRatio(quota) {
@@ -2210,8 +2216,8 @@
       if (totalReqEl) totalReqEl.textContent = seerrData.total;
       if (pendingEl) pendingEl.textContent = seerrData.movieQuota?.text || "Illimité";
       if (availableEl) availableEl.textContent = seerrData.tvQuota?.text || "Illimité";
-      if (movieQuotaMetaEl) movieQuotaMetaEl.textContent = formatQuotaMeta(seerrData.movieQuota, "Quota films");
-      if (tvQuotaMetaEl) tvQuotaMetaEl.textContent = formatQuotaMeta(seerrData.tvQuota, "Quota séries");
+      applyQuotaMetaText(movieQuotaMetaEl, formatQuotaMeta(seerrData.movieQuota, "Quota films"));
+      applyQuotaMetaText(tvQuotaMetaEl, formatQuotaMeta(seerrData.tvQuota, "Quota séries"));
       applyQuotaCardState('movies', seerrData.movieQuota);
       applyQuotaCardState('series', seerrData.tvQuota);
       if (reqCountEl) reqCountEl.textContent = seerrData.total + " demandes";
@@ -2733,8 +2739,8 @@
         if (el("totalRequests"))    el("totalRequests").textContent    = seerr.total;
         if (el("pendingRequests"))  el("pendingRequests").textContent  = seerr.movieQuota?.text || "Illimité";
         if (el("availableRequests"))el("availableRequests").textContent= seerr.tvQuota?.text || "Illimité";
-        if (el("movieQuotaMeta"))   el("movieQuotaMeta").textContent   = formatQuotaMeta(seerr.movieQuota, "Quota films");
-        if (el("tvQuotaMeta"))      el("tvQuotaMeta").textContent      = formatQuotaMeta(seerr.tvQuota, "Quota séries");
+        applyQuotaMetaText(el("movieQuotaMeta"), formatQuotaMeta(seerr.movieQuota, "Quota films"));
+        applyQuotaMetaText(el("tvQuotaMeta"), formatQuotaMeta(seerr.tvQuota, "Quota séries"));
         applyQuotaCardState('movies', seerr.movieQuota);
         applyQuotaCardState('series', seerr.tvQuota);
         if (el("requestCount2"))    el("requestCount2").textContent    = seerr.total + " demandes";

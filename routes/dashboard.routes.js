@@ -48,6 +48,7 @@ const {
 } = require("../utils/dashboard-custom-html");
 const { SUPPORTED_LOCALES, getSiteLanguage } = require("../utils/i18n");
 const { BACKGROUND_PRESETS, getSiteBackgroundSettings, saveSiteBackgroundSettings } = require("../utils/site-background");
+const { getPublicStatusPageSummary } = require("../utils/uptime-kuma");
 
 const PLEX_LIVE_TIMEOUT_MS = 12000;
 const NOW_PLAYING_CACHE_TTL_MS = 45 * 1000;
@@ -763,6 +764,48 @@ async function fetchKomgaCurrentUser(komgaUrl, headers) {
   return null;
 }
 
+async function fetchKomgaBooksTotal(sessionUser) {
+  const komgaUrl = getConfigValue("KOMGA_URL", "").replace(/\/$/, "");
+  if (!komgaUrl) return null;
+  const globalApiKey = String(getConfigValue("KOMGA_API_KEY", "") || "").trim();
+
+  try {
+    let resp = null;
+
+    if (globalApiKey) {
+      resp = await fetch(`${komgaUrl}/api/v1/books?page=0&size=1`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "X-API-Key": globalApiKey
+        },
+        timeout: 12000
+      });
+    }
+
+    if (!resp || !resp.ok) {
+      const cred = getUserServiceCredential(sessionUser, "komga");
+      if (!cred?.username || !cred?.password) return null;
+      const basic = Buffer.from(`${cred.username}:${cred.password}`).toString("base64");
+      resp = await fetch(`${komgaUrl}/api/v1/books?page=0&size=1`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Basic ${basic}`
+        },
+        timeout: 12000
+      });
+    }
+
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const total = Number(json?.totalElements);
+    return Number.isFinite(total) && total >= 0 ? total : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function grabKomgaCookieForUser(res, sessionUser) {
   const komgaUrl = getConfigValue("KOMGA_URL", "").replace(/\/$/, "");
   const komgaPublicUrl = getConfigValue("KOMGA_PUBLIC_URL", "").trim();
@@ -1083,7 +1126,7 @@ async function getWizarrSubscription(user) {
    ?? PAGES
 =============================== */
 
-router.get("/dashboard", requireAuth, (req, res) => {
+router.get("/dashboard", requireAuth, async (req, res) => {
   const colorMap = getColorMap();
   const dashboardServerStatsEnabled = AppSettingQueries.getBool("dashboard_server_stats_enabled", true);
   const dashboardBuiltinCards = buildDashboardBuiltinCards(req.session.user, req.basePath || "", res.locals.t);
@@ -1103,6 +1146,22 @@ router.get("/dashboard", requireAuth, (req, res) => {
     })
     .filter(Boolean);
 
+  let uptimeKuma = null;
+  const uptimeKumaUrl = String(getConfigValue("UPTIME_KUMA_URL", "") || "").trim();
+  const uptimeKumaUsername = String(getConfigValue("UPTIME_KUMA_USERNAME", "") || "").trim();
+  const uptimeKumaPassword = String(getConfigValue("UPTIME_KUMA_PASSWORD", "") || "").trim();
+  if (uptimeKumaUrl && uptimeKumaUsername && uptimeKumaPassword) {
+    try {
+      uptimeKuma = await getPublicStatusPageSummary({
+        baseUrl: uptimeKumaUrl,
+        username: uptimeKumaUsername,
+        password: uptimeKumaPassword
+      });
+    } catch (_) {
+      uptimeKuma = null;
+    }
+  }
+
   res.render("dashboard/index", {
     user: req.session.user,
     basePath: req.basePath,
@@ -1111,7 +1170,8 @@ router.get("/dashboard", requireAuth, (req, res) => {
     dashboardCustomHtmlBlocks: getDashboardCustomHtmlBlocks(),
     dashboardCustomHtml: getDashboardCustomHtml(),
     dashboardCustomHtmlMode: getDashboardCustomHtmlMode(),
-    dashboardServerStatsEnabled
+    dashboardServerStatsEnabled,
+    uptimeKuma
   });
 });
 
@@ -2148,32 +2208,59 @@ const logSrv = log.create('[ServerStats]');
 router.get('/api/server-stats', requireAuth, async (req, res) => {
   const cacheKey = 'server-library-stats';
   const staleCacheKey = 'server-library-stats:last-success';
+  const komgaCacheKey = 'server-library-stats:komga-books';
+  const komgaStaleCacheKey = 'server-library-stats:komga-books:last-success';
   const cached = cache.get(cacheKey);
-  if (cached) return res.json(cached);
+  const cachedKomgaBooks = cache.get(komgaCacheKey);
+  const staleKomgaBooks = cache.get(komgaStaleCacheKey);
+  const withKomga = (payload) => {
+    if (!payload || typeof payload !== 'object') return payload;
+    return {
+      ...payload,
+      komgaBooks:
+        Number.isFinite(cachedKomgaBooks) ? cachedKomgaBooks
+        : Number.isFinite(staleKomgaBooks) ? staleKomgaBooks
+        : payload.komgaBooks ?? null
+    };
+  };
+  if (cached && Number.isFinite(cachedKomgaBooks)) return res.json(withKomga(cached));
 
   try {
     const result = getServerLibraryStats();
+    const komgaBooks = await fetchKomgaBooksTotal(req.session.user);
+    if (Number.isFinite(komgaBooks)) {
+      cache.set(komgaCacheKey, komgaBooks, 10 * 60 * 1000);
+      cache.set(komgaStaleCacheKey, komgaBooks, 60 * 60 * 1000);
+    }
     if (!result?.available) {
       const stale = cache.get(staleCacheKey);
       if (stale) {
         logSrv.warn(`Lecture DB librairies indisponible (${result?.reason || 'unknown'}) — utilisation du dernier cache valide`);
-        return res.json({ ...stale, stale: true });
+        return res.json({ ...withKomga(stale), stale: true });
       }
-      return res.json(result || { available: false, reason: 'tautulli_db_unavailable' });
+      return res.json(withKomga(result || { available: false, reason: 'tautulli_db_unavailable' }));
     }
+    const payload = {
+      ...result,
+      komgaBooks:
+        Number.isFinite(komgaBooks) ? komgaBooks
+        : Number.isFinite(cachedKomgaBooks) ? cachedKomgaBooks
+        : Number.isFinite(staleKomgaBooks) ? staleKomgaBooks
+        : null
+    };
     cache.set(cacheKey, result, 10 * 60 * 1000); // 10 min
     cache.set(staleCacheKey, result, 60 * 60 * 1000); // 1 h fallback
-    logSrv.debug(`Films:${result.movies} Séries:${result.shows} Épisodes:${result.episodes} Musiques:${result.musicTracks} Audiobooks:${result.audiobookCount}`);
-    res.json(result);
+    logSrv.debug(`Films:${result.movies} Séries:${result.shows} Épisodes:${result.episodes} Musiques:${result.musicTracks} Audiobooks:${result.audiobookCount} KomgaBooks:${payload.komgaBooks ?? 'n/a'}`);
+    res.json(payload);
   } catch (err) {
     const stale = cache.get(staleCacheKey);
     if (stale) {
       logSrv.warn(`Erreur librairies: ${err.message} — utilisation du dernier cache valide`);
-      return res.json({ ...stale, stale: true });
+      return res.json({ ...withKomga(stale), stale: true });
     }
 
     logSrv.warn('Erreur librairies:', err.message);
-    res.json({ available: false, reason: err.message });
+    res.json(withKomga({ available: false, reason: err.message }));
   }
 });
 

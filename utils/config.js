@@ -33,6 +33,7 @@ const CONFIG_FIELDS = [
 
   { key: "KOMGA_URL", label: "URL Komga interne", group: "Komga", type: "url" },
   { key: "KOMGA_PUBLIC_URL", label: "URL Komga publique", group: "Komga", type: "url" },
+  { key: "KOMGA_API_KEY", label: "Clé API Komga globale", group: "Komga", type: "password", secret: true },
 
   { key: "JELLYFIN_URL", label: "URL Jellyfin interne", group: "Jellyfin", type: "url" },
   { key: "JELLYFIN_PUBLIC_URL", label: "URL Jellyfin publique", group: "Jellyfin", type: "url" },

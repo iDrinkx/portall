@@ -283,11 +283,23 @@ async function getSeerrStats(userEmail, username, SEERR_URL, SEERR_API_KEY, opti
         : NaN;
       const normalizedLimit = Number(limit);
       const normalizedDays = Number(days);
+      const isUnlimited = !Boolean(restricted) && (!Number.isFinite(normalizedLimit) || normalizedLimit <= 0);
       const effectiveLimit = Number.isFinite(normalizedLimit) && normalizedLimit > 0
         ? normalizedLimit
         : (Number.isFinite(inferredLimit) && inferredLimit > 0 ? inferredLimit : NaN);
       const hasLimit = Number.isFinite(effectiveLimit) && effectiveLimit > 0;
       const hasDays = Number.isFinite(normalizedDays) && normalizedDays > 0;
+
+      if (isUnlimited) {
+        return {
+          limit: null,
+          days: null,
+          used: Number.isFinite(numericExplicitUsed) ? Math.max(0, numericExplicitUsed) : 0,
+          remaining: null,
+          restricted: false,
+          text: "Illimité"
+        };
+      }
 
       if (hasLimit && hasDays && Number.isFinite(numericExplicitUsed) && Number.isFinite(numericExplicitRemaining)) {
         const remaining = Math.max(0, numericExplicitRemaining);

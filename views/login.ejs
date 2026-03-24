@@ -1,105 +1,4 @@
-<%
-  const statusData = uptimeKuma && uptimeKuma.enabled ? uptimeKuma : null;
-  const overallStatusLabel = !statusData
-    ? ""
-    : (statusData.overall === "operational"
-        ? t("login.status.allOperational")
-        : t("login.status.someIssues"));
-
-  function getServiceStateLabel(statusClassName) {
-    if (statusClassName === "operational") return "En ligne";
-    if (statusClassName === "pending") return "En attente";
-    if (statusClassName === "maintenance") return "En maintenance";
-    if (statusClassName === "down") return "Hors ligne";
-    return "Indisponible";
-  }
-
-  function getServiceLogo(service) {
-    const serviceName = String(service?.name || "").trim().toLowerCase();
-    const tags = Array.isArray(service?.tags)
-      ? service.tags.map(tag => String(tag?.name || "").trim().toLowerCase()).filter(Boolean)
-      : [];
-    const values = [serviceName, ...tags];
-
-    if (values.includes("plex")) {
-      return {
-        src: `${basePath}/img/plex.svg`,
-        alt: "Plex",
-        className: "login-status-item__service-logo login-status-item__service-logo--plex"
-      };
-    }
-
-    if (values.includes("seerr") || values.includes("overseerr")) {
-      return {
-        src: `${basePath}/img/seerr-icon.svg`,
-        alt: "Seerr",
-        className: "login-status-item__service-logo login-status-item__service-logo--seerr"
-      };
-    }
-
-    if (values.includes("komga")) {
-      return {
-        src: `${basePath}/img/komga-icon.svg`,
-        alt: "Komga",
-        className: "login-status-item__service-logo login-status-item__service-logo--komga"
-      };
-    }
-
-    if (values.includes("jellyfin")) {
-      return {
-        src: `${basePath}/img/jellyfin-icon.svg`,
-        alt: "Jellyfin",
-        className: "login-status-item__service-logo login-status-item__service-logo--jellyfin"
-      };
-    }
-
-    if (values.includes("romm")) {
-      return {
-        src: `${basePath}/img/romm-icon.svg`,
-        alt: "RomM",
-        className: "login-status-item__service-logo login-status-item__service-logo--romm"
-      };
-    }
-
-    if (values.includes("portall") || values.includes("site web")) {
-      return {
-        src: `${basePath}/img/portall-logo.png`,
-        alt: "Portall",
-        className: "login-status-item__service-logo login-status-item__service-logo--portall"
-      };
-    }
-
-    return null;
-  }
-
-  function formatSince(isoDate) {
-    if (!isoDate) return "";
-    const timestamp = Date.parse(isoDate);
-    if (Number.isNaN(timestamp)) return "";
-
-    const diffMs = Math.max(0, Date.now() - timestamp);
-    const totalMinutes = Math.floor(diffMs / 60000);
-
-    if (totalMinutes < 1) return "Depuis moins d'une minute";
-    if (totalMinutes < 60) return `Depuis ${totalMinutes} min`;
-
-    const totalHours = Math.floor(totalMinutes / 60);
-    if (totalHours < 24) {
-      const remainingMinutes = totalMinutes % 60;
-      return remainingMinutes > 0
-        ? `Depuis ${totalHours} h ${remainingMinutes} min`
-        : `Depuis ${totalHours} h`;
-    }
-
-    const totalDays = Math.floor(totalHours / 24);
-    const remainingHours = totalHours % 24;
-    return remainingHours > 0
-      ? `Depuis ${totalDays} j ${remainingHours} h`
-      : `Depuis ${totalDays} j`;
-  }
-%>
-
-<div class="login-page<%= statusData ? " login-page--with-status" : "" %>">
+<div class="login-page">
   <div class="login-logo">
     <img src="<%= basePath %>/logo.png" alt="MonPlex" />
   </div>
@@ -114,95 +13,6 @@
       <img src="<%= basePath %>/img/plex-alt-light.svg" alt="Plex" class="plex-btn-logo" />
     </a>
   </div>
-
-  <% if (statusData) { %>
-  <section class="login-status-panel" aria-labelledby="login-status-heading">
-    <div class="login-status-summary login-status-summary--<%= statusData.overall === "operational" ? "operational" : "issues" %>">
-      <span
-        class="login-status-summary__icon login-status-summary__icon--<%= statusData.overall === "operational" ? "operational" : "issues" %>"
-        aria-hidden="true"
-      ><%- statusData.overall === "operational" ? "&#10003;" : "!" %></span>
-      <div class="login-status-summary__text">
-        <h2 id="login-status-heading"><%= overallStatusLabel %></h2>
-        <% if (statusData.description) { %>
-        <p><%= statusData.description %></p>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="login-status-section">
-      <div class="login-status-section__header">
-        <h3><%= t("login.status.services") %></h3>
-      </div>
-
-      <% if (statusData.privateError) { %>
-      <div class="login-status-error"><%= statusData.privateError %></div>
-      <% } %>
-
-      <div class="login-status-list">
-        <% if (!statusData.services.length) { %>
-        <article class="login-status-item login-status-item--empty">
-          <div class="login-status-item__meta">
-            <div class="login-status-item__headline">
-              <strong>Uptime Kuma</strong>
-              <span class="login-status-state login-status-state--unknown">
-                <span class="login-status-state__dot" aria-hidden="true"></span>
-                <span>Indisponible</span>
-              </span>
-            </div>
-            <div class="login-status-item__tags">
-              <span class="login-status-item__tag">Aucune donnee</span>
-            </div>
-          </div>
-        </article>
-        <% } %>
-
-        <% statusData.services.forEach(service => { %>
-        <% const serviceLogo = getServiceLogo(service); %>
-        <article class="login-status-item">
-          <div class="login-status-item__row">
-            <div class="login-status-item__meta">
-              <div class="login-status-item__headline">
-                <% if (serviceLogo) { %>
-                <span class="login-status-item__service-brand">
-                  <img
-                    src="<%= serviceLogo.src %>"
-                    alt="<%= serviceLogo.alt %>"
-                    class="<%= serviceLogo.className %>"
-                  />
-                  <% if (service.tags && service.tags.length) { %>
-                  <span class="login-status-item__tag" style="background-color: <%= service.tags[0].color %>;"><%= service.tags[0].name %></span>
-                  <% } %>
-                </span>
-                <% } else { %>
-                <strong><%= service.name %></strong>
-                <% } %>
-              </div>
-              <% if (!serviceLogo && service.tags && service.tags.length) { %>
-              <div class="login-status-item__tags">
-                <% service.tags.slice(0, 3).forEach(tag => { %>
-                <span class="login-status-item__tag" style="background-color: <%= tag.color %>;"><%= tag.name %></span>
-                <% }) %>
-              </div>
-              <% } %>
-            </div>
-
-            <div class="login-status-item__state-block">
-              <span class="login-status-state login-status-state--<%= service.status.className %>">
-                <span class="login-status-state__dot" aria-hidden="true"></span>
-                <span><%= getServiceStateLabel(service.status.className) %></span>
-              </span>
-              <% if (service.statusChangedAt) { %>
-              <div class="login-status-item__since"><%= formatSince(service.statusChangedAt) %></div>
-              <% } %>
-            </div>
-          </div>
-        </article>
-        <% }) %>
-      </div>
-    </div>
-  </section>
-  <% } %>
 </div>
 
 <style>
@@ -216,6 +26,7 @@
     min-height: 48px;
     gap: 4px;
     padding: 12px 24px;
+    justify-content: center;
     color: #f4f1ec;
     background: #533f2b;
     border: 1px solid #a66822;
@@ -224,6 +35,8 @@
   }
 
   .plex-btn-label {
+    display: inline-flex;
+    align-items: center;
     line-height: 1;
     font-size: 15px;
     font-weight: 700;
@@ -234,7 +47,8 @@
     width: 36px;
     height: auto;
     display: block;
-    transform: translateY(1px);
+    flex-shrink: 0;
+    transform: none;
   }
 
   .plex-btn--logo::before {
@@ -242,25 +56,36 @@
   }
 
   .plex-btn--logo:hover {
-    background: #a66822;
-    border-color: #a66822;
-    box-shadow: none;
-    filter: none;
-    transform: none;
+    background: #614a33;
+    border-color: #bf7c2d;
+    color: #fff7ef;
+    transform: translateY(-1px);
   }
 
-  .plex-btn--logo:active {
-    transform: none;
-  }
-
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     .plex-btn--logo {
-      width: 100%;
+      width: min(100%, 320px);
       min-width: 0;
-      max-width: 100%;
-      margin: 0 auto;
-      padding-left: 16px;
-      padding-right: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto auto 1fr;
+      align-items: center;
+      column-gap: 8px;
+      padding: 12px 18px;
+      margin-inline: auto;
+    }
+
+    .plex-btn-label {
+      grid-column: 2;
+      justify-content: center;
+      text-align: center;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .plex-btn-logo {
+      grid-column: 3;
+      justify-self: start;
+      width: 34px;
     }
   }
 </style>
