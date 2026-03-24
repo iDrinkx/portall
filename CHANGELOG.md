@@ -1,3 +1,25 @@
+## [1.41.2](https://github.com/iDrinkx/portall/compare/v1.41.1...v1.41.2) (2026-03-24)
+
+### Corrections de bugs
+
+* ajust cohérence visuel ([a885959](https://github.com/iDrinkx/portall/commit/a885959d4d0dbbb42eda94584a3a233650a0d51d))
+* classement ([664d4c3](https://github.com/iDrinkx/portall/commit/664d4c3e77fca78daf1d99ecf66fdf9a375dddd0))
+* classement ([1513f57](https://github.com/iDrinkx/portall/commit/1513f572b5d079faad869918f4a94e2697b0df30))
+* collection au demarrage ([66789a2](https://github.com/iDrinkx/portall/commit/66789a2076f4c7104c5d9116beff57dc0bee034d))
+* dash ([8208007](https://github.com/iDrinkx/portall/commit/82080070d00f56a6abdb64ec5d229c551992b527))
+* encodage ([1ce7e52](https://github.com/iDrinkx/portall/commit/1ce7e52fa7f993876c6111e9ae5031dae9fb1de3))
+* optimisation front et back ([3e0d946](https://github.com/iDrinkx/portall/commit/3e0d946c9e6aa087ce8f1643eb2f0b8879f5880e))
+* optimisation taches au demarrage ([0f74558](https://github.com/iDrinkx/portall/commit/0f745587b358743986c54e752c292656dde709e1))
+* parametres dash reorga ([1b873b1](https://github.com/iDrinkx/portall/commit/1b873b1022f5ee8b107b4a714a7f606b6e6851b2))
+* paramtres dashboard ([b66c3e3](https://github.com/iDrinkx/portall/commit/b66c3e3e2e2bd476d8b34ede460938bf2ea43ef0))
+* setting dahboard ([3ab3841](https://github.com/iDrinkx/portall/commit/3ab38418b1bf1e738c47b7de692b8a42a7931ed2))
+* setting dash ([35c2525](https://github.com/iDrinkx/portall/commit/35c252514abd4ccfd36d95fcf157165aaa8fbbe1))
+* stat ([3b3cbd4](https://github.com/iDrinkx/portall/commit/3b3cbd42e71f9e147ee20f7491d70b31ceef8fa2))
+* statistiques ([9e11248](https://github.com/iDrinkx/portall/commit/9e11248622b776f2e41aaf245aa8f801a43d7913))
+* statistiques dash ([35b9b32](https://github.com/iDrinkx/portall/commit/35b9b327046983cd6bd92854c2915f2e6b237eeb))
+* succès et statistiques ([72a17f0](https://github.com/iDrinkx/portall/commit/72a17f00474f86aed105a980a5a574cc941ee590))
+* taille rendu dash ([1fb8f4c](https://github.com/iDrinkx/portall/commit/1fb8f4cd987569b95c402f1e63f4a5259ac5db23))
+
 ## [1.41.1](https://github.com/iDrinkx/portall/compare/v1.41.0...v1.41.1) (2026-03-24)
 
 ### Corrections de bugs
