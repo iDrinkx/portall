@@ -14,11 +14,40 @@
   const statusData = rawStatusData
     ? { ...rawStatusData, services: filteredServices }
     : null;
-  const overallStatusLabel = !statusData
-    ? ""
-    : (statusData.overall === "operational"
-        ? t("login.status.allOperational")
-        : t("login.status.someIssues"));
+
+  function getSummaryMeta(data) {
+    if (!data) {
+      return { label: "", className: "issues", icon: "!" };
+    }
+
+    if (data.overall === "operational") {
+      return {
+        label: t("login.status.allOperational"),
+        className: "operational",
+        icon: "&#10003;"
+      };
+    }
+
+    if (data.overall === "maintenance") {
+      return {
+        label: "En maintenance",
+        className: "maintenance",
+        icon: `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M21.2 7.4a5.7 5.7 0 0 1-7.6 5.4L7 19.4a1.8 1.8 0 0 1-2.5 0l-.9-.9a1.8 1.8 0 0 1 0-2.5l6.6-6.6a5.7 5.7 0 0 1 5.4-7.6l-2.8 2.8 1.8 1.8L17.4 3a5.7 5.7 0 0 1 3.8 4.4Z" fill="currentColor"/>
+          </svg>
+        `
+      };
+    }
+
+    return {
+      label: t("login.status.someIssues"),
+      className: "issues",
+      icon: "!"
+    };
+  }
+
+  const summaryMeta = getSummaryMeta(statusData);
 
   function getServiceStateLabel(statusClassName) {
     if (statusClassName === "operational") return "En ligne";
@@ -115,13 +144,13 @@
 
 <% if (statusData) { %>
 <section class="login-status-panel <%= uptimeLayout === 'dashboard' ? 'login-status-panel--dashboard' : '' %>" aria-labelledby="login-status-heading">
-  <div class="login-status-summary login-status-summary--<%= statusData.overall === "operational" ? "operational" : "issues" %>">
+  <div class="login-status-summary login-status-summary--<%= summaryMeta.className %>">
     <span
-      class="login-status-summary__icon login-status-summary__icon--<%= statusData.overall === "operational" ? "operational" : "issues" %>"
+      class="login-status-summary__icon login-status-summary__icon--<%= summaryMeta.className %>"
       aria-hidden="true"
-    ><%- statusData.overall === "operational" ? "&#10003;" : "!" %></span>
+    ><%- summaryMeta.icon %></span>
     <div class="login-status-summary__text">
-      <h2 id="login-status-heading"><%= overallStatusLabel %></h2>
+      <h2 id="login-status-heading"><%= summaryMeta.label %></h2>
       <% if (statusData.description) { %>
       <p><%= statusData.description %></p>
       <% } %>

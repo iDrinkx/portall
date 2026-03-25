@@ -500,7 +500,9 @@ function buildNormalizedStatus(privateData = {}) {
     summary,
     overall: summary.total > 0 && summary.down === 0 && summary.pending === 0 && summary.maintenance === 0
       ? "operational"
-      : (summary.total > 0 ? "issues" : "unknown"),
+      : (summary.total > 0 && summary.down === 0 && summary.pending === 0 && summary.maintenance > 0
+          ? "maintenance"
+          : (summary.total > 0 ? "issues" : "unknown")),
     lastUpdatedAt: latestUpdatedAt,
     fetchedAt: new Date().toISOString(),
     refreshIntervalMs: REFRESH_INTERVAL_MS
