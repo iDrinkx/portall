@@ -1,3 +1,9 @@
+## [1.42.1](https://github.com/iDrinkx/portall/compare/v1.42.0...v1.42.1) (2026-03-26)
+
+### Corrections de bugs
+
+* dépendances security ([fd33c64](https://github.com/iDrinkx/portall/commit/fd33c646606bb42193f6a18290e00b675966523b))
+
 ## [1.42.0](https://github.com/iDrinkx/portall/compare/v1.41.4...v1.42.0) (2026-03-26)
 
 ### Nouvelles fonctionnalites
