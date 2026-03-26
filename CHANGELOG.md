@@ -1,3 +1,17 @@
+## [1.42.0](https://github.com/iDrinkx/portall/compare/v1.41.4...v1.42.0) (2026-03-26)
+
+### Nouvelles fonctionnalites
+
+* uptime robot ([96afb2a](https://github.com/iDrinkx/portall/commit/96afb2a6ee3dc4941cf181fa4790a2446f3aad87))
+
+### Corrections de bugs
+
+* nom / logo robot ([c7d6829](https://github.com/iDrinkx/portall/commit/c7d6829a94e181617be5c2e1ca1568556a0684af))
+* parametres robot ([9061ab0](https://github.com/iDrinkx/portall/commit/9061ab008e8c78d551fe3d2a1ad3ca2730c700b3))
+* robot ([46edacd](https://github.com/iDrinkx/portall/commit/46edacdb5ddab8dc4a8289b92e45a7a434df1b6e))
+* robot ([768f38c](https://github.com/iDrinkx/portall/commit/768f38c9b6bcd1d0076589122808afaed3ac6320))
+* securité dependances ([ef5753b](https://github.com/iDrinkx/portall/commit/ef5753b7374b09a74c970a0c8e2759a6eac1fdea))
+
 ## [1.41.4](https://github.com/iDrinkx/portall/compare/v1.41.3...v1.41.4) (2026-03-25)
 
 ### Corrections de bugs
