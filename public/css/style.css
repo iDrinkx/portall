@@ -1301,8 +1301,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card {
-  --hero-card-tint-a: rgba(255,255,255,0.02);
-  --hero-card-tint-b: rgba(255,255,255,0.01);
+  --hero-card-tint-rgb-a: 255 255 255;
+  --hero-card-tint-rgb-b: 255 255 255;
+  --hero-card-tint-strength-a: 1.8;
+  --hero-card-tint-strength-b: 0.9;
   position: relative;
   border-radius: 16px;
   overflow: hidden;
@@ -1310,7 +1312,11 @@ body.site-bg-mode-custom .site-bg-image {
   color: inherit;
   border: 1px solid var(--line);
   background:
-    linear-gradient(135deg, var(--hero-card-tint-a) 0%, var(--hero-card-tint-b) 100%),
+    linear-gradient(
+      135deg,
+      rgb(var(--hero-card-tint-rgb-a) / calc(var(--site-card-opacity, 0.012) * var(--hero-card-tint-strength-a))) 0%,
+      rgb(var(--hero-card-tint-rgb-b) / calc(var(--site-card-opacity, 0.012) * var(--hero-card-tint-strength-b))) 100%
+    ),
     rgb(14 22 34 / var(--site-card-opacity, 0.012));
   backdrop-filter: blur(2px) saturate(108%);
   -webkit-backdrop-filter: blur(2px) saturate(108%);
@@ -1336,8 +1342,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-profil {
-  --hero-card-tint-a: rgba(30, 26, 16, 0.72);
-  --hero-card-tint-b: rgba(35, 28, 10, 0.68);
+  --hero-card-tint-rgb-a: 30 26 16;
+  --hero-card-tint-rgb-b: 35 28 10;
+  --hero-card-tint-strength-a: 22;
+  --hero-card-tint-strength-b: 18;
   border-color: rgba(229, 160, 13, 0.2);
 }
 
@@ -1352,8 +1360,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-demandes {
-  --hero-card-tint-a: rgba(23, 20, 30, 0.72);
-  --hero-card-tint-b: rgba(26, 21, 39, 0.68);
+  --hero-card-tint-rgb-a: 23 20 30;
+  --hero-card-tint-rgb-b: 26 21 39;
+  --hero-card-tint-strength-a: 22;
+  --hero-card-tint-strength-b: 18;
   border-color: rgba(109, 73, 171, 0.2);
 }
 
@@ -1501,8 +1511,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-classement {
-  --hero-card-tint-a: rgba(16, 22, 32, 0.72);
-  --hero-card-tint-b: rgba(14, 24, 41, 0.68);
+  --hero-card-tint-rgb-a: 16 22 32;
+  --hero-card-tint-rgb-b: 14 24 41;
+  --hero-card-tint-strength-a: 22;
+  --hero-card-tint-strength-b: 18;
   border-color: rgba(59, 130, 246, 0.2);
 }
 
@@ -1562,8 +1574,10 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-stats {
-  --hero-card-tint-a: rgba(13, 26, 24, 0.72);
-  --hero-card-tint-b: rgba(11, 28, 21, 0.68);
+  --hero-card-tint-rgb-a: 13 26 24;
+  --hero-card-tint-rgb-b: 11 28 21;
+  --hero-card-tint-strength-a: 22;
+  --hero-card-tint-strength-b: 18;
   border-color: rgba(16, 185, 129, 0.2);
 }
 
@@ -1634,8 +1648,10 @@ body.site-bg-mode-custom .site-bg-image {
 
 /* 📅 CALENDRIER CARD */
 .hero-card-calendrier {
-  --hero-card-tint-a: rgba(31, 17, 19, 0.72);
-  --hero-card-tint-b: rgba(42, 21, 21, 0.68);
+  --hero-card-tint-rgb-a: 31 17 19;
+  --hero-card-tint-rgb-b: 42 21 21;
+  --hero-card-tint-strength-a: 22;
+  --hero-card-tint-strength-b: 18;
   border-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -1659,8 +1675,6 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-custom {
-  --hero-card-tint-a: var(--custom-bg-start);
-  --hero-card-tint-b: var(--custom-bg-end);
   border-color: var(--custom-border);
 }
 
@@ -1685,13 +1699,48 @@ body.site-bg-mode-custom .site-bg-image {
 
 .dashboard-custom-html {
   margin: 18px 0 22px;
-  border: 1px solid rgba(226, 246, 255, 0.22);
+  border: 1px solid rgba(226, 246, 255, 0.42);
   border-radius: 18px;
   background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   padding: 18px;
-  box-shadow: 0 14px 34px rgba(0,0,0,.12);
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.18),
+    0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+    0 4px 10px rgba(98, 178, 255, 0.04);
+  backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
   min-width: 0;
   overflow-x: auto;
+  position: relative;
+  isolation: isolate;
+}
+
+.dashboard-custom-html::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+}
+
+.dashboard-custom-html::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08), rgba(255,255,255,0.014) 24%, rgba(255,255,255,0) 50%),
+    radial-gradient(circle at 82% 78%, rgba(86, 186, 255, 0.05), rgba(86, 186, 255, 0) 48%);
+  filter: blur(3px);
+  transform: rotate(-8deg);
+}
+
+.dashboard-custom-html > * {
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-custom-html > :first-child {
