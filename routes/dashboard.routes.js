@@ -271,11 +271,10 @@ async function testUptimeConnection() {
   const provider = normalizeProvider(getConfigValue("UPTIME_PROVIDER", "kuma"));
 
   if (provider === "robot") {
-    const apiUrl = String(getConfigValue("UPTIME_ROBOT_API_URL", "") || "").trim() || DEFAULT_API_BASE_URL;
     const apiKey = String(getConfigValue("UPTIME_ROBOT_API_KEY", "") || "").trim();
     if (!apiKey) return summarizeConfigTest("UptimeRobot", false, "Configuration incomplète");
     try {
-      const resp = await fetchWithConfigTest(`${apiUrl.replace(/\/+$/, "")}/monitors`, {
+      const resp = await fetchWithConfigTest(`${DEFAULT_API_BASE_URL}/monitors`, {
         headers: {
           Accept: "application/json",
           Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`
@@ -1339,7 +1338,6 @@ router.get("/dashboard", requireAuth, async (req, res) => {
   const uptimeKumaUrl = String(getConfigValue("UPTIME_KUMA_URL", "") || "").trim();
   const uptimeKumaUsername = String(getConfigValue("UPTIME_KUMA_USERNAME", "") || "").trim();
   const uptimeKumaPassword = String(getConfigValue("UPTIME_KUMA_PASSWORD", "") || "").trim();
-  const uptimeRobotApiUrl = String(getConfigValue("UPTIME_ROBOT_API_URL", "") || "").trim();
   const uptimeRobotApiKey = String(getConfigValue("UPTIME_ROBOT_API_KEY", "") || "").trim();
   const hasUptimeConfig = uptimeProvider === "robot"
     ? !!uptimeRobotApiKey
@@ -1351,7 +1349,6 @@ router.get("/dashboard", requireAuth, async (req, res) => {
         kumaUrl: uptimeKumaUrl,
         kumaUsername: uptimeKumaUsername,
         kumaPassword: uptimeKumaPassword,
-        robotApiUrl: uptimeRobotApiUrl,
         robotApiKey: uptimeRobotApiKey
       });
     } catch (_) {

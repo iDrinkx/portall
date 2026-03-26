@@ -54,13 +54,6 @@ const CONFIG_FIELDS = [
     visibleForProviders: ["kuma"]
   },
   {
-    key: "UPTIME_ROBOT_API_URL",
-    label: "URL API UptimeRobot",
-    group: "Uptime",
-    type: "url",
-    visibleForProviders: ["robot"]
-  },
-  {
     key: "UPTIME_ROBOT_API_KEY",
     label: "API key UptimeRobot",
     group: "Uptime",

@@ -296,7 +296,6 @@ app.get("/", async (req, res) => {
   const uptimeKumaUrl = String(getConfigValue("UPTIME_KUMA_URL", "") || "").trim();
   const uptimeKumaUsername = String(getConfigValue("UPTIME_KUMA_USERNAME", "") || "").trim();
   const uptimeKumaPassword = String(getConfigValue("UPTIME_KUMA_PASSWORD", "") || "").trim();
-  const uptimeRobotApiUrl = String(getConfigValue("UPTIME_ROBOT_API_URL", "") || "").trim();
   const uptimeRobotApiKey = String(getConfigValue("UPTIME_ROBOT_API_KEY", "") || "").trim();
 
   let uptimeStatus = null;
@@ -310,7 +309,6 @@ app.get("/", async (req, res) => {
         kumaUrl: uptimeKumaUrl,
         kumaUsername: uptimeKumaUsername,
         kumaPassword: uptimeKumaPassword,
-        robotApiUrl: uptimeRobotApiUrl,
         robotApiKey: uptimeRobotApiKey
       });
     } catch (_) {
