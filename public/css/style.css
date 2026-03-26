@@ -1677,8 +1677,6 @@ body.site-bg-mode-custom .site-bg-image {
 .hero-card-custom {
   --hero-card-tint-rgb-a: var(--custom-bg-start-rgb, 255 255 255);
   --hero-card-tint-rgb-b: var(--custom-bg-end-rgb, 255 255 255);
-  --hero-card-tint-strength-a: var(--custom-bg-start-strength, 1.8);
-  --hero-card-tint-strength-b: var(--custom-bg-end-strength, 0.9);
   border-color: var(--custom-border);
 }
 
