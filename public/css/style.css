@@ -1263,6 +1263,7 @@ body.site-bg-mode-custom .site-bg-image {
   text-decoration: none;
   color: inherit;
   border: 1px solid var(--line);
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   backdrop-filter: blur(2px) saturate(108%);
   -webkit-backdrop-filter: blur(2px) saturate(108%);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
@@ -1276,8 +1277,17 @@ body.site-bg-mode-custom .site-bg-image {
   border-radius: 0;
 }
 
+.hero-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+  opacity: 1;
+}
+
 .hero-card-profil {
-  background: linear-gradient(135deg, rgba(30, 26, 16, 0.72) 0%, rgba(35, 28, 10, 0.68) 100%);
   border-color: rgba(229, 160, 13, 0.2);
 }
 
@@ -1292,7 +1302,6 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-demandes {
-  background: linear-gradient(135deg, rgba(23, 20, 30, 0.72) 0%, rgba(26, 21, 39, 0.68) 100%);
   border-color: rgba(109, 73, 171, 0.2);
 }
 
@@ -1440,7 +1449,6 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-classement {
-  background: linear-gradient(135deg, rgba(16, 22, 32, 0.72) 0%, rgba(14, 24, 41, 0.68) 100%);
   border-color: rgba(59, 130, 246, 0.2);
 }
 
@@ -1500,7 +1508,6 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-stats {
-  background: linear-gradient(135deg, rgba(13, 26, 24, 0.72) 0%, rgba(11, 28, 21, 0.68) 100%);
   border-color: rgba(16, 185, 129, 0.2);
 }
 
@@ -1571,7 +1578,6 @@ body.site-bg-mode-custom .site-bg-image {
 
 /* 📅 CALENDRIER CARD */
 .hero-card-calendrier {
-  background: linear-gradient(135deg, rgba(31, 17, 19, 0.72) 0%, rgba(42, 21, 21, 0.68) 100%);
   border-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -1595,7 +1601,6 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-custom {
-  background: linear-gradient(135deg, var(--custom-bg-start) 0%, var(--custom-bg-end) 100%);
   border-color: var(--custom-border);
 }
 
@@ -1622,7 +1627,7 @@ body.site-bg-mode-custom .site-bg-image {
   margin: 18px 0 22px;
   border: 1px solid rgba(226, 246, 255, 0.22);
   border-radius: 18px;
-  background: rgb(8 12 18 / var(--site-card-soft-opacity, 0.222));
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
   padding: 18px;
   box-shadow: 0 14px 34px rgba(0,0,0,.12);
   min-width: 0;
