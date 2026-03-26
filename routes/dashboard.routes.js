@@ -277,7 +277,7 @@ async function testUptimeConnection() {
       const resp = await fetchWithConfigTest(`${DEFAULT_API_BASE_URL}/monitors`, {
         headers: {
           Accept: "application/json",
-          Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`
+          Authorization: `Bearer ${apiKey}`
         }
       });
       if (resp.ok) return summarizeConfigTest("UptimeRobot", true, "Connexion OK");

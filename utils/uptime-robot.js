@@ -12,7 +12,7 @@ function normalizeBaseUrl(value) {
 }
 
 function buildAuthHeader(apiKey) {
-  return `Basic ${Buffer.from(`${String(apiKey || "").trim()}:`).toString("base64")}`;
+  return `Bearer ${String(apiKey || "").trim()}`;
 }
 
 function parseRobotTime(value) {
@@ -221,6 +221,12 @@ function buildMaintenanceLookup(windows) {
   return lookup;
 }
 
+function durationSecondsToIso(seconds) {
+  const numeric = Number(seconds);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return new Date(Date.now() - (numeric * 1000)).toISOString();
+}
+
 function buildNormalizedStatus({ baseUrl, monitorsPayload, maintenancePayload }) {
   const monitors = extractCollection(monitorsPayload, ["monitors", "items", "data"]);
   const maintenanceWindows = extractCollection(maintenancePayload, ["maintenance_windows", "maintenanceWindows", "items", "data"]);
@@ -241,7 +247,7 @@ function buildNormalizedStatus({ baseUrl, monitorsPayload, maintenancePayload })
       "lastStatusChange",
       "last_checked_at",
       "lastCheckedAt"
-    ]));
+    ])) || parseRobotTime(pickFirst(monitor, ["createDateTime", "create_datetime"])) || parseRobotTime(durationSecondsToIso(pickFirst(monitor, ["currentStateDuration", "current_state_duration"])));
     const latestTime = parseRobotTime(pickFirst(monitor, [
       "updated_at",
       "updatedAt",
@@ -250,9 +256,14 @@ function buildNormalizedStatus({ baseUrl, monitorsPayload, maintenancePayload })
       "checked_at",
       "checkedAt"
     ]));
+    const monitorMaintenanceWindows = extractCollection(
+      pickFirst(monitor, ["maintenanceWindows", "maintenance_windows"]),
+      ["maintenance_windows", "maintenanceWindows", "items", "data"]
+    );
+    const isMaintenance = activeMaintenanceIds.has(id) || monitorMaintenanceWindows.some(isMaintenanceWindowActive);
     const status = normalizeRobotStatus(
       pickFirst(monitor, ["status", "status_name", "statusName", "monitor_status", "monitorStatus"]),
-      activeMaintenanceIds.has(id)
+      isMaintenance
     );
 
     if (latestTime && (!latestUpdatedAt || latestTime > latestUpdatedAt)) {
@@ -264,9 +275,9 @@ function buildNormalizedStatus({ baseUrl, monitorsPayload, maintenancePayload })
       name,
       group: "Services",
       status,
-      uptimePercent: Number(pickFirst(monitor, ["uptime", "uptime_ratio", "uptimeRatio"])),
+      uptimePercent: Number(pickFirst(monitor, ["uptime", "uptime_ratio", "uptimeRatio", "all_time_uptime_ratio"])),
       latestMessage: String(
-        pickFirst(monitor, ["last_error_message", "lastErrorMessage", "monitoring_message", "monitoringMessage", "response_message", "responseMessage"]) || ""
+        pickFirst(monitor, ["last_error_message", "lastErrorMessage", "monitoring_message", "monitoringMessage", "response_message", "responseMessage", "url"]) || ""
       ),
       latestPing: pickFirst(monitor, ["average_response_time", "averageResponseTime", "response_time", "responseTime"]),
       latestTime: latestTime ? latestTime.toISOString() : null,
