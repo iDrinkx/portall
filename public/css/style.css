@@ -1257,16 +1257,61 @@ body.site-bg-mode-custom .site-bg-image {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 18px;
   margin-bottom: 28px;
+  padding: 20px;
+  border: 1px solid rgba(226, 246, 255, 0.42);
+  border-radius: 20px;
+  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.18),
+    0 0 0 1px rgba(232, 248, 255, 0.20) inset,
+    0 4px 10px rgba(98, 178, 255, 0.04);
+  backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  -webkit-backdrop-filter: blur(3px) saturate(112%) contrast(1.01) brightness(1.02);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-cards::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.06), rgba(255,255,255,0.012) 28%, rgba(255,255,255,0.00) 64%);
+}
+
+.hero-cards::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08), rgba(255,255,255,0.014) 24%, rgba(255,255,255,0) 50%),
+    radial-gradient(circle at 82% 78%, rgba(86, 186, 255, 0.05), rgba(86, 186, 255, 0) 48%);
+  filter: blur(3px);
+  transform: rotate(-8deg);
+}
+
+.hero-cards > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-card {
+  --hero-card-tint-a: rgba(255,255,255,0.02);
+  --hero-card-tint-b: rgba(255,255,255,0.01);
   position: relative;
   border-radius: 16px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
   border: 1px solid var(--line);
-  background: rgb(14 22 34 / var(--site-card-opacity, 0.012));
+  background:
+    linear-gradient(135deg, var(--hero-card-tint-a) 0%, var(--hero-card-tint-b) 100%),
+    rgb(14 22 34 / var(--site-card-opacity, 0.012));
   backdrop-filter: blur(2px) saturate(108%);
   -webkit-backdrop-filter: blur(2px) saturate(108%);
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
@@ -1291,6 +1336,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-profil {
+  --hero-card-tint-a: rgba(30, 26, 16, 0.72);
+  --hero-card-tint-b: rgba(35, 28, 10, 0.68);
   border-color: rgba(229, 160, 13, 0.2);
 }
 
@@ -1305,6 +1352,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-demandes {
+  --hero-card-tint-a: rgba(23, 20, 30, 0.72);
+  --hero-card-tint-b: rgba(26, 21, 39, 0.68);
   border-color: rgba(109, 73, 171, 0.2);
 }
 
@@ -1452,6 +1501,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-classement {
+  --hero-card-tint-a: rgba(16, 22, 32, 0.72);
+  --hero-card-tint-b: rgba(14, 24, 41, 0.68);
   border-color: rgba(59, 130, 246, 0.2);
 }
 
@@ -1511,6 +1562,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-stats {
+  --hero-card-tint-a: rgba(13, 26, 24, 0.72);
+  --hero-card-tint-b: rgba(11, 28, 21, 0.68);
   border-color: rgba(16, 185, 129, 0.2);
 }
 
@@ -1581,6 +1634,8 @@ body.site-bg-mode-custom .site-bg-image {
 
 /* 📅 CALENDRIER CARD */
 .hero-card-calendrier {
+  --hero-card-tint-a: rgba(31, 17, 19, 0.72);
+  --hero-card-tint-b: rgba(42, 21, 21, 0.68);
   border-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -1604,6 +1659,8 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .hero-card-custom {
+  --hero-card-tint-a: var(--custom-bg-start);
+  --hero-card-tint-b: var(--custom-bg-end);
   border-color: var(--custom-border);
 }
 
