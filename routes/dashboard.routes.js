@@ -445,6 +445,22 @@ function getAvailableColorKeys(existingCards = []) {
   return DASHBOARD_CARD_PALETTE.filter(c => !used.has(c.key)).map(c => c.key);
 }
 
+function parseRgbaToTintVars(value, fallbackRgb = "255 255 255", fallbackStrength = 1) {
+  const match = String(value || "").trim().match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/i);
+  if (!match) {
+    return {
+      rgb: fallbackRgb,
+      strength: fallbackStrength
+    };
+  }
+
+  const alpha = Math.max(0, Number(match[4] ?? 1));
+  return {
+    rgb: `${match[1]} ${match[2]} ${match[3]}`,
+    strength: Number((alpha / 0.012).toFixed(3))
+  };
+}
+
 const DASHBOARD_INTEGRATIONS = [
   { key: "custom", label: "Iframe simple (URL libre)" },
   { key: "komga_auto", label: "Komga auto-auth (compte utilisateur)" },
@@ -1321,9 +1337,17 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     .map(card => {
       const color = colorMap.get(card.colorKey);
       if (!color) return null;
+      const bgStartTint = parseRgbaToTintVars(color.bgStart, "255 255 255", 1.8);
+      const bgEndTint = parseRgbaToTintVars(color.bgEnd, "255 255 255", 0.9);
       return {
         ...card,
-        color,
+        color: {
+          ...color,
+          bgStartRgb: bgStartTint.rgb,
+          bgStartStrength: bgStartTint.strength,
+          bgEndRgb: bgEndTint.rgb,
+          bgEndStrength: bgEndTint.strength
+        },
         openInIframe: !!card.openInIframe,
         openInNewTab: !!card.openInNewTab,
         integrationKey: card.integrationKey || "custom",
