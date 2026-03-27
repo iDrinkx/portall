@@ -8,6 +8,8 @@
   },
   "overrides": {
     "tar": "^7.5.11",
+    "brace-expansion": "^2.0.3",
+    "handlebars": "^4.7.9",
     "picomatch": "^4.0.4",
     "micromatch": {
       "picomatch": "^2.3.2"
