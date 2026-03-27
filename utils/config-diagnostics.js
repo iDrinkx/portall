@@ -1,5 +1,5 @@
 const fetch = require("node-fetch");
-const { DEFAULT_API_BASE_URL } = require("./uptime-robot");
+const { DEFAULT_API_BASE_URL, normalizeProvider } = require("./uptime-status");
 const { getConfigValue } = require("./config");
 
 const CONFIG_TEST_TIMEOUT_MS = 5000;
@@ -156,12 +156,12 @@ async function testKomgaConnection(overrides = {}, options = {}) {
 }
 
 async function testUptimeConnection(overrides = {}, options = {}) {
-  const provider = String(getValue("UPTIME_PROVIDER", overrides) || "kuma").trim().toLowerCase() || "kuma";
+  try {
+    const provider = normalizeProvider(getValue("UPTIME_PROVIDER", overrides) || "kuma");
 
-  if (provider === "robot") {
-    const apiKey = String(getValue("UPTIME_ROBOT_API_KEY", overrides) || "").trim();
-    if (!apiKey) return summarizeMissingConfig("UptimeRobot", options);
-    try {
+    if (provider === "robot") {
+      const apiKey = String(getValue("UPTIME_ROBOT_API_KEY", overrides) || "").trim();
+      if (!apiKey) return summarizeMissingConfig("UptimeRobot", options);
       const resp = await fetchWithConfigTest(`${DEFAULT_API_BASE_URL}/monitors`, {
         headers: {
           Accept: "application/json",
@@ -172,25 +172,25 @@ async function testUptimeConnection(overrides = {}, options = {}) {
       if (resp.status === 401 || resp.status === 403) return summarizeConfigTest("UptimeRobot", false, "Clé invalide", { configured: true });
       if (resp.status === 429) return summarizeConfigTest("UptimeRobot", false, "Rate limit atteint", { configured: true });
       return summarizeConfigTest("UptimeRobot", false, `HTTP ${resp.status}`, { configured: true });
-    } catch (err) {
-      return summarizeConfigTest("UptimeRobot", false, err.message || "Connexion impossible", { configured: true });
     }
-  }
 
-  const uptimeKumaUrl = String(getValue("UPTIME_KUMA_URL", overrides) || "").trim();
-  const uptimeKumaUsername = String(getValue("UPTIME_KUMA_USERNAME", overrides) || "").trim();
-  const uptimeKumaPassword = String(getValue("UPTIME_KUMA_PASSWORD", overrides) || "").trim();
-  if (!uptimeKumaUrl || !uptimeKumaUsername || !uptimeKumaPassword) {
-    return summarizeMissingConfig("Uptime Kuma", options);
-  }
-  try {
+    const uptimeKumaUrl = String(getValue("UPTIME_KUMA_URL", overrides) || "").trim();
+    const uptimeKumaUsername = String(getValue("UPTIME_KUMA_USERNAME", overrides) || "").trim();
+    const uptimeKumaPassword = String(getValue("UPTIME_KUMA_PASSWORD", overrides) || "").trim();
+    if (!uptimeKumaUrl || !uptimeKumaUsername || !uptimeKumaPassword) {
+      return summarizeMissingConfig("Uptime Kuma", options);
+    }
+
     const resp = await fetchWithConfigTest(normalizeBaseUrl(uptimeKumaUrl), {
       headers: { Accept: "text/html,application/json" }
     });
     if (resp.ok) return summarizeConfigTest("Uptime Kuma", true, "Connexion OK", { configured: true });
     return summarizeConfigTest("Uptime Kuma", false, `HTTP ${resp.status}`, { configured: true });
   } catch (err) {
-    return summarizeConfigTest("Uptime Kuma", false, err.message || "Connexion impossible", { configured: true });
+    return summarizeConfigTest("Uptime", !!options.optionalWhenMissing, err.message || "Connexion impossible", {
+      configured: false,
+      optional: !!options.optionalWhenMissing
+    });
   }
 }
 
