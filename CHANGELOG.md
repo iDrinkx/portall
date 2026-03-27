@@ -1,3 +1,16 @@
+## [1.42.4](https://github.com/iDrinkx/portall/compare/v1.42.3...v1.42.4) (2026-03-27)
+
+### Corrections de bugs
+
+* database ([7e6a49c](https://github.com/iDrinkx/portall/commit/7e6a49c73b7cb20f4d7ee0f11c14c9008f7e68cd))
+* joined at ([a936c4d](https://github.com/iDrinkx/portall/commit/a936c4d7c385e2e5c2814f5775261290cb4167db))
+* joined at ([8389078](https://github.com/iDrinkx/portall/commit/838907877bb3f5d0094180cf40940d766e8a5cfa))
+* match plex user ([c561af3](https://github.com/iDrinkx/portall/commit/c561af3503a4bbbb6315d6987a27b75bf0d062eb))
+* optimisation premier login ([ae103e6](https://github.com/iDrinkx/portall/commit/ae103e6d538b08e27f0b56dc5f34241bc11b0a7f))
+* vulnérability ([1fa20ed](https://github.com/iDrinkx/portall/commit/1fa20eda4c22677765796ff42a4276174a7512e6))
+* wizarr clean ([5ab2a52](https://github.com/iDrinkx/portall/commit/5ab2a526d3e49aad4d0f883c6fde1c59bd41496f))
+* wizarr verité ([de5b059](https://github.com/iDrinkx/portall/commit/de5b059509bd05ed98c54ea9ac5d46e8131c860a))
+
 ## [1.42.3](https://github.com/iDrinkx/portall/compare/v1.42.2...v1.42.3) (2026-03-27)
 
 ### Corrections de bugs
