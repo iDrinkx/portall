@@ -391,76 +391,82 @@ async function loadAllUserStatsFromTautulli() {
 // Démarrer le serveur et initialiser le cron job
 app.listen(PORT, async () => {
   console.log("\n🚀 Server running on port", PORT);
-  
-  // 📊 INITIALISER LA CONNEXION TAUTULLI DIRECTE
-  const tautulliReady = initTautulliDatabase();
-  if (tautulliReady) {
-    console.log("[SETUP] 📊 Chargement des stats de Tautulli pour TOUS les utilisateurs...");
-    try {
-      const allStats = await loadAllUserStatsFromTautulli();
-      console.log("[SETUP] ✅ Données Tautulli prêtes pour " + (allStats?.length || 0) + " utilisateurs");
-    } catch (err) {
-      console.warn("[SETUP] ⚠️  Impossible de charger les stats Tautulli:", err.message);
-    }
-  } else {
-    console.warn("[SETUP] ⚠️  Tautulli DB non configuré - configure TAUTULLI_DB_PATH pour activer");
-  }
-  
+
   // 🏥 HEALTH CHECK au démarrage
-  await runHealthCheck();
-  
+  runHealthCheck().catch(err => {
+    console.warn("[SETUP] ⚠️  Health check indisponible:", err.message);
+  });
+
   // 🧹 Démarrer le job de maintenance de la base de données
   startDatabaseMaintenanceJob();
 
-  // 📋 IMPORT AUTOMATIQUE depuis Wizarr au démarrage
-  // Cela garantit que le classement est complet même après suppression DB
-  // Source de vérité: Wizarr pour la liste des users, Plex pour joinedAt
-  console.log("[SETUP] 📋 Import automatique des users Wizarr en DB...");
-  try {
-    const { getAllWizarrUsersDetailed, delay } = require("./utils/wizarr");
-    const { UserQueries } = require("./utils/database");
-    const wizarrUrl = getConfigValue("WIZARR_URL");
-    const wizarrApiKey = getConfigValue("WIZARR_API_KEY");
-    if (!wizarrUrl || !wizarrApiKey) {
-      console.log("[SETUP] ℹ️  Wizarr désactivé — import ignoré");
+  (async () => {
+    // 📊 INITIALISER LA CONNEXION TAUTULLI DIRECTE
+    const tautulliReady = initTautulliDatabase();
+    if (tautulliReady) {
+      console.log("[SETUP] 📊 Chargement des stats de Tautulli pour TOUS les utilisateurs...");
+      try {
+        const allStats = await loadAllUserStatsFromTautulli();
+        console.log("[SETUP] ✅ Données Tautulli prêtes pour " + (allStats?.length || 0) + " utilisateurs");
+      } catch (err) {
+        console.warn("[SETUP] ⚠️  Impossible de charger les stats Tautulli:", err.message);
+      }
     } else {
-      let wizarrUsers = [];
-      let lastWizarrResult = null;
-      const maxAttempts = 3;
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        lastWizarrResult = await getAllWizarrUsersDetailed(wizarrUrl, wizarrApiKey);
-        wizarrUsers = lastWizarrResult.users || [];
-
-        if (wizarrUsers.length > 0) {
-          console.log(`[SETUP] ✅ Wizarr prêt (tentative ${attempt}/${maxAttempts}) via ${lastWizarrResult.source}`);
-          break;
-        }
-
-        console.warn(`[SETUP] ⚠️  Wizarr indisponible/vide (tentative ${attempt}/${maxAttempts}) — ${lastWizarrResult?.reason || "raison inconnue"}`);
-        if (attempt < maxAttempts) {
-          console.log("[SETUP] ⏳ Nouvelle tentative Wizarr dans 5 secondes...");
-          await delay(5000);
-        }
-      }
-      if (wizarrUsers.length > 0) {
-      let upserted = 0;
-      for (const wUser of wizarrUsers) {
-        try {
-          if (wUser.username) {
-            UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, null);
-            upserted++;
-          }
-        } catch (_) {}
-      }
-        console.log(`[SETUP] ✅ Import Wizarr: ${upserted}/${wizarrUsers.length} users synchronisés en DB`);
-      } else {
-        console.warn(`[SETUP] ⚠️  Import Wizarr ignoré après ${maxAttempts} tentatives — ${lastWizarrResult?.reason || "Wizarr non configuré ou inaccessible"}`);
-      }
+      console.warn("[SETUP] ⚠️  Tautulli DB non configuré - configure TAUTULLI_DB_PATH pour activer");
     }
-  } catch (err) {
-    console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
-  }
+
+    // 📋 IMPORT AUTOMATIQUE depuis Wizarr au démarrage
+    // Cela garantit que le classement est complet même après suppression DB
+    // Source de vérité: Wizarr pour la liste des users, Plex pour joinedAt
+    console.log("[SETUP] 📋 Import automatique des users Wizarr en DB...");
+    try {
+      const { getAllWizarrUsersDetailed, delay } = require("./utils/wizarr");
+      const { UserQueries } = require("./utils/database");
+      const wizarrUrl = getConfigValue("WIZARR_URL");
+      const wizarrApiKey = getConfigValue("WIZARR_API_KEY");
+      if (!wizarrUrl || !wizarrApiKey) {
+        console.log("[SETUP] ℹ️  Wizarr désactivé — import ignoré");
+      } else {
+        let wizarrUsers = [];
+        let lastWizarrResult = null;
+        const maxAttempts = 3;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          lastWizarrResult = await getAllWizarrUsersDetailed(wizarrUrl, wizarrApiKey);
+          wizarrUsers = lastWizarrResult.users || [];
+
+          if (wizarrUsers.length > 0) {
+            console.log(`[SETUP] ✅ Wizarr prêt (tentative ${attempt}/${maxAttempts}) via ${lastWizarrResult.source}`);
+            break;
+          }
+
+          console.warn(`[SETUP] ⚠️  Wizarr indisponible/vide (tentative ${attempt}/${maxAttempts}) — ${lastWizarrResult?.reason || "raison inconnue"}`);
+          if (attempt < maxAttempts) {
+            console.log("[SETUP] ⏳ Nouvelle tentative Wizarr dans 5 secondes...");
+            await delay(5000);
+          }
+        }
+        if (wizarrUsers.length > 0) {
+          let upserted = 0;
+          for (const wUser of wizarrUsers) {
+            try {
+              if (wUser.username) {
+                UserQueries.upsert(wUser.username, wUser.plexUserId, wUser.email, null);
+                upserted++;
+              }
+            } catch (_) {}
+          }
+          console.log(`[SETUP] ✅ Import Wizarr: ${upserted}/${wizarrUsers.length} users synchronisés en DB`);
+        } else {
+          console.warn(`[SETUP] ⚠️  Import Wizarr ignoré après ${maxAttempts} tentatives — ${lastWizarrResult?.reason || "Wizarr non configuré ou inaccessible"}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[SETUP] ⚠️  Erreur import Wizarr: ${err.message}`);
+    }
+  })().catch(err => {
+    console.warn("[SETUP] ⚠️  Initialisation secondaire interrompue:", err.message);
+  });
 
   startRefreshOrchestrator({
     TAUTULLI_URL: getConfigValue("TAUTULLI_URL"),

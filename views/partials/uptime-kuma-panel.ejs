@@ -1,6 +1,7 @@
 <%
   const uptimeLayout = layout === "dashboard" ? "dashboard" : "login";
-  const rawInputStatus = uptimeStatus || uptimeKuma || null;
+  const legacyUptimeKuma = typeof uptimeKuma !== "undefined" ? uptimeKuma : null;
+  const rawInputStatus = uptimeStatus || legacyUptimeKuma || null;
   const rawStatusData = rawInputStatus && rawInputStatus.enabled ? rawInputStatus : null;
   const filteredServices = rawStatusData && Array.isArray(rawStatusData.services)
     ? rawStatusData.services.filter(service => {

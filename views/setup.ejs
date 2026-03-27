@@ -19,6 +19,12 @@
       --muted: #9ab0cc;
       --accent: #79c0ff;
       --accent-2: #38bdf8;
+      --success: #86efac;
+      --success-bg: rgba(34, 197, 94, 0.12);
+      --success-border: rgba(34, 197, 94, 0.3);
+      --warning: #fde68a;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --warning-border: rgba(245, 158, 11, 0.3);
       --danger: #fca5a5;
     }
 
@@ -121,7 +127,8 @@
       margin-left: 6px;
     }
 
-    .setup-field input {
+    .setup-field input,
+    .setup-field select {
       width: 100%;
       border: 1px solid rgba(148, 163, 184, 0.22);
       border-radius: 12px;
@@ -132,7 +139,8 @@
       outline: none;
     }
 
-    .setup-field input:focus {
+    .setup-field input:focus,
+    .setup-field select:focus {
       border-color: rgba(121, 192, 255, 0.75);
       box-shadow: 0 0 0 3px rgba(121, 192, 255, 0.15);
     }
@@ -143,6 +151,7 @@
       align-items: center;
       gap: 14px;
       margin-top: 18px;
+      flex-wrap: wrap;
     }
 
     .setup-note {
@@ -161,10 +170,108 @@
       cursor: pointer;
     }
 
+    .setup-btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(121, 192, 255, 0.35);
+    }
+
+    .setup-btn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
     .setup-state {
       margin-top: 14px;
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .setup-actions-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .setup-btn.is-hidden {
+      display: none;
+    }
+
+    .setup-diagnostics {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .setup-diagnostics-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .setup-diagnostics-card {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .setup-diagnostics-card.is-ok {
+      border-color: var(--success-border);
+      background: var(--success-bg);
+    }
+
+    .setup-diagnostics-card.is-warning {
+      border-color: var(--warning-border);
+      background: var(--warning-bg);
+    }
+
+    .setup-diagnostics-card.is-error {
+      border-color: rgba(248, 113, 113, 0.28);
+      background: rgba(248, 113, 113, 0.1);
+    }
+
+    .setup-diagnostics-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .setup-diagnostics-title {
+      font-weight: 700;
+    }
+
+    .setup-diagnostics-badge {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .setup-diagnostics-badge.is-ok {
+      background: rgba(34, 197, 94, 0.16);
+      color: var(--success);
+    }
+
+    .setup-diagnostics-badge.is-warning {
+      background: rgba(245, 158, 11, 0.16);
+      color: var(--warning);
+    }
+
+    .setup-diagnostics-badge.is-error {
+      background: rgba(248, 113, 113, 0.14);
+      color: var(--danger);
+    }
+
+    .setup-diagnostics-message {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
     }
 
     @media (max-width: 720px) {
@@ -200,6 +307,19 @@
                     <%= field.label %>
                     <% if (field.required) { %><span class="setup-required"><%= t("common.required") %></span><% } %>
                   </label>
+                  <% if (field.type === 'select') { %>
+                  <select
+                    id="setup-<%= field.key %>"
+                    name="<%= field.key %>"
+                    <% if (field.visibleForProviders && field.visibleForProviders.length) { %>
+                      data-uptime-provider-visible-for="<%= field.visibleForProviders.join(',') %>"
+                    <% } %>
+                  >
+                    <% (field.options || []).forEach(function(option) { %>
+                      <option value="<%= option.value %>" <%= String(field.value || '') === String(option.value) ? 'selected' : '' %>><%= option.label %></option>
+                    <% }) %>
+                  </select>
+                  <% } else { %>
                   <input
                     id="setup-<%= field.key %>"
                     name="<%= field.key %>"
@@ -207,7 +327,11 @@
                     value="<%= field.value || '' %>"
                     autocomplete="off"
                     spellcheck="false"
+                    <% if (field.visibleForProviders && field.visibleForProviders.length) { %>
+                      data-uptime-provider-visible-for="<%= field.visibleForProviders.join(',') %>"
+                    <% } %>
                   >
+                  <% } %>
                 </div>
               <% }) %>
             </div>
@@ -216,9 +340,17 @@
 
         <div class="setup-actions">
           <div class="setup-note"><%= t("setup.note") %></div>
-          <button class="setup-btn" type="submit"><%= t("setup.save") %></button>
+          <div class="setup-actions-buttons">
+            <button class="setup-btn setup-btn-secondary" id="runSetupDiagnosticsBtn" type="button"><%= t("setup.diagnostics.run") %></button>
+            <button class="setup-btn" type="submit"><%= t("setup.save") %></button>
+            <button class="setup-btn setup-btn-secondary is-hidden" id="continueToPlexBtn" type="button"><%= t("setup.continue") %></button>
+          </div>
         </div>
         <div class="setup-state" id="setupState"><%= t("setup.state.empty") %></div>
+        <div class="setup-diagnostics" id="setupDiagnostics">
+          <div class="setup-note" id="setupDiagnosticsState"><%= t("setup.diagnostics.empty") %></div>
+          <div class="setup-diagnostics-list" id="setupDiagnosticsList"></div>
+        </div>
       </form>
     </div>
   </section>
@@ -266,18 +398,138 @@
     (function () {
       const form = document.getElementById("setupForm");
       const state = document.getElementById("setupState");
-      if (!form || !state) return;
+      const diagnosticsState = document.getElementById("setupDiagnosticsState");
+      const diagnosticsList = document.getElementById("setupDiagnosticsList");
+      const diagnosticsBtn = document.getElementById("runSetupDiagnosticsBtn");
+      const continueBtn = document.getElementById("continueToPlexBtn");
+      const uptimeProviderInput = document.getElementById("setup-UPTIME_PROVIDER");
+      if (!form || !state || !diagnosticsState || !diagnosticsList) return;
+      let continueUrl = "<%= basePath %>/";
+
+      function escHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function updateUptimeProviderFields() {
+        const provider = uptimeProviderInput ? String(uptimeProviderInput.value || "kuma").trim().toLowerCase() : "kuma";
+        Array.from(document.querySelectorAll("[data-uptime-provider-visible-for]")).forEach(function (field) {
+          const allowed = String(field.getAttribute("data-uptime-provider-visible-for") || "")
+            .split(",")
+            .map(function (entry) { return String(entry || "").trim().toLowerCase(); })
+            .filter(Boolean);
+          field.style.display = !allowed.length || allowed.includes(provider) ? "" : "none";
+        });
+      }
+
+      function getPayload() {
+        const payload = {};
+        new FormData(form).forEach((value, key) => {
+          payload[key] = String(value || "").trim();
+        });
+        return payload;
+      }
+
+      async function parseJsonResponse(resp) {
+        const raw = await resp.text();
+        let data = null;
+        try {
+          data = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+          data = null;
+        }
+
+        if (!data) {
+          const compact = String(raw || "").replace(/\s+/g, " ").trim();
+          throw new Error(compact ? compact.slice(0, 140) : ("HTTP " + resp.status));
+        }
+
+        return data;
+      }
+
+      function renderDiagnostics(diagnostics) {
+        const tests = Array.isArray(diagnostics && diagnostics.tests) ? diagnostics.tests : [];
+        if (!tests.length) {
+          diagnosticsState.textContent = "<%= t('setup.diagnostics.empty') %>";
+          diagnosticsList.innerHTML = "";
+          return;
+        }
+
+        const blockingErrors = tests.filter(function (test) { return !test.ok && !!test.blocking; }).length;
+        const optionalPending = tests.filter(function (test) { return !!test.optional; }).length;
+
+        if (blockingErrors === 0) {
+          diagnosticsState.textContent = optionalPending > 0
+            ? "<%= t('setup.diagnostics.okEssential') %>"
+            : "<%= t('setup.diagnostics.okAll') %>";
+        } else {
+          diagnosticsState.textContent = "<%= t('setup.diagnostics.blocking', { count: '__COUNT__' }) %>".replace("__COUNT__", String(blockingErrors));
+        }
+
+        diagnosticsList.innerHTML = tests.map(function (test) {
+          const tone = test.ok ? (test.optional ? "warning" : "ok") : (test.blocking ? "error" : "warning");
+          const badge = test.ok
+            ? (test.optional ? "<%= t('setup.diagnostics.badge.optional') %>" : "<%= t('setup.diagnostics.badge.ok') %>")
+            : (test.blocking ? "Erreur" : "<%= t('setup.diagnostics.badge.optional') %>");
+          return `
+            <div class="setup-diagnostics-card is-${tone}">
+              <div class="setup-diagnostics-head">
+                <div class="setup-diagnostics-title">${escHtml(test.label || "Service")}</div>
+                <div class="setup-diagnostics-badge is-${tone}">${badge}</div>
+              </div>
+              <div class="setup-diagnostics-message">${escHtml(test.message || "")}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      async function runDiagnostics() {
+        if (diagnosticsBtn) diagnosticsBtn.disabled = true;
+        diagnosticsState.textContent = "<%= t('setup.diagnostics.running') %>";
+        try {
+          const response = await fetch("<%= basePath %>/api/setup/diagnostics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(getPayload())
+          });
+          const data = await parseJsonResponse(response);
+          if (!response.ok) {
+            throw new Error(data.error || ("HTTP " + response.status));
+          }
+          renderDiagnostics(data);
+        } catch (error) {
+          diagnosticsState.textContent = error.message || "<%= t('setup.diagnostics.error') %>";
+          diagnosticsList.innerHTML = "";
+        } finally {
+          if (diagnosticsBtn) diagnosticsBtn.disabled = false;
+        }
+      }
+
+      if (uptimeProviderInput) {
+        uptimeProviderInput.addEventListener("change", updateUptimeProviderFields);
+        updateUptimeProviderFields();
+      }
+
+      if (diagnosticsBtn) {
+        diagnosticsBtn.addEventListener("click", runDiagnostics);
+      }
+
+      if (continueBtn) {
+        continueBtn.addEventListener("click", function () {
+          window.location.href = continueUrl || "<%= basePath %>/";
+        });
+      }
 
       form.addEventListener("submit", async function (event) {
         event.preventDefault();
         state.textContent = "<%= t('setup.state.saving') %>";
 
-        const payload = {};
-        new FormData(form).forEach((value, key) => {
-          payload[key] = String(value || "").trim();
-        });
-
         try {
+          const payload = getPayload();
           const response = await fetch("<%= basePath %>/api/setup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -289,7 +541,8 @@
           }
 
           state.textContent = "<%= t('setup.state.saved') %>";
-          window.location.href = data.redirectTo || "<%= basePath %>/";
+          continueUrl = data.redirectTo || "<%= basePath %>/";
+          if (continueBtn) continueBtn.classList.remove("is-hidden");
         } catch (error) {
           state.textContent = error.message || "<%= t('setup.state.error') %>";
         }

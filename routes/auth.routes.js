@@ -8,6 +8,7 @@ const { AppSettingQueries, UserQueries } = require("../utils/database");
 const { isUserAuthorized, getAuthorizedServerUsers, getServerOwnerId, getServerMachineId } = require("../utils/plex");
 const { checkWizarrAccess } = require("../utils/wizarr");
 const { getConfigSections, getConfigValue, getMissingRequiredConfigKeys, isSetupComplete, saveEditableConfig } = require("../utils/config");
+const { runConfigDiagnostics } = require("../utils/config-diagnostics");
 
 function getSafeUserLabel(user) {
   return `user#${user?.id || "unknown"}`;
@@ -154,6 +155,15 @@ router.post("/api/setup", (req, res) => {
   }
 
   return res.json({ success: true, redirectTo: (req.basePath || "") + "/" });
+});
+
+router.post("/api/setup/diagnostics", async (req, res) => {
+  try {
+    const diagnostics = await runConfigDiagnostics(req.body || {}, { optionalWhenMissing: true });
+    res.json(diagnostics);
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Diagnostics impossibles" });
+  }
 });
 
 router.get("/login", ensureSetupComplete, async (req, res) => {
