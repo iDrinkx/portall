@@ -16,9 +16,20 @@ function normalizeList(payload) {
 }
 
 function mapUser(user) {
+  const username =
+    user.username ||
+    user.plexUsername ||
+    user.plex_username ||
+    user.displayName ||
+    user.display_name ||
+    user.name ||
+    user.fullName ||
+    user.full_name ||
+    null;
+
   return {
     id: user.id || null,
-    username: user.username || user.plexUsername || user.plex_username || null,
+    username,
     plexUserId: user.plexUserId || user.plex_user_id || user.plexId || null,
     email: user.email || null,
     joinedAtTimestamp: null,
@@ -128,7 +139,9 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
       const payload = await fetchJson(url, apiKey);
       const list = normalizeList(payload);
       if (list.length > 0) {
-        const filtered = list.map(mapUser).filter(user => user.username);
+        const filtered = list
+          .map(mapUser)
+          .filter(user => user.username || user.email || user.plexUserId);
         log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users)`);
         return { users: filtered, ok: true, reason: null, source: url };
       }
@@ -185,7 +198,7 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
     }
   }
 
-  const filtered = users.filter(user => user.username);
+  const filtered = users.filter(user => user.username || user.email || user.plexUserId);
   if (filtered.length > 0) {
     return {
       users: filtered,
