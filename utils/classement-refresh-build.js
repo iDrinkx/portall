@@ -107,6 +107,73 @@ function parsePlexTimestamp(value) {
   return null;
 }
 
+async function fetchCommunityFriendsCreatedAtMap(plexToken) {
+  if (!plexToken) {
+    return {
+      byUsername: {},
+      byId: {}
+    };
+  }
+
+  try {
+    const response = await fetch('https://community.plex.tv/api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'https://app.plex.tv',
+        'Referer': 'https://app.plex.tv/',
+        'X-Plex-Client-Identifier': 'portall-app',
+        'X-Plex-Platform': 'Node.js',
+        'X-Plex-Product': 'portall',
+        'X-Plex-Token': plexToken,
+        'X-Plex-Version': '1.0.0'
+      },
+      body: JSON.stringify({
+        operationName: 'GetAllFriends',
+        query: `
+          query GetAllFriends {
+            allFriendsV2 {
+              user {
+                username
+                idRaw
+              }
+              createdAt
+            }
+          }
+        `
+      }),
+      timeout: 10000
+    });
+
+    if (!response.ok) {
+      throw new Error(`community.plex.tv → HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.data?.allFriendsV2) ? payload.data.allFriendsV2 : [];
+    const byUsername = {};
+    const byId = {};
+
+    rows.forEach((entry) => {
+      const username = String(entry?.user?.username || '').trim().toLowerCase();
+      const idRaw = entry?.user?.idRaw != null ? String(entry.user.idRaw).trim() : '';
+      const createdAt = parsePlexTimestamp(entry?.createdAt);
+      if (!createdAt) return;
+
+      if (username) byUsername[username] = createdAt;
+      if (idRaw) byId[idRaw] = createdAt;
+    });
+
+    return { byUsername, byId };
+  } catch (err) {
+    logCR.debug(`Plex community friends lookup failed: ${err.message}`);
+    return {
+      byUsername: {},
+      byId: {}
+    };
+  }
+}
+
 function getPlexCloudToken() {
   const runtimeToken = String(AppSettingQueriesSafe.get('runtime_plex_cloud_token', '') || '').trim();
   if (runtimeToken) return runtimeToken;
@@ -231,7 +298,19 @@ async function buildClassementSnapshot(options = {}) {
     logCR.debug(`Plex API XML failed: ${err.message}`);
   }
 
-  logCR.debug(`Plex: ${thumbsFetched} avatars, ${Object.keys(plexJoinedAtMap).length} joined_at, ${Object.keys(emailToUsername).length} emails=>username, ${Object.keys(plexIdToUsername).length} ids=>username`);
+  const communityFriends = await fetchCommunityFriendsCreatedAtMap(plexToken);
+  for (const [username, createdAt] of Object.entries(communityFriends.byUsername || {})) {
+    if (username && createdAt && !plexJoinedAtMap[username]) {
+      plexJoinedAtMap[username] = createdAt;
+    }
+  }
+  for (const [idRaw, createdAt] of Object.entries(communityFriends.byId || {})) {
+    if (idRaw && createdAt && !plexJoinedAtById[idRaw]) {
+      plexJoinedAtById[idRaw] = createdAt;
+    }
+  }
+
+  logCR.debug(`Plex: ${thumbsFetched} avatars, ${Object.keys(plexJoinedAtMap).length} joined_at/createdAt, ${Object.keys(emailToUsername).length} emails=>username, ${Object.keys(plexIdToUsername).length} ids=>username`);
 
   const wizarrUrl = String(getConfigValue('WIZARR_URL', '') || '').trim();
   const wizarrApiKey = String(getConfigValue('WIZARR_API_KEY', '') || '').trim();
