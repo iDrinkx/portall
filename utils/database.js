@@ -730,6 +730,23 @@ const UserQueries = {
   getAll() {
     const db = getDb();
     return db.prepare('SELECT * FROM users ORDER BY username').all();
+  },
+
+  deleteByIds(ids = []) {
+    const db = getDb();
+    const normalizedIds = [...new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )];
+
+    if (normalizedIds.length === 0) {
+      return 0;
+    }
+
+    const placeholders = normalizedIds.map(() => '?').join(', ');
+    const result = db.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...normalizedIds);
+    return Number(result?.changes || 0);
   }
 };
 

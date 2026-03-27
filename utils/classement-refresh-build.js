@@ -484,6 +484,80 @@ function reconcileUsersWithCanonicalProfiles(canonicalProfiles = [], dbUsers = [
   };
 }
 
+function buildWizarrIdentitySet(wizarrUsers = []) {
+  const usernames = new Set();
+  const emails = new Set();
+  const plexIds = new Set();
+
+  (Array.isArray(wizarrUsers) ? wizarrUsers : []).forEach((user) => {
+    const username = String(user?.username || '').trim().toLowerCase();
+    const email = String(user?.email || '').trim().toLowerCase();
+    const plexId = user?.plexUserId != null ? String(user.plexUserId).trim() : '';
+    if (username) usernames.add(username);
+    if (email) emails.add(email);
+    if (plexId) plexIds.add(plexId);
+  });
+
+  return { usernames, emails, plexIds };
+}
+
+function buildProtectedIdentitySet(profiles = []) {
+  const usernames = new Set();
+  const emails = new Set();
+  const plexIds = new Set();
+
+  (Array.isArray(profiles) ? profiles : []).forEach((profile) => {
+    const username = String(profile?.username || '').trim().toLowerCase();
+    const email = String(profile?.email || '').trim().toLowerCase();
+    const plexId = profile?.plexId != null ? String(profile.plexId).trim() : '';
+    if (username) usernames.add(username);
+    if (email) emails.add(email);
+    if (plexId) plexIds.add(plexId);
+    (profile?.aliases || []).forEach((alias) => {
+      const normalized = String(alias || '').trim().toLowerCase();
+      if (normalized) usernames.add(normalized);
+    });
+  });
+
+  return { usernames, emails, plexIds };
+}
+
+function pruneUsersNotInWizarrSourceOfTruth(dbUsers = [], wizarrUsers = [], protectedProfiles = []) {
+  const wizarrIdentity = buildWizarrIdentitySet(wizarrUsers);
+  const protectedIdentity = buildProtectedIdentitySet(protectedProfiles);
+  const usersToDelete = [];
+
+  (Array.isArray(dbUsers) ? dbUsers : []).forEach((dbUser) => {
+    const username = String(dbUser?.username || '').trim().toLowerCase();
+    const email = String(dbUser?.email || '').trim().toLowerCase();
+    const plexId = dbUser?.plexId != null ? String(dbUser.plexId).trim() : '';
+
+    const isProtected =
+      protectedIdentity.usernames.has(username) ||
+      (email && protectedIdentity.emails.has(email)) ||
+      (plexId && protectedIdentity.plexIds.has(plexId));
+
+    if (isProtected) {
+      return;
+    }
+
+    const isInWizarr =
+      wizarrIdentity.usernames.has(username) ||
+      (email && wizarrIdentity.emails.has(email)) ||
+      (plexId && wizarrIdentity.plexIds.has(plexId));
+
+    if (!isInWizarr) {
+      usersToDelete.push(dbUser);
+    }
+  });
+
+  const deletedCount = UserQueries.deleteByIds(usersToDelete.map((user) => user.id));
+  return {
+    deletedCount,
+    deletedUsers: usersToDelete
+  };
+}
+
 function getPlexCloudToken() {
   const runtimeToken = String(AppSettingQueriesSafe.get('runtime_plex_cloud_token', '') || '').trim();
   if (runtimeToken) return runtimeToken;
@@ -749,6 +823,19 @@ async function buildClassementSnapshot(options = {}) {
   if (reconciliation.orphanUsers.length > 0) {
     const sample = reconciliation.orphanUsers.slice(0, 10).map((user) => user.username).join(', ');
     logCR.debug(`Orphelins (sample): ${sample}`);
+  }
+
+  if (wizarrConfigured && hadInitialWizarrUsers) {
+    const dbUsersAfterReconcile = UserQueries.getAll() || [];
+    const protectedProfiles = plexUsers.length > 0 ? [plexUsers[0]] : [];
+    const pruning = pruneUsersNotInWizarrSourceOfTruth(dbUsersAfterReconcile, wizarrUsers, protectedProfiles);
+    if (pruning.deletedCount > 0) {
+      logCR.warn(`Purge source de verite Wizarr: ${pruning.deletedCount} user(s) hors Wizarr supprimes de la DB`);
+      const sample = pruning.deletedUsers.slice(0, 10).map((user) => user.username).join(', ');
+      if (sample) {
+        logCR.debug(`Supprimes hors Wizarr (sample): ${sample}`);
+      }
+    }
   }
 
   const statsToUse = wizarrUsers.map((wUser) => {
