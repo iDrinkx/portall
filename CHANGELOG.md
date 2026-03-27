@@ -1,3 +1,12 @@
+## [1.42.3](https://github.com/iDrinkx/portall/compare/v1.42.2...v1.42.3) (2026-03-27)
+
+### Corrections de bugs
+
+* kuma bug ([c10d801](https://github.com/iDrinkx/portall/commit/c10d80100a1366ac945c161b81032996b1f0920f))
+* setup ([eb09544](https://github.com/iDrinkx/portall/commit/eb0954407f1764d975d54cab42841331885fe4af))
+* setup bug ([870f4cf](https://github.com/iDrinkx/portall/commit/870f4cfa2f29ed07a9e87c07d14fcba4e67405e2))
+* setup uptime ([fecac56](https://github.com/iDrinkx/portall/commit/fecac56c663b19d7b0cb9f8cf6e28d22e28e4238))
+
 ## [1.42.2](https://github.com/iDrinkx/portall/compare/v1.42.1...v1.42.2) (2026-03-26)
 
 ### Corrections de bugs
