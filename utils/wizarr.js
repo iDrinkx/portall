@@ -44,25 +44,89 @@ function getWizarrHeaders(apiKey) {
   };
 }
 
+function getWizarrHeaderVariants(apiKey) {
+  const trimmedKey = String(apiKey || '').trim();
+  const primary = getWizarrHeaders(trimmedKey);
+
+  return [
+    primary,
+    { Accept: 'application/json', 'X-Api-Key': trimmedKey },
+    { Accept: 'application/json', Authorization: `Bearer ${trimmedKey}` },
+    { ...primary, Authorization: `Bearer ${trimmedKey}` }
+  ];
+}
+
 function isTimeoutError(err) {
   const message = String(err?.message || '').toLowerCase();
   return err?.type === 'request-timeout' || message.includes('network timeout');
 }
 
 async function fetchJson(url, apiKey, timeout = WIZARR_LIST_TIMEOUT_MS) {
-  const resp = await fetch(url, {
-    headers: getWizarrHeaders(apiKey),
-    timeout
-  });
+  const headersToTry = getWizarrHeaderVariants(apiKey);
+  let lastError = null;
 
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => '');
-    const error = new Error(`HTTP ${resp.status} sur ${url}${body ? ` — ${body.slice(0, 160)}` : ''}`);
-    error.status = resp.status;
-    throw error;
+  for (const headers of headersToTry) {
+    try {
+      const resp = await fetch(url, {
+        headers,
+        timeout
+      });
+
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        const error = new Error(`HTTP ${resp.status} sur ${url}${body ? ` - ${body.slice(0, 160)}` : ''}`);
+        error.status = resp.status;
+        throw error;
+      }
+
+      return resp.json();
+    } catch (err) {
+      lastError = err;
+      if (err?.status === 404 || isTimeoutError(err)) {
+        throw err;
+      }
+    }
   }
 
-  return resp.json();
+  throw lastError || new Error(`Requete Wizarr impossible sur ${url}`);
+}
+
+async function probeWizarrConnection(wizarrUrl, apiKey) {
+  if (!wizarrUrl || !apiKey) {
+    return { ok: false, reason: 'Wizarr non configure', source: 'config', users: [] };
+  }
+
+  const endpoints = [
+    `${wizarrUrl}/api/users?limit=1`,
+    `${wizarrUrl}/api/users`,
+    `${wizarrUrl}/api/v1/user?skip=0&take=1`
+  ];
+  const reasons = [];
+
+  for (const url of endpoints) {
+    try {
+      const payload = await fetchJson(url, apiKey, 10000);
+      return {
+        ok: true,
+        reason: null,
+        source: url,
+        users: normalizeList(payload).map(mapUser)
+      };
+    } catch (err) {
+      reasons.push(
+        isTimeoutError(err)
+          ? `${url} - timeout apres 10000ms`
+          : (err.message || `Erreur sur ${url}`)
+      );
+    }
+  }
+
+  return {
+    ok: false,
+    reason: reasons.join(' | ') || 'Connexion Wizarr impossible',
+    source: 'none',
+    users: []
+  };
 }
 
 function computeSubscription(user) {
@@ -155,7 +219,7 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
       }
 
       lastError = isTimeoutError(err)
-        ? `${url} — timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+        ? `${url} - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
         : err.message;
       attemptReasons.push(lastError);
     }
@@ -189,8 +253,8 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
         log.debug('Wizarr legacy endpoint /api/v1/user absent sur cette version');
       } else {
         const v1Error = isTimeoutError(err)
-          ? `/api/v1/user — timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
-          : `/api/v1/user — ${err.message}`;
+          ? `/api/v1/user - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+          : `/api/v1/user - ${err.message}`;
         if (!lastError) lastError = v1Error;
         attemptReasons.push(v1Error);
       }
@@ -324,5 +388,6 @@ module.exports = {
   checkWizarrAccess,
   getAllWizarrUsers,
   getAllWizarrUsersDetailed,
+  probeWizarrConnection,
   delay
 };
