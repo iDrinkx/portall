@@ -1,8 +1,10 @@
 const fetch = require("node-fetch");
 const { DEFAULT_API_BASE_URL, normalizeProvider } = require("./uptime-status");
 const { getConfigValue } = require("./config");
+const { probeWizarrConnection } = require("./wizarr");
 
 const CONFIG_TEST_TIMEOUT_MS = 5000;
+const TAUTULLI_TEST_TIMEOUT_MS = 60000;
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -58,6 +60,7 @@ async function testTautulliConnection(overrides = {}, options = {}) {
   if (!tautulliUrl || !apiKey) return summarizeMissingConfig("Tautulli", options);
   try {
     const resp = await fetchWithConfigTest(`${tautulliUrl}/api/v2?apikey=${encodeURIComponent(apiKey)}&cmd=get_activity`, {
+      timeout: TAUTULLI_TEST_TIMEOUT_MS,
       headers: { Accept: "application/json" }
     });
     if (!resp.ok) {
@@ -78,12 +81,17 @@ async function testWizarrConnection(overrides = {}, options = {}) {
   const apiKey = String(getValue("WIZARR_API_KEY", overrides) || "").trim();
   if (!wizarrUrl || !apiKey) return summarizeMissingConfig("Wizarr", options);
   try {
-    const resp = await fetchWithConfigTest(`${wizarrUrl}/api/users?limit=1`, {
-      headers: { Accept: "application/json", "X-API-Key": apiKey }
-    });
-    if (resp.ok) return summarizeConfigTest("Wizarr", true, "Connexion OK", { configured: true });
-    if (resp.status === 401 || resp.status === 403) return summarizeConfigTest("Wizarr", false, "Clé invalide", { configured: true });
-    return summarizeConfigTest("Wizarr", false, `HTTP ${resp.status}`, { configured: true });
+    const result = await probeWizarrConnection(wizarrUrl, apiKey);
+    if (result.ok) {
+      return summarizeConfigTest("Wizarr", true, "Connexion OK", {
+        configured: true,
+        detail: result.source
+      });
+    }
+    if (/HTTP 401|HTTP 403/i.test(String(result.reason || ""))) {
+      return summarizeConfigTest("Wizarr", false, "Clé invalide", { configured: true });
+    }
+    return summarizeConfigTest("Wizarr", false, result.reason || "Connexion impossible", { configured: true });
   } catch (err) {
     return summarizeConfigTest("Wizarr", false, err.message || "Connexion impossible", { configured: true });
   }
