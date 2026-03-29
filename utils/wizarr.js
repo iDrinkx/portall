@@ -2,7 +2,8 @@ const fetch = require('node-fetch');
 const log = require('./logger').create('[Wizarr]');
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
-const WIZARR_LIST_TIMEOUT_MS = 20000;
+const WIZARR_PROBE_TIMEOUT_MS = 10000;
+const WIZARR_LIST_TIMEOUT_MS = 60000;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -61,6 +62,10 @@ function isTimeoutError(err) {
   return err?.type === 'request-timeout' || message.includes('network timeout');
 }
 
+function formatDuration(ms) {
+  return `${Math.max(0, Math.round(Number(ms) || 0))}ms`;
+}
+
 async function fetchJson(url, apiKey, timeout = WIZARR_LIST_TIMEOUT_MS) {
   const headersToTry = getWizarrHeaderVariants(apiKey);
   let lastError = null;
@@ -104,8 +109,9 @@ async function probeWizarrConnection(wizarrUrl, apiKey) {
   const reasons = [];
 
   for (const url of endpoints) {
+    const startedAt = Date.now();
     try {
-      const payload = await fetchJson(url, apiKey, 10000);
+      const payload = await fetchJson(url, apiKey, WIZARR_PROBE_TIMEOUT_MS);
       return {
         ok: true,
         reason: null,
@@ -113,9 +119,10 @@ async function probeWizarrConnection(wizarrUrl, apiKey) {
         users: normalizeList(payload).map(mapUser)
       };
     } catch (err) {
+      const elapsedMs = Date.now() - startedAt;
       reasons.push(
         isTimeoutError(err)
-          ? `${url} - timeout apres 10000ms`
+          ? `${url} - timeout apres ${WIZARR_PROBE_TIMEOUT_MS}ms (${formatDuration(elapsedMs)})`
           : (err.message || `Erreur sur ${url}`)
       );
     }
@@ -199,29 +206,34 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
   const attemptReasons = [];
 
   for (const url of apiUsersEndpoints) {
+    const startedAt = Date.now();
     try {
       const payload = await fetchJson(url, apiKey);
       const list = normalizeList(payload);
+      const elapsedMs = Date.now() - startedAt;
       if (list.length > 0) {
         const filtered = list
           .map(mapUser)
           .filter(user => user.username || user.email || user.plexUserId);
-        log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users)`);
-        return { users: filtered, ok: true, reason: null, source: url };
+        log.info(`getAllWizarrUsersDetailed success via ${url} (${filtered.length} users, ${formatDuration(elapsedMs)})`);
+        return { users: filtered, ok: true, reason: null, source: `${url} (${formatDuration(elapsedMs)})` };
       }
 
-      lastError = `Reponse vide sur ${url}`;
+      lastError = `Reponse vide sur ${url} (${formatDuration(elapsedMs)})`;
       attemptReasons.push(lastError);
+      log.warn(`getAllWizarrUsersDetailed empty response via ${url} apres ${formatDuration(elapsedMs)}`);
     } catch (err) {
+      const elapsedMs = Date.now() - startedAt;
       if (err.status === 404) {
-        log.debug(`Wizarr endpoint absent: ${url}`);
+        log.debug(`Wizarr endpoint absent: ${url} (${formatDuration(elapsedMs)})`);
         continue;
       }
 
       lastError = isTimeoutError(err)
-        ? `${url} - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+        ? `${url} - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms (${formatDuration(elapsedMs)})`
         : err.message;
       attemptReasons.push(lastError);
+      log.warn(`getAllWizarrUsersDetailed failed via ${url} apres ${formatDuration(elapsedMs)} - ${isTimeoutError(err) ? 'timeout' : err.message}`);
     }
   }
 
@@ -232,31 +244,37 @@ async function getAllWizarrUsersDetailed(wizarrUrl, apiKey) {
   let pageCount = 0;
 
   while (hasMore) {
+    const startedAt = Date.now();
     try {
       const url = `${wizarrUrl}/api/v1/user?skip=${skip}&take=${take}`;
       const payload = await fetchJson(url, apiKey);
       const page = normalizeList(payload);
+      const elapsedMs = Date.now() - startedAt;
       pageCount += 1;
 
       if (page.length === 0) {
         hasMore = false;
+        log.info(`getAllWizarrUsersDetailed legacy endpoint vide via ${url} (${formatDuration(elapsedMs)})`);
       } else {
         users.push(...page.map(mapUser));
         skip += take;
         const total = payload?.total ?? payload?.pageInfo?.results ?? null;
+        log.info(`getAllWizarrUsersDetailed legacy page ${pageCount} via ${url} (${page.length} users, ${formatDuration(elapsedMs)})`);
         if ((total !== null && users.length >= total) || page.length < take) {
           hasMore = false;
         }
       }
     } catch (err) {
+      const elapsedMs = Date.now() - startedAt;
       if (err.status === 404) {
-        log.debug('Wizarr legacy endpoint /api/v1/user absent sur cette version');
+        log.debug(`Wizarr legacy endpoint /api/v1/user absent sur cette version (${formatDuration(elapsedMs)})`);
       } else {
         const v1Error = isTimeoutError(err)
-          ? `/api/v1/user - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms`
+          ? `/api/v1/user - timeout apres ${WIZARR_LIST_TIMEOUT_MS}ms (${formatDuration(elapsedMs)})`
           : `/api/v1/user - ${err.message}`;
         if (!lastError) lastError = v1Error;
         attemptReasons.push(v1Error);
+        log.warn(`getAllWizarrUsersDetailed legacy fetch failed apres ${formatDuration(elapsedMs)} - ${isTimeoutError(err) ? 'timeout' : err.message}`);
       }
       hasMore = false;
     }
