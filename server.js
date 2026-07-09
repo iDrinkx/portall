@@ -22,6 +22,8 @@ const { getConfiguredStatusSummary, normalizeProvider } = require("./utils/uptim
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS || 30);
+const SESSION_MAX_AGE_MS = Math.max(1, SESSION_MAX_AGE_DAYS) * 24 * 60 * 60 * 1000;
 let cachedPlexServerName = undefined;
 let cachedPlexServerKey = null;
 
@@ -149,12 +151,13 @@ app.use(session({
   secret: SESSION_SECRET || require('crypto').randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   cookie: {
     httpOnly: true,
     // secure: contrôlé exclusivement par COOKIE_SECURE (true en prod derrière HTTPS, false en local)
     secure: process.env.COOKIE_SECURE === 'true',
     sameSite: "lax",
-    maxAge: 1000 * 60 * 60 * 24 // 24h
+    maxAge: SESSION_MAX_AGE_MS
   }
 }));
 

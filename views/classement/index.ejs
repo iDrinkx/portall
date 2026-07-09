@@ -228,6 +228,26 @@
   position: relative;
   z-index: 1;
 }
+
+@media (min-width: 721px) and (max-width: 1024px) {
+  .lb-page {
+    max-width: 920px;
+    padding-inline: 24px;
+  }
+
+  .lb-rankings {
+    grid-template-columns: 1fr;
+  }
+
+  .lb-podium {
+    gap: 10px;
+  }
+
+  .lb-podium-card--1 { flex-basis: 190px; }
+  .lb-podium-card--2,
+  .lb-podium-card--3 { flex-basis: 170px; }
+}
+
 @media (max-width: 720px) {
   .lb-header { padding-right: 0; }
   .lb-refresh-timer { position: static; margin-top: 8px; text-align: left; }
