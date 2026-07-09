@@ -1,3 +1,9 @@
+## [1.42.9](https://github.com/iDrinkx/portall/compare/v1.42.8...v1.42.9) (2026-07-09)
+
+### Corrections de bugs
+
+* multiple vulnérability ([d320be7](https://github.com/iDrinkx/portall/commit/d320be7e9848cbea70f6019b3aacc33450cfdc6e))
+
 ## [1.42.8](https://github.com/iDrinkx/portall/compare/v1.42.7...v1.42.8) (2026-05-17)
 
 ### Corrections de bugs
