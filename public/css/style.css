@@ -2303,6 +2303,69 @@ body.site-bg-mode-custom .site-bg-image {
    MOBILE VERSION PREMIUM
 ========================= */
 
+@media (min-width: 769px) and (max-width: 1180px) {
+  :root {
+    --nav-pad: clamp(20px, 3vw, 32px);
+    --logo-nav-h: 50px;
+    --logo-nav-maxw: 180px;
+  }
+
+  .navbar {
+    padding-inline: var(--nav-pad);
+  }
+
+  .nav-center {
+    gap: clamp(14px, 1.8vw, 22px);
+  }
+
+  .nav-right {
+    gap: 12px;
+  }
+
+  .nav-link {
+    font-size: 14px;
+  }
+
+  .logout-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .nav-sub-pill {
+    min-width: 48px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .content {
+    max-width: 1040px;
+    padding: 48px 28px;
+  }
+
+  .hero-cards,
+  .cards-grid,
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-cards {
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .hero-card-content {
+    padding: 20px;
+  }
+
+  .dashboard-title {
+    font-size: 24px;
+  }
+
+  .login-status-panel--dashboard .login-status-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px){
   :root {
     --nav-h: 65px;
@@ -2523,6 +2586,26 @@ body.site-bg-mode-custom .site-bg-image {
   .mobile-menu {
     width: min(300px, 82vw);
     padding: calc(var(--nav-h) + 26px) 20px calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .desktop-menu {
+    display: none;
+  }
+
+  .burger {
+    display: block;
+  }
+
+  .mobile-sub-pill {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mobile-menu {
+    width: min(360px, 46vw);
+    padding: calc(var(--nav-h) + 28px) 24px calc(28px + env(safe-area-inset-bottom));
   }
 }
 

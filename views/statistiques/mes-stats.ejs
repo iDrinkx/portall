@@ -478,6 +478,24 @@
 }
 
 /* ── Mobile ── */
+@media (min-width: 701px) and (max-width: 1024px) {
+  .ms-page {
+    max-width: 920px;
+  }
+
+  .ms-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ms-donut-card {
+    grid-column: auto;
+  }
+
+  .ms-row-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
   .ms-overview-grid {
     grid-template-columns: 1fr 1fr;
