@@ -1,3 +1,12 @@
+## [1.42.10](https://github.com/iDrinkx/portall/compare/v1.42.9...v1.42.10) (2026-07-09)
+
+### Corrections de bugs
+
+* affichage tablette ajouté (en plus de desktop et mobile deja disponible) ([9ff921b](https://github.com/iDrinkx/portall/commit/9ff921b2613a6d3ae3c766f9a86c19f7cdf3e59c))
+* crash buid git ([66ae468](https://github.com/iDrinkx/portall/commit/66ae468e53b44cb1ea2c57fc29bea83632c97ea2))
+* expiration session 24h -> 30j ([f96be33](https://github.com/iDrinkx/portall/commit/f96be33011ebd950e05b663ece708ef49c9b6e3a))
+* git push ([8822055](https://github.com/iDrinkx/portall/commit/88220559ab1fdc2b285f60f436a9468e29dc01fe))
+
 ## [1.42.9](https://github.com/iDrinkx/portall/compare/v1.42.8...v1.42.9) (2026-07-09)
 
 ### Corrections de bugs
