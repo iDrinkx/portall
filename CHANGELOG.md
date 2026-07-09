@@ -1,3 +1,10 @@
+## [1.42.11](https://github.com/iDrinkx/portall/compare/v1.42.10...v1.42.11) (2026-07-09)
+
+### Corrections de bugs
+
+* affichage demi fenetre ([c6ffb57](https://github.com/iDrinkx/portall/commit/c6ffb57ece72c07bef24ec9dff348a2f54a507f4))
+* iframe ([5607b01](https://github.com/iDrinkx/portall/commit/5607b01b3dd8570fb944cbafeefc5674eefb92fe))
+
 ## [1.42.10](https://github.com/iDrinkx/portall/compare/v1.42.9...v1.42.10) (2026-07-09)
 
 ### Corrections de bugs
