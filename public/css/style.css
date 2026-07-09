@@ -551,7 +551,9 @@ body.site-bg-mode-custom .site-bg-image {
 }
 
 .body--iframe-page .content--iframe {
-  height: auto;
+  flex: 0 0 calc(var(--app-vh, 100vh) - var(--nav-h));
+  height: calc(var(--app-vh, 100vh) - var(--nav-h));
+  min-height: calc(var(--app-vh, 100vh) - var(--nav-h));
 }
 
 /* =========================
