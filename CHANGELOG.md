@@ -1,3 +1,9 @@
+## [1.42.12](https://github.com/iDrinkx/portall/compare/v1.42.11...v1.42.12) (2026-07-12)
+
+### Corrections de bugs
+
+* login 30j ([26f5470](https://github.com/iDrinkx/portall/commit/26f54708bc7b14cdc66116a048611d66a4449a21))
+
 ## [1.42.11](https://github.com/iDrinkx/portall/compare/v1.42.10...v1.42.11) (2026-07-09)
 
 ### Corrections de bugs
