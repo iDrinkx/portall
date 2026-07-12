@@ -19,11 +19,15 @@ const { buildDashboardNavItems } = require("./utils/dashboard-builtins");
 const { getSiteLanguage, createTranslator, getRuntimeTextMap } = require("./utils/i18n");
 const { getSiteBackgroundSettings } = require("./utils/site-background");
 const { getConfiguredStatusSummary, normalizeProvider } = require("./utils/uptime-status");
+const SQLiteSessionStore = require("./utils/sqlite-session-store");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS || 30);
-const SESSION_MAX_AGE_MS = Math.max(1, SESSION_MAX_AGE_DAYS) * 24 * 60 * 60 * 1000;
+const configuredSessionMaxAgeDays = Number(process.env.SESSION_MAX_AGE_DAYS || 30);
+const SESSION_MAX_AGE_DAYS = Number.isFinite(configuredSessionMaxAgeDays) && configuredSessionMaxAgeDays > 0
+  ? configuredSessionMaxAgeDays
+  : 30;
+const SESSION_MAX_AGE_MS = SESSION_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 let cachedPlexServerName = undefined;
 let cachedPlexServerKey = null;
 
@@ -129,8 +133,20 @@ app.use(reverseProxyMiddleware);
 ========================= */
 
 // ⚠️  SESSION_SECRET check au démarrage
-const SESSION_SECRET = process.env.SESSION_SECRET;
-if (!SESSION_SECRET || SESSION_SECRET === "change-me-to-a-secure-key" || SESSION_SECRET === "monplex-secret-key") {
+let SESSION_SECRET = String(process.env.SESSION_SECRET || "").trim();
+let generatedPersistentSessionSecret = false;
+if (!SESSION_SECRET) {
+  SESSION_SECRET = String(AppSettingQueries.get("runtime_session_secret", "") || "").trim();
+  if (!SESSION_SECRET) {
+    SESSION_SECRET = require("crypto").randomBytes(32).toString("hex");
+    AppSettingQueries.set("runtime_session_secret", SESSION_SECRET);
+    generatedPersistentSessionSecret = true;
+  }
+}
+if (generatedPersistentSessionSecret) {
+  console.warn("[SESSION] SESSION_SECRET absent : un secret stable a été généré et conservé en base.");
+}
+if (SESSION_SECRET === "change-me-to-a-secure-key" || SESSION_SECRET === "monplex-secret-key") {
   console.warn("\n⚠️  [SÉCURITÉ] SESSION_SECRET non défini ou valeur par défaut détectée !");
   console.warn("   Définissez une clé aléatoire forte dans docker-compose.yml :\n");
   console.warn(`   SESSION_SECRET: \"${require('crypto').randomBytes(32).toString('hex')}\"\n`);
@@ -148,7 +164,11 @@ app.use((req, _res, next) => {
 
 app.use(session({
   name: "portall.sid", // Nom unique pour éviter le conflit avec connect.sid de Seerr
-  secret: SESSION_SECRET || require('crypto').randomBytes(32).toString('hex'),
+  secret: SESSION_SECRET,
+  store: new SQLiteSessionStore({
+    db: require("./utils/database").getDb(),
+    ttlMs: SESSION_MAX_AGE_MS
+  }),
   resave: false,
   saveUninitialized: false,
   rolling: true,
