@@ -62,6 +62,7 @@ function getCustomFaviconAsset() {
 }
 
 const CONFIG_FAVICON_ASSETS = new Map([
+  ["/logo.png", { file: "logo.png", type: "image/png" }],
   ["/favicon.ico", { file: "favicon.ico", type: "image/x-icon" }],
   ["/favicon.png", { file: "favicon.png", type: "image/png" }],
   ["/favicon.svg", { file: "favicon.svg", type: "image/svg+xml" }],
