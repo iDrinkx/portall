@@ -24,6 +24,7 @@ const { safeFetchConfiguredUrl } = require("./utils/network-url");
 const helmet = require("helmet");
 const crypto = require("crypto");
 const { ensureCsrfToken, requireCsrfToken } = require("./middleware/csrf.middleware");
+const { getTrustProxySetting } = require("./utils/trust-proxy");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -129,10 +130,10 @@ try {
   process.exit(1);
 }
 
-// Indispensable derrière un reverse proxy (NPM, Traefik, etc.)
-// Permet à Express de faire confiance aux headers X-Forwarded-Proto/Host
-// et de poser les cookies secure:true même si la connexion interne est HTTP
-app.set('trust proxy', 1);
+// Disabled by default: a direct client must not be able to forge X-Forwarded-For.
+// Set TRUST_PROXY=1 for one reverse-proxy hop (for example Nginx Proxy Manager),
+// or set explicit proxy IPs/CIDRs when the deployment topology requires it.
+app.set('trust proxy', getTrustProxySetting());
 
 /* =========================
    MIDDLEWARE

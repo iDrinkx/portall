@@ -10,13 +10,19 @@ function isBlockedIpv4(hostname) {
 }
 
 function isBlockedIpv6(hostname) {
-  const value = hostname.toLowerCase();
-  return value === "::" || value === "::1" ? false : value.startsWith("fe80:") || value.startsWith("ff");
+  const value = String(hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
+  if (value === "::") return true;
+  if (value === "::1") return false;
+
+  const firstHextet = Number.parseInt(value.split(":", 1)[0], 16);
+  if (!Number.isInteger(firstHextet)) return true;
+  return (firstHextet & 0xffc0) === 0xfe80 || (firstHextet & 0xff00) === 0xff00;
 }
 
 function assertAllowedIp(hostname) {
-  const ipVersion = net.isIP(hostname);
-  if ((ipVersion === 4 && isBlockedIpv4(hostname)) || (ipVersion === 6 && isBlockedIpv6(hostname))) {
+  const normalizedHostname = String(hostname || "").replace(/^\[|\]$/g, "");
+  const ipVersion = net.isIP(normalizedHostname);
+  if ((ipVersion === 4 && isBlockedIpv4(normalizedHostname)) || (ipVersion === 6 && isBlockedIpv6(normalizedHostname))) {
     throw new Error("Service URL is not allowed");
   }
 }
@@ -45,7 +51,7 @@ function validateTrustedServiceUrl(value) {
 }
 
 async function resolveAndValidateHostname(url) {
-  const hostname = new URL(url).hostname;
+  const hostname = new URL(url).hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(hostname)) return;
   const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
   if (!addresses.length) throw new Error("Service hostname cannot be resolved");

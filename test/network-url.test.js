@@ -81,6 +81,15 @@ async function main() {
   for (const url of ["http://169.254.169.254", "file:///etc/passwd", "http://user:pass@tautulli:8181"]) {
     assertRejected(url);
   }
+  assert.strictEqual(new URL("http://[::1]/").hostname, "[::1]");
+  assertRejected("http://[::]/");
+  assert.ok(validateTrustedServiceUrl("http://[::1]/"));
+  assertRejected("http://[fe80::1]/");
+  assertRejected("http://[fe90::1]/");
+  assertRejected("http://[febf::1]/");
+  // fec0::/10 is not fe80::/10 link-local and is allowed by the stated policy.
+  assert.ok(validateTrustedServiceUrl("http://[fec0::1]/"));
+  assertRejected("http://[ff02::1]/");
   await testRejectedRedirect();
   await testCrossOriginHeaders();
   await testRedirectBodies();

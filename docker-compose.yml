@@ -10,6 +10,8 @@ services:
       NODE_ENV: "production"
       PORT: "3000"
       COOKIE_SECURE: "true"
+      # Default false. Set TRUST_PROXY=1 in .env when traffic only reaches Portall via NPM.
+      TRUST_PROXY: "${TRUST_PROXY:-false}"
       DEBUG: "false"
 
       # Obligatoire: remplacez par une vraie clé longue et aléatoire
