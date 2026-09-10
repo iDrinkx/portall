@@ -52,8 +52,9 @@ function getDashboardCustomHtmlBlocksRaw() {
 }
 
 function getDashboardCustomHtmlMode() {
-  const mode = String(AppSettingQueries.get(MODE_KEY, "safe") || "safe").trim().toLowerCase();
-  return mode === "raw" ? "raw" : "safe";
+  // HTML is displayed to every authenticated user. Legacy values remain readable,
+  // but administrator-entered blocks are always rendered through the sanitizer.
+  return "safe";
 }
 
 function isDashboardCustomHtmlRawMode() {
@@ -69,7 +70,6 @@ function getDashboardCustomHtml() {
 
 function getDashboardCustomHtmlBlocks() {
   const rawBlocks = getDashboardCustomHtmlBlocksRaw();
-  const rawMode = isDashboardCustomHtmlRawMode();
   return rawBlocks.map(block => {
     const sanitized = sanitizeDashboardCustomHtml(block.html);
     return {
@@ -77,14 +77,13 @@ function getDashboardCustomHtmlBlocks() {
       position: block.position,
       raw: block.html,
       sanitized,
-      rendered: rawMode ? block.html : sanitized
+      rendered: sanitized
     };
   });
 }
 
 function saveDashboardCustomHtml(rawHtml, options = {}) {
-  const requestedMode = String(options.mode || getDashboardCustomHtmlMode()).trim().toLowerCase();
-  const mode = requestedMode === "raw" ? "raw" : "safe";
+  const mode = "safe";
   const rawBlocks = Array.isArray(options.blocks)
     ? options.blocks.map((block, index) => normalizeHtmlBlock(block, index)).filter(block => block.html)
     : parseDashboardCustomHtmlBlocks(rawHtml);
@@ -105,7 +104,7 @@ function saveDashboardCustomHtml(rawHtml, options = {}) {
       position: block.position,
       raw: block.html,
       sanitized,
-      rendered: mode === "raw" ? block.html : sanitized
+      rendered: sanitized
     };
   });
   const rendered = blocks.map(block => block.rendered).filter(Boolean).join("\n");

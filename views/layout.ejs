@@ -10,8 +10,8 @@
   <script nonce="<%= cspNonce %>">
     window.APP_BASE_PATH = "<%= basePath %>";
     window.APP_LOCALE = "<%= locale || 'fr' %>";
-    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}) %>;
-    window.APP_SITE_BACKGROUND = <%- JSON.stringify(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }) %>;
+    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}).replace(/</g, "\\u003c") %>;
+    window.APP_SITE_BACKGROUND = <%- JSON.stringify(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }).replace(/</g, "\\u003c") %>;
     window.PORTALL_CSRF_TOKEN = "<%= csrfToken || '' %>";
     const originalFetch = window.fetch.bind(window);
     window.fetch = function (input, init) {

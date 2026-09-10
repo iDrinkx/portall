@@ -6,7 +6,7 @@
   <title><%= t("setup.title") %></title>
   <script nonce="<%= cspNonce %>">
     window.APP_LOCALE = "<%= locale || 'fr' %>";
-    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}) %>;
+    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}).replace(/</g, "\\u003c") %>;
   </script>
   <style>
     :root {

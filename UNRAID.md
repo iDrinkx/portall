@@ -105,6 +105,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      PUID: "99"
+      PGID: "100"
       SESSION_SECRET: "change-me-to-a-secure-key"
       SETUP_TOKEN: "${SETUP_TOKEN}"
       COOKIE_SECURE: "true"   # HTTPS via reverse proxy

@@ -654,7 +654,7 @@
   }, true);
 (function () {
   const ME = '<%= user.username %>';
-  const ME_THUMB = <%- JSON.stringify((user && user.thumb) ? user.thumb : '') %>;
+  const ME_THUMB = <%- JSON.stringify((user && user.thumb) ? user.thumb : '').replace(/</g, "\\u003c") %>;
   var usersByName = {};
   var previewModal = document.getElementById('lbPreviewModal');
   var previewBody = document.getElementById('lbPreviewBody');

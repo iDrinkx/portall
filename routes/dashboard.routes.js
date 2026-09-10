@@ -33,6 +33,7 @@ const {
 } = require("../utils/achievement-state");
 const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
 const { safeFetchConfiguredUrl, validateTrustedServiceUrl, resolveAndValidateHostname } = require("../utils/network-url");
+const { normalizeEmbedUrl } = require("../utils/embed-url");
 const {
   getDashboardBuiltinAdminItems,
   saveDashboardBuiltinConfig,
@@ -300,17 +301,16 @@ function resolveIntegrationSrc(card, basePath = "") {
   const rawUrl = String(card.url || "");
 
   if (integrationKey === "komga_auto") {
-    return (getConfigValue("KOMGA_PUBLIC_URL", "") || rawUrl || "").trim();
+    return normalizeEmbedUrl(getConfigValue("KOMGA_PUBLIC_URL", "") || rawUrl, basePath);
   }
   if (integrationKey === "jellyfin_auto" || integrationKey === "jellyfin_iframe") {
-    return (getConfigValue("JELLYFIN_PUBLIC_URL", "") || rawUrl || "").trim();
+    return normalizeEmbedUrl(getConfigValue("JELLYFIN_PUBLIC_URL", "") || rawUrl, basePath);
   }
   if (integrationKey === "romm_auto") {
-    return (getConfigValue("ROMM_PUBLIC_URL", "") || rawUrl || "").trim();
+    return normalizeEmbedUrl(getConfigValue("ROMM_PUBLIC_URL", "") || rawUrl, basePath);
   }
 
-  if (rawUrl.startsWith("/")) return `${basePath}${rawUrl}`;
-  return rawUrl;
+  return normalizeEmbedUrl(rawUrl, basePath);
 }
 
 function slugifyCardTitle(value) {
@@ -2190,9 +2190,7 @@ router.post("/api/admin/dashboard-cards", requireAuth, requireAdmin, (req, res) 
     return res.status(400).json({ error: "Un ou plusieurs champs sont trop longs" });
   }
 
-  const isRelativeUrl = url.startsWith("/");
-  const isAbsoluteUrl = /^https?:\/\//i.test(url);
-  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
+  if (integrationKey === "custom" && !normalizeEmbedUrl(url)) {
     return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
   }
 
@@ -2242,9 +2240,7 @@ router.put("/api/admin/dashboard-cards/:id", requireAuth, requireAdmin, (req, re
     return res.status(400).json({ error: "Un ou plusieurs champs sont trop longs" });
   }
 
-  const isRelativeUrl = url.startsWith("/");
-  const isAbsoluteUrl = /^https?:\/\//i.test(url);
-  if (integrationKey === "custom" && !isRelativeUrl && !isAbsoluteUrl) {
+  if (integrationKey === "custom" && !normalizeEmbedUrl(url)) {
     return res.status(400).json({ error: "Lien invalide (doit commencer par / ou http/https)" });
   }
 
