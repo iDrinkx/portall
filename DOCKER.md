@@ -26,6 +26,8 @@ docker-compose up -d
 5. Finalisez `/setup` en saisissant la même valeur dans le champ **Setup token**
 6. Renseignez ensuite les services dans `Parametres > Connexions`
 
+Le conteneur execute Node sans privileges root. Les valeurs `PUID` et `PGID` (1000 par defaut) determinent le proprietaire de `/config`; definissez-les dans `.env` pour correspondre a votre utilisateur hote, par exemple `PUID=1000` et `PGID=1000`. Au demarrage, le conteneur corrige uniquement l'ownership de `/config` lorsqu'il est inscriptible, puis abandonne root. Les montages de donnees de services, notamment Tautulli en lecture seule, ne sont jamais modifies.
+
 ## Exemple compose
 
 ```yaml

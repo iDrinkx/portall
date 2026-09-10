@@ -9,6 +9,8 @@ services:
     environment:
       NODE_ENV: "production"
       PORT: "3000"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
       COOKIE_SECURE: "true"
       # Default false. Set TRUST_PROXY=1 in .env when traffic only reaches Portall via NPM.
       TRUST_PROXY: "${TRUST_PROXY:-false}"

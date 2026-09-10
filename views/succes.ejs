@@ -704,11 +704,11 @@
           <div class="ach-card-wrap">
           <div class="achievement-card <%= achievement.category %> <%= achievement.unlocked ? 'unlocked' : 'locked' %>"
                data-badge-id="<%= achievement.id %>"
-               data-name="<%- achievement.name.replace(/"/g,'&quot;') %>"
+               data-name="<%= achievement.name %>"
                data-icon="<%= achievement.icon %>"
-               data-desc="<%- descText.replace(/"/g,'&quot;') %>"
-               data-desc-unlocked="<%- (isSecret ? explicitSecretText : (achievement.description || '')).replace(/"/g,'&quot;') %>"
-               data-date="<%- dateText.replace(/"/g,'&quot;') %>"
+               data-desc="<%= descText %>"
+               data-desc-unlocked="<%= isSecret ? explicitSecretText : (achievement.description || '') %>"
+               data-date="<%= dateText %>"
                data-secret="<%= isSecret && !isRevocable ? 'true' : 'false' %>"
                data-category="<%= achievement.category %>"
                data-has-progress="<%= progressTotal > 0 ? 'true' : 'false' %>">

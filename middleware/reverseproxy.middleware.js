@@ -4,16 +4,18 @@
  */
 
 function reverseProxyMiddleware(req, res, next) {
+  const socketProtocol = req.socket?.encrypted ? "https" : "http";
+  const trustedForwardedHeaders = req.protocol !== socketProtocol || (req.ips || []).length > 0;
   // ============================================
   // Détecter les headers du reverse proxy
   // ============================================
   
   // En-têtes envoyés automatiquement par les reverse proxies
   const forwarded = {
-    proto: req.headers['x-forwarded-proto'] || req.protocol,
-    host: req.headers['x-forwarded-host'] || req.get('host'),
-    prefix: req.headers['x-forwarded-prefix'] || '',
-    originalUri: req.headers['x-original-uri'] || ''
+    proto: trustedForwardedHeaders ? (req.headers['x-forwarded-proto'] || req.protocol) : req.protocol,
+    host: trustedForwardedHeaders ? (req.headers['x-forwarded-host'] || req.get('host')) : req.get('host'),
+    prefix: trustedForwardedHeaders ? (req.headers['x-forwarded-prefix'] || '') : '',
+    originalUri: trustedForwardedHeaders ? (req.headers['x-original-uri'] || '') : ''
   };
 
   // ============================================
@@ -30,6 +32,10 @@ function reverseProxyMiddleware(req, res, next) {
   else if (forwarded.prefix) {
     basePath = forwarded.prefix;
   }
+
+  basePath = String(basePath || "").trim();
+  if (!/^\/(?!\/)[^\\\r\n]*$/.test(basePath)) basePath = "";
+  if (basePath.length > 1) basePath = basePath.replace(/\/+$/, "");
 
   // ============================================
   // Construire l'URL publique pour Plex callback
