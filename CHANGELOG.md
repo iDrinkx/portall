@@ -1,3 +1,9 @@
+## [1.42.17](https://github.com/iDrinkx/portall/compare/v1.42.16...v1.42.17) (2026-09-10)
+
+### Corrections de bugs
+
+* **ui:** restore custom logo asset ([cf458d8](https://github.com/iDrinkx/portall/commit/cf458d86a7833e202121c6ae57dca6086a960bb3))
+
 ## [1.42.16](https://github.com/iDrinkx/portall/compare/v1.42.15...v1.42.16) (2026-09-10)
 
 ### Corrections de bugs
