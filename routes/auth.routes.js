@@ -10,6 +10,8 @@ const { checkWizarrAccess } = require("../utils/wizarr");
 const { getConfigSections, getConfigValue, getMissingRequiredConfigKeys, isSetupComplete, saveEditableConfig } = require("../utils/config");
 const { runConfigDiagnostics } = require("../utils/config-diagnostics");
 const { requireSetupToken } = require("../middleware/setup-token.middleware");
+const { authLimiter, setupLimiter } = require("../middleware/rate-limit.middleware");
+const { safeFetchConfiguredUrl } = require("../utils/network-url");
 
 function getSafeUserLabel(user) {
   return `user#${user?.id || "unknown"}`;
@@ -72,7 +74,7 @@ async function grabSeerrCookie(authToken, res) {
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
-    const r = await fetch(`${seerrUrl}/api/v1/auth/plex`, {
+    const r = await safeFetchConfiguredUrl(`${seerrUrl}/api/v1/auth/plex`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ authToken }),
@@ -141,12 +143,16 @@ router.get("/setup", (req, res) => {
   });
 });
 
-router.post("/api/setup", requireSetupToken, (req, res) => {
+router.post("/api/setup", setupLimiter, requireSetupToken, (req, res) => {
   if (isSetupComplete()) {
     return res.status(403).json({ error: "Setup déjà terminé" });
   }
 
-  saveEditableConfig(req.body || {}, { markSetupComplete: true });
+  try {
+    saveEditableConfig(req.body || {}, { markSetupComplete: true });
+  } catch (_) {
+    return res.status(400).json({ error: "Invalid service URL" });
+  }
   const missingKeys = getMissingRequiredConfigKeys();
   if (missingKeys.length > 0) {
     return res.status(400).json({
@@ -158,7 +164,7 @@ router.post("/api/setup", requireSetupToken, (req, res) => {
   return res.json({ success: true, redirectTo: (req.basePath || "") + "/" });
 });
 
-router.post("/api/setup/diagnostics", requireSetupToken, async (req, res) => {
+router.post("/api/setup/diagnostics", setupLimiter, requireSetupToken, async (req, res) => {
   try {
     const diagnostics = await runConfigDiagnostics(req.body || {}, { optionalWhenMissing: true });
     res.json(diagnostics);
@@ -167,7 +173,7 @@ router.post("/api/setup/diagnostics", requireSetupToken, async (req, res) => {
   }
 });
 
-router.get("/login", ensureSetupComplete, async (req, res) => {
+router.get("/login", authLimiter, ensureSetupComplete, async (req, res) => {
   try {
     const response = await fetchWithTimeoutAndRetry("https://plex.tv/api/v2/pins?strong=true", {
       method: "POST",

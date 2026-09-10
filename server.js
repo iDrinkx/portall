@@ -20,6 +20,11 @@ const { getSiteLanguage, createTranslator, getRuntimeTextMap } = require("./util
 const { getSiteBackgroundSettings } = require("./utils/site-background");
 const { getConfiguredStatusSummary, normalizeProvider } = require("./utils/uptime-status");
 const SQLiteSessionStore = require("./utils/sqlite-session-store");
+const { safeFetchConfiguredUrl } = require("./utils/network-url");
+const helmet = require("helmet");
+const crypto = require("crypto");
+const { ensureCsrfToken, requireCsrfToken } = require("./middleware/csrf.middleware");
+const { getTrustProxySetting } = require("./utils/trust-proxy");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -93,7 +98,7 @@ async function getPlexServerName() {
   }
 
   try {
-    const response = await fetch(`${plexUrl}/identity`, {
+    const response = await safeFetchConfiguredUrl(`${plexUrl}/identity`, {
       headers: {
         "X-Plex-Token": plexToken,
         "Accept": "application/json"
@@ -125,10 +130,10 @@ try {
   process.exit(1);
 }
 
-// Indispensable derrière un reverse proxy (NPM, Traefik, etc.)
-// Permet à Express de faire confiance aux headers X-Forwarded-Proto/Host
-// et de poser les cookies secure:true même si la connexion interne est HTTP
-app.set('trust proxy', 1);
+// Disabled by default: a direct client must not be able to forge X-Forwarded-For.
+// Set TRUST_PROXY=1 for one reverse-proxy hop (for example Nginx Proxy Manager),
+// or set explicit proxy IPs/CIDRs when the deployment topology requires it.
+app.set('trust proxy', getTrustProxySetting());
 
 /* =========================
    MIDDLEWARE
@@ -136,6 +141,34 @@ app.set('trust proxy', 1);
 
 // 1. Détection reverse proxy (définit req.basePath, req.appUrl)
 app.use(reverseProxyMiddleware);
+app.use((req, res, next) => {
+  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  next();
+});
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+      objectSrc: ["'none'"],
+      formAction: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      frameSrc: ["'self'", "https:"],
+      scriptSrc: ["'self'", (_req, res) => `'nonce-${res.locals.cspNonce}'`, "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  strictTransportSecurity: false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" }
+}));
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()");
+  if (req.secure) res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  next();
+});
 
 /* =========================
    SESSION
@@ -189,6 +222,8 @@ app.use(session({
     maxAge: SESSION_MAX_AGE_MS
   }
 }));
+app.use(ensureCsrfToken);
+app.use(requireCsrfToken);
 
 // 3. Body parsers
 app.use(express.json({ limit: "12mb" }));

@@ -83,7 +83,7 @@
     </form>
   </div>
 
-  <script>
+  <script nonce="<%= cspNonce %>">
     (function () {
       const form = document.getElementById("connectForm");
       const state = document.getElementById("state");
@@ -100,7 +100,10 @@
         try {
           const resp = await fetch("<%= basePath %>/api/integrations/<%= serviceKey %>/connect", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": "<%= csrfToken || '' %>"
+            },
             body: JSON.stringify(payload)
           });
           const data = await resp.json().catch(() => ({}));

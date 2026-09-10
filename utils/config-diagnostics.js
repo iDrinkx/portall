@@ -1,7 +1,7 @@
-const fetch = require("node-fetch");
 const { DEFAULT_API_BASE_URL, normalizeProvider } = require("./uptime-status");
 const { getConfigValue } = require("./config");
 const { probeWizarrConnection } = require("./wizarr");
+const { validateTrustedServiceUrl, safeFetchConfiguredUrl } = require("./network-url");
 
 const CONFIG_TEST_TIMEOUT_MS = 5000;
 const TAUTULLI_TEST_TIMEOUT_MS = 60000;
@@ -11,7 +11,7 @@ function normalizeBaseUrl(value) {
 }
 
 async function fetchWithConfigTest(url, options = {}) {
-  return fetch(url, { timeout: CONFIG_TEST_TIMEOUT_MS, ...options });
+  return safeFetchConfiguredUrl(url, { timeout: CONFIG_TEST_TIMEOUT_MS, ...options });
 }
 
 function summarizeConfigTest(label, ok, message, extra = {}) {
@@ -19,10 +19,8 @@ function summarizeConfigTest(label, ok, message, extra = {}) {
 }
 
 function getValue(key, overrides = {}) {
-  if (Object.prototype.hasOwnProperty.call(overrides, key)) {
-    return overrides[key];
-  }
-  return getConfigValue(key, "");
+  const value = Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : getConfigValue(key, "");
+  return key.endsWith("_URL") ? validateTrustedServiceUrl(value) : value;
 }
 
 function summarizeMissingConfig(label, options = {}) {

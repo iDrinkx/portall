@@ -1,4 +1,5 @@
 const fetch = require("node-fetch");
+const { safeFetchConfiguredUrl } = require("./network-url");
 const log = require("./logger");
 const logPlex = log.create('[Plex]');
 
@@ -6,7 +7,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), Math.max(1000, Number(timeoutMs || 6000)));
   try {
-    return await fetch(url, {
+    return await safeFetchConfiguredUrl(url, {
       ...options,
       signal: ctrl.signal
     });

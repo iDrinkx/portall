@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const { safeFetchConfiguredUrl } = require('./network-url');
 
 /**
  * Génère une URL TMDB pour un poster (films Radarr)
@@ -46,7 +46,7 @@ async function getRadarrCalendar(radarrUrl, apiKey, start, end) {
   try {
     const baseUrl = radarrUrl.replace(/\/$/, '');
     const url = `${baseUrl}/api/v3/calendar?start=${start}&end=${end}&unmonitored=false`;
-    const resp = await fetch(url, {
+    const resp = await safeFetchConfiguredUrl(url, {
       headers: {
         'X-Api-Key': apiKey,
         'Accept': 'application/json'
@@ -95,7 +95,7 @@ async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
     const baseUrl = sonarrUrl.replace(/\/$/, '');
 
     // 1️⃣ Récupérer TOUTES les séries une fois pour construire un map seriesId → seriesTitle
-    const seriesResp = await fetch(`${baseUrl}/api/v3/series`, {
+    const seriesResp = await safeFetchConfiguredUrl(`${baseUrl}/api/v3/series`, {
       headers: {
         'X-Api-Key': apiKey,
         'Accept': 'application/json'
@@ -118,7 +118,7 @@ async function getSonarrCalendar(sonarrUrl, apiKey, start, end) {
     });
 
     // 2️⃣ Récupérer le calendrier avec les dates
-    const calendarResp = await fetch(`${baseUrl}/api/v3/calendar?start=${start}&end=${end}&unmonitored=false`, {
+    const calendarResp = await safeFetchConfiguredUrl(`${baseUrl}/api/v3/calendar?start=${start}&end=${end}&unmonitored=false`, {
       headers: {
         'X-Api-Key': apiKey,
         'Accept': 'application/json'

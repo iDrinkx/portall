@@ -69,7 +69,7 @@
       <div class="xp-left-icon">🏆</div>
       <div class="xp-left-label">Succès</div>
       <div class="xp-left-count"><span id="xpUnlockedCount"><%= unlockedBadgesCount || 0 %>&nbsp;/&nbsp;<%= totalBadgesCount || 0 %></span></div>
-      <button class="action-pill action-pill--gold" onclick="openSuccesModal()">Voir mes succès →</button>
+      <button class="action-pill action-pill--gold" id="openSuccesModalBtn">Voir mes succès →</button>
     </div>
 
     <!-- DROITE : barre XP -->
@@ -212,17 +212,17 @@
   <div class="badges-section">
     <div class="badges-header-with-link">
       <h2>🏆 Progression des Badges</h2>
-      <button class="action-pill" onclick="openXpModal()">⚡ Répartition XP →</button>
+      <button class="action-pill" id="openXpModalBtn">⚡ Répartition XP →</button>
     </div>
     <div class="badges-container" id="badgesContainer"></div>
   </div>
 
   <!-- MODAL SUCCÈS (chargé via fetch embed) -->
-  <div id="succesModal" class="xp-modal" onclick="if(event.target===this)closeSuccesModal()">
+  <div id="succesModal" class="xp-modal">
     <div class="xp-modal-content xp-modal-content--wide" id="succesModalContent">
       <div class="xp-modal-header">
         <h3>🏆 Mes Succès</h3>
-        <button class="xp-modal-close" onclick="closeSuccesModal()">✕</button>
+        <button class="xp-modal-close" id="closeSuccesModalBtn">✕</button>
       </div>
       <div id="succesModalBody" style="min-height:120px;display:flex;align-items:center;justify-content:center;color:#aaa">
         Chargement...
@@ -231,11 +231,11 @@
   </div>
 
   <!-- MODAL RÉPARTITION XP -->
-  <div id="xpModal" class="xp-modal" onclick="if(event.target===this)closeXpModal()">
+  <div id="xpModal" class="xp-modal">
     <div class="xp-modal-content">
       <div class="xp-modal-header">
         <h3>⚡ Répartition de mon XP</h3>
-        <button class="xp-modal-close" onclick="closeXpModal()">✕</button>
+        <button class="xp-modal-close" id="closeXpModalBtn">✕</button>
       </div>
   <div class="xp-breakdown">
     
@@ -1553,7 +1553,7 @@
   }
 </style>
 
-<script>
+<script nonce="<%= cspNonce %>">
   // ─── Système de rangs et niveaux ───────────────────────────────────
   const XP_PAR_NIVEAU = 1000;
   const XP_SYSTEM = <%- JSON.stringify({ranks: XP_SYSTEM.ranks}) %>;
@@ -2888,6 +2888,7 @@
         // re-run scripts inside the loaded HTML
         body.querySelectorAll('script').forEach(s => {
           const ns = document.createElement('script');
+          ns.nonce = "<%= cspNonce %>";
           ns.textContent = s.textContent;
           s.replaceWith(ns);
         });
@@ -2906,6 +2907,16 @@
     document.getElementById('xpModal').classList.remove('active');
     document.body.style.overflow = '';
   }
+  document.getElementById('openSuccesModalBtn')?.addEventListener('click', openSuccesModal);
+  document.getElementById('openXpModalBtn')?.addEventListener('click', openXpModal);
+  document.getElementById('closeSuccesModalBtn')?.addEventListener('click', closeSuccesModal);
+  document.getElementById('closeXpModalBtn')?.addEventListener('click', closeXpModal);
+  document.getElementById('succesModal')?.addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeSuccesModal();
+  });
+  document.getElementById('xpModal')?.addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeXpModal();
+  });
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeXpModal(); closeSuccesModal(); }
   });

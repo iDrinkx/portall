@@ -1178,7 +1178,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= cspNonce %>">
   const basePath = '<%= basePath || "" %>';
   const dateFormat = new Intl.DateTimeFormat('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' });
   const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'numeric' });

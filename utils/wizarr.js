@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const { safeFetchConfiguredUrl } = require('./network-url');
 const log = require('./logger').create('[Wizarr]');
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -72,7 +72,7 @@ async function fetchJson(url, apiKey, timeout = WIZARR_LIST_TIMEOUT_MS) {
 
   for (const headers of headersToTry) {
     try {
-      const resp = await fetch(url, {
+      const resp = await safeFetchConfiguredUrl(url, {
         headers,
         timeout
       });

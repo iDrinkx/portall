@@ -205,11 +205,11 @@
 <% }); %>
 
 <script src="<%= basePath %>/js/dashboard.js"></script>
-<script>
+<script nonce="<%= cspNonce %>">
   window.DASHBOARD_SERVER_STATS_ENABLED = <%= dashboardServerStatsEnabled ? "true" : "false" %>;
 </script>
 <% if (dashboardServerStatsEnabled) { %>
-<script>
+<script nonce="<%= cspNonce %>">
 (function () {
   const bp      = '<%= basePath %>';
   const userId  = document.body.getAttribute('data-user-id') || 'guest';
@@ -270,7 +270,7 @@
 </script>
 <% } %>
 
-<script>
+<script nonce="<%= cspNonce %>">
 // ─── XP Rank Ring (même logique que la page profil) ───────────────────
 (function () {
   const userId = document.body.getAttribute('data-user-id') || 'guest';
@@ -320,7 +320,7 @@
 })();
 </script>
 
-<script>
+<script nonce="<%= cspNonce %>">
 // ─── Prefetch post-login (safe, non bloquant, une fois par session) ───
 (function () {
   const bp = window.APP_BASE_PATH || '';
@@ -389,7 +389,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= cspNonce %>">
   // Version Footer & Changelog Management (Dashboard only)
   (function() {
     const versionNumber = document.getElementById('versionNumber');

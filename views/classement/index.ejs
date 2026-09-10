@@ -640,7 +640,18 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= cspNonce %>">
+  document.addEventListener('error', function (event) {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement)) return;
+    if (image.matches('.lb-pod-img, .lb-row-avatar')) {
+      image.style.display = 'none';
+      if (image.nextElementSibling) image.nextElementSibling.style.display = 'flex';
+    }
+    if (image.matches('.lb-preview-avatar') && image.parentElement) {
+      image.parentElement.innerHTML = '<span class="lb-preview-value lb-preview-value--muted">?</span>';
+    }
+  }, true);
 (function () {
   const ME = '<%= user.username %>';
   const ME_THUMB = <%- JSON.stringify((user && user.thumb) ? user.thumb : '') %>;
@@ -675,7 +686,7 @@
       : 'drop-shadow(0 0 9px ' + user.rank.color + 'cc) drop-shadow(0 0 22px ' + user.rank.color + '55)';
     var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
     var imgPart  = effectiveThumb
-      ? '<img src="' + effectiveThumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      ? '<img src="' + effectiveThumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '">'
         + '<div class="lb-pod-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
       : '<div class="lb-pod-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
@@ -715,7 +726,7 @@
 
     var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
     var imgPart = effectiveThumb
-      ? '<img src="' + effectiveThumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      ? '<img src="' + effectiveThumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '">'
         + '<div class="lb-row-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
       : '<div class="lb-row-placeholder" style="filter:' + glow + '">' + initials + '</div>';
 
@@ -769,7 +780,7 @@
     var totalHours = Math.round(user.totalHours || 0).toLocaleString('fr-FR');
     var effectiveThumb = user.thumb || (user.username === ME ? ME_THUMB : '');
     var avatarHtml = effectiveThumb
-      ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<span class=&quot;lb-preview-value lb-preview-value--muted&quot;>?</span>\'">'
+      ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy">'
       : '<span class="lb-preview-value lb-preview-value--muted" style="font-size:36px">' + escHtml((user.username || '?').charAt(0).toUpperCase()) + '</span>';
 
     previewBody.innerHTML =

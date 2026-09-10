@@ -7,11 +7,23 @@
   <link rel="icon" type="<%= (siteFavicon && siteFavicon.type) || 'image/png' %>" href="<%= basePath %><%= (siteFavicon && siteFavicon.href) || '/logo.png' %>" />
   <link rel="apple-touch-icon" href="<%= basePath %><%= (siteFavicon && siteFavicon.href) || '/logo.png' %>" />
   <title><%= siteTitle || "portall" %></title>
-  <script>
+  <script nonce="<%= cspNonce %>">
     window.APP_BASE_PATH = "<%= basePath %>";
     window.APP_LOCALE = "<%= locale || 'fr' %>";
     window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}) %>;
     window.APP_SITE_BACKGROUND = <%- JSON.stringify(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }) %>;
+    window.PORTALL_CSRF_TOKEN = "<%= csrfToken || '' %>";
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      const options = init || {};
+      const method = String(options.method || "GET").toUpperCase();
+      if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+        const headers = new Headers(options.headers || {});
+        headers.set("X-CSRF-Token", window.PORTALL_CSRF_TOKEN);
+        options.headers = headers;
+      }
+      return originalFetch(input, options);
+    };
   </script>
 </head>
 <body class="site-bg-mode-<%= (siteBackground && siteBackground.mode) || 'particles' %>" style="--site-bg-opacity:<%= siteBackground && siteBackground.customOpacity != null ? siteBackground.customOpacity : 0.34 %>;--site-card-opacity:<%= siteBackground && siteBackground.cardOpacity != null ? siteBackground.cardOpacity : 0.012 %>;--site-card-soft-opacity:<%= siteBackground && siteBackground.cardOpacitySoft != null ? siteBackground.cardOpacitySoft : 0.222 %>;--site-card-elevated-opacity:<%= siteBackground && siteBackground.cardOpacityElevated != null ? siteBackground.cardOpacityElevated : 0.242 %>;--site-card-input-opacity:<%= siteBackground && siteBackground.cardOpacityInput != null ? siteBackground.cardOpacityInput : 0.362 %>;<% if (siteBackground && siteBackground.mode === 'custom' && siteBackground.customUrl) { %>--site-bg-image:url('<%= siteBackground.customUrl.replace(/'/g, "\\'") %>');<% } %>" <% if (user) { %>data-user-id="<%= user.id %>"<% } %>>
@@ -92,7 +104,7 @@
   <%- body %>
 </main>
 
-<script>
+<script nonce="<%= cspNonce %>">
   (function () {
     function applyViewportHeight() {
       const viewport = window.visualViewport;
@@ -127,7 +139,7 @@
   })();
 </script>
 
-<script>
+<script nonce="<%= cspNonce %>">
   (function () {
     if ((window.APP_LOCALE || "fr") === "fr") return;
     const textMap = window.APP_RUNTIME_TEXT_MAP || {};
@@ -188,7 +200,7 @@
   })();
 </script>
 
-<script>
+<script nonce="<%= cspNonce %>">
   document.addEventListener("DOMContentLoaded", () => {
     const backgroundMode = (window.APP_SITE_BACKGROUND && window.APP_SITE_BACKGROUND.mode) || "particles";
     const particlesLayer = document.getElementById("siteParticles");
@@ -297,7 +309,7 @@
   });
 </script>
 
-<script>
+<script nonce="<%= cspNonce %>">
   document.addEventListener("DOMContentLoaded", () => {
     const burger = document.getElementById("burger");
     const mobileMenu = document.getElementById("mobileMenu");

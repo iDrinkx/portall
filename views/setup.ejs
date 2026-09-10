@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title><%= t("setup.title") %></title>
-  <script>
+  <script nonce="<%= cspNonce %>">
     window.APP_LOCALE = "<%= locale || 'fr' %>";
     window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}) %>;
   </script>
@@ -359,7 +359,7 @@
     </div>
   </section>
 
-  <script>
+  <script nonce="<%= cspNonce %>">
     (function () {
       if ((window.APP_LOCALE || "fr") === "fr") return;
       const textMap = window.APP_RUNTIME_TEXT_MAP || {};
@@ -398,7 +398,7 @@
     })();
   </script>
 
-  <script>
+  <script nonce="<%= cspNonce %>">
     (function () {
       const form = document.getElementById("setupForm");
       const state = document.getElementById("setupState");

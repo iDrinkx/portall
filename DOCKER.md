@@ -42,11 +42,16 @@ services:
       SETUP_TOKEN: "${SETUP_TOKEN}"
       NODE_ENV: "production"
       COOKIE_SECURE: "true"
+      TRUST_PROXY: "${TRUST_PROXY:-false}"
     volumes:
       - ./config:/config
       - /mnt/user/appdata/tautulli:/tautulli-data
     restart: unless-stopped
 ```
+
+## Reverse proxy
+
+`TRUST_PROXY` vaut `false` par defaut : les headers `X-Forwarded-*` sont ignores et un acces direct au port `3000` ne peut pas usurper l'IP client. Avec Nginx Proxy Manager, definissez `TRUST_PROXY=1` dans `.env` et n'exposez pas directement ce port ; `req.ip` reflete alors le client et `req.secure` reconnait HTTPS. Pour plusieurs proxies, utilisez leurs IP/CIDR explicites, separes par des virgules. N'utilisez jamais `TRUST_PROXY=true`.
 
 ## Notes securite
 

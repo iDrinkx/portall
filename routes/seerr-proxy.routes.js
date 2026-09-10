@@ -15,10 +15,10 @@
  */
 
 const express = require("express");
-const fetch   = require("node-fetch");
 const router  = express.Router();
 const log = require("../utils/logger");
 const { getConfigValue } = require("../utils/config");
+const { safeFetchConfiguredUrl } = require("../utils/network-url");
 const logSSO = log.create('[Seerr SSO]');
 
 function requireAuth(req, res, next) {
@@ -44,7 +44,7 @@ async function grabSeerrCookie(authToken, res, username) {
   if (!seerrUrl) { logSSO.warn('SEERR_URL non configuré'); return false; }
   if (!authToken) { logSSO.warn(`Token absent pour ${username} — reconnexion requise`); return false; }
   try {
-    const r = await fetch(`${seerrUrl}/api/v1/auth/plex`, {
+    const r = await safeFetchConfiguredUrl(`${seerrUrl}/api/v1/auth/plex`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ authToken })

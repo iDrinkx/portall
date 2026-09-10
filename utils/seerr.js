@@ -1,4 +1,4 @@
-const fetch = require("node-fetch");
+const { safeFetchConfiguredUrl } = require("./network-url");
 const { AppSettingQueries } = require("./database");
 const { getConfigValue } = require("./config");
 const seerrLog = require("./logger").create("[Seerr]");
@@ -25,7 +25,7 @@ async function createSeerrSessionCookie(SEERR_URL) {
   if (!SEERR_URL || !adminPlexToken) return null;
 
   try {
-    const res = await fetch(`${SEERR_URL.replace(/\/$/, "")}/api/v1/auth/plex`, {
+    const res = await safeFetchConfiguredUrl(`${SEERR_URL.replace(/\/$/, "")}/api/v1/auth/plex`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -60,7 +60,7 @@ async function fetchSeerrJson(url, SEERR_API_KEY, SEERR_URL, options = {}) {
   const preferredSessionCookie = String(options.sessionCookie || "").trim();
 
   async function run(headers) {
-    const res = await fetch(url, { headers });
+    const res = await safeFetchConfiguredUrl(url, { headers });
     if (!res.ok) {
       const text = await res.text();
       return { ok: false, status: res.status, text };
@@ -120,7 +120,7 @@ async function findSeerrUserByEmail(email, SEERR_URL, SEERR_API_KEY, username = 
       url.searchParams.set("skip", page * 50);
       url.searchParams.set("take", 50);
 
-      const res = await fetch(url.toString(), {
+      const res = await safeFetchConfiguredUrl(url.toString(), {
         headers: {
           "X-API-Key": SEERR_API_KEY,
           "Accept": "application/json"
@@ -195,7 +195,7 @@ async function getCurrentSeerrUser(SEERR_URL, SEERR_API_KEY) {
     }
 
     const url = `${SEERR_URL}/api/v1/auth/me`;
-    const res = await fetch(url, {
+    const res = await safeFetchConfiguredUrl(url, {
       headers: {
         "X-API-Key": SEERR_API_KEY,
         "Accept": "application/json"
@@ -420,7 +420,7 @@ async function getSeerrGlobalStats(SEERR_URL, SEERR_API_KEY) {
     url.searchParams.set("page", "1");
     url.searchParams.set("perPage", "1");
 
-    const res = await fetch(url.toString(), {
+    const res = await safeFetchConfiguredUrl(url.toString(), {
       headers: {
         "X-API-Key": SEERR_API_KEY,
         "Accept": "application/json"

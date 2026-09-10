@@ -9,6 +9,7 @@ const path = require('path');
 const log = require('./logger').create('[Tautulli DB]');
 const { getConfigValue } = require('./config');
 const { CollectionItemMappingQueries, AppSettingQueries } = require('./database');
+const { safeFetchConfiguredUrl } = require('./network-url');
 
 let tautulliDb = null;
 
@@ -741,7 +742,7 @@ async function getPlexLibraryIndex() {
   plexLibraryIndexCache.promise = (async () => {
     try {
     const sectionsUrl = `${plexUrl}/library/sections?X-Plex-Token=${plexToken}`;
-    const sectionsResp = await fetch(sectionsUrl, { headers: { Accept: 'application/json' } });
+    const sectionsResp = await safeFetchConfiguredUrl(sectionsUrl, { headers: { Accept: 'application/json' } });
     if (!sectionsResp.ok) throw new Error(`sections HTTP ${sectionsResp.status}`);
 
     const sections = (await sectionsResp.json())?.MediaContainer?.Directory || [];
@@ -761,7 +762,7 @@ async function getPlexLibraryIndex() {
         url.searchParams.set('X-Plex-Container-Size', String(size));
         url.searchParams.set('X-Plex-Token', plexToken);
 
-        const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+        const resp = await safeFetchConfiguredUrl(url.toString(), { headers: { Accept: 'application/json' } });
         if (!resp.ok) throw new Error(`section ${section.key} HTTP ${resp.status}`);
 
         const metadata = (await resp.json())?.MediaContainer?.Metadata || [];

@@ -32,6 +32,7 @@ const {
   getBackgroundAchievementRefreshStatus
 } = require("../utils/achievement-state");
 const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
+const { safeFetchConfiguredUrl, validateTrustedServiceUrl, resolveAndValidateHostname } = require("../utils/network-url");
 const {
   getDashboardBuiltinAdminItems,
   saveDashboardBuiltinConfig,
@@ -56,6 +57,9 @@ const { SUPPORTED_LOCALES, getSiteLanguage } = require("../utils/i18n");
 const { BACKGROUND_PRESETS, getSiteBackgroundSettings, saveSiteBackgroundSettings } = require("../utils/site-background");
 const { getConfiguredStatusSummary, normalizeProvider } = require("../utils/uptime-status");
 const { runConfigDiagnostics } = require("../utils/config-diagnostics");
+const { sensitiveApiLimiter } = require("../middleware/rate-limit.middleware");
+
+router.use("/api/admin", sensitiveApiLimiter);
 
 const PLEX_LIVE_TIMEOUT_MS = 12000;
 const NOW_PLAYING_CACHE_TTL_MS = 45 * 1000;
@@ -570,7 +574,7 @@ async function authenticateJellyfin(username, password) {
   if (!jellyfinUrl || !username || !password) return null;
   try {
     const deviceId = `portall-${crypto.randomUUID()}`;
-    const authResp = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
+    const authResp = await safeFetchConfiguredUrl(`${jellyfinUrl}/Users/AuthenticateByName`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -601,7 +605,7 @@ async function loginRommAndGetSessionCookies(username, password) {
   let hiddenFields = {};
 
   try {
-    const preflightResp = await fetch(`${rommUrl}/login`, {
+    const preflightResp = await safeFetchConfiguredUrl(`${rommUrl}/login`, {
       method: "GET",
       redirect: "manual",
       headers: {
@@ -613,7 +617,8 @@ async function loginRommAndGetSessionCookies(username, password) {
     const preflightHtml = await preflightResp.text().catch(() => "");
     const formActionMatch = preflightHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
     if (formActionMatch?.[1]) {
-      loginPostUrl = new URL(formActionMatch[1], `${rommUrl}/login`).toString();
+      const candidateUrl = new URL(formActionMatch[1], `${rommUrl}/login`);
+      if (candidateUrl.origin === new URL(rommUrl).origin) loginPostUrl = candidateUrl.toString();
     }
     const hiddenFieldMatches = [...preflightHtml.matchAll(/<input[^>]*type=["']hidden["'][^>]*name=["']([^"']+)["'][^>]*value=["']([^"']*)["'][^>]*>/gi)];
     hiddenFields = Object.fromEntries(hiddenFieldMatches.map((m) => [m[1], m[2]]));
@@ -705,7 +710,7 @@ async function loginRommAndGetSessionCookies(username, password) {
       const requestUrl = options.url || loginPostUrl;
       const fetchOptions = { ...options };
       delete fetchOptions.url;
-      const resp = await fetch(requestUrl, fetchOptions);
+      const resp = await safeFetchConfiguredUrl(requestUrl, fetchOptions);
       const setCookies = resp.headers.raw()["set-cookie"] || [];
       const location = resp.headers.get("location") || "";
       const contentType = resp.headers.get("content-type") || "unknown";
@@ -765,7 +770,7 @@ async function loginKomgaAndGetSessionCookies(username, password) {
 
   for (const options of attempts) {
     try {
-      const resp = await fetch(`${komgaUrl}/login`, options);
+      const resp = await safeFetchConfiguredUrl(`${komgaUrl}/login`, options);
       const setCookies = resp.headers.raw()["set-cookie"] || [];
       const sessionCookie = setCookies.find(c => c.startsWith("KOMGA-SESSION="));
       const rememberCookie = setCookies.find(c => c.startsWith("komga-remember-me="));
@@ -780,7 +785,7 @@ async function fetchKomgaCurrentUser(komgaUrl, headers) {
   const endpoints = ["/api/v2/users/me", "/api/v1/users/me"];
   for (const endpoint of endpoints) {
     try {
-      const resp = await fetch(`${komgaUrl}${endpoint}`, {
+      const resp = await safeFetchConfiguredUrl(`${komgaUrl}${endpoint}`, {
         method: "GET",
         headers
       });
@@ -799,7 +804,7 @@ async function fetchKomgaBooksTotal(sessionUser) {
     let resp = null;
 
     if (globalApiKey) {
-      resp = await fetch(`${komgaUrl}/api/v1/books?page=0&size=1`, {
+      resp = await safeFetchConfiguredUrl(`${komgaUrl}/api/v1/books?page=0&size=1`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -813,7 +818,7 @@ async function fetchKomgaBooksTotal(sessionUser) {
       const cred = getUserServiceCredential(sessionUser, "komga");
       if (!cred?.username || !cred?.password) return null;
       const basic = Buffer.from(`${cred.username}:${cred.password}`).toString("base64");
-      resp = await fetch(`${komgaUrl}/api/v1/books?page=0&size=1`, {
+      resp = await safeFetchConfiguredUrl(`${komgaUrl}/api/v1/books?page=0&size=1`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -881,7 +886,7 @@ async function grabKomgaCookieForUser(res, sessionUser) {
     }
 
     const xAuthToken = meResp.headers.get("x-auth-token") || xAuthSeed;
-    const setCookieResp = await fetch(`${komgaUrl}/api/v1/login/set-cookie`, {
+    const setCookieResp = await safeFetchConfiguredUrl(`${komgaUrl}/api/v1/login/set-cookie`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -1060,9 +1065,17 @@ function buildJellyfinAuthorizationHeader(jellyfinAuth) {
 }
 
 router.use("/jellyfin-proxy", requireAuth, async (req, res, next) => {
-  const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
-  if (!jellyfinUrl) {
+  const configuredJellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
+  if (!configuredJellyfinUrl) {
     return res.status(503).send("Jellyfin non configure cote serveur");
+  }
+
+  let jellyfinUrl;
+  try {
+    jellyfinUrl = validateTrustedServiceUrl(configuredJellyfinUrl);
+    await resolveAndValidateHostname(jellyfinUrl);
+  } catch (_) {
+    return res.status(503).send("Jellyfin URL non autorisee");
   }
 
   const existingAuth = req.session?.jellyfinAuth;
@@ -1833,7 +1846,7 @@ router.get("/api/all-users", async (req, res) => {
     let totalPages = 1;
 
     while (page <= totalPages) {
-      const resp = await fetch(
+      const resp = await safeFetchConfiguredUrl(
         `${baseUrl}/api/v1/user?skip=${(page - 1) * pageSize}&take=${pageSize}`,
         {
           headers: {
@@ -2135,7 +2148,8 @@ router.post("/api/admin/config", requireAuth, requireAdmin, async (req, res) => 
       diagnostics
     });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Impossible d'enregistrer les connexions" });
+    res.status(/Invalid service URL|not allowed/.test(String(err.message)) ? 400 : 500)
+      .json({ error: "Impossible d'enregistrer les connexions" });
   }
 });
 
@@ -2361,7 +2375,7 @@ router.get("/api/now-playing", requireAuth, async (req, res) => {
   if (!plexUrl || !plexToken) return res.json(buildLastPlayedResponse());
 
   try {
-    const r = await fetch(`${plexUrl}/status/sessions`, {
+    const r = await safeFetchConfiguredUrl(`${plexUrl}/status/sessions`, {
       headers: { "X-Plex-Token": plexToken, "Accept": "application/json" },
       timeout: PLEX_LIVE_TIMEOUT_MS
     });
@@ -2447,7 +2461,7 @@ router.get("/api/plex-thumb", requireAuth, async (req, res) => {
   }
 
   try {
-    const r = await fetch(`${plexUrl}${thumbPath}`, {
+    const r = await safeFetchConfiguredUrl(`${plexUrl}${thumbPath}`, {
       headers: { "X-Plex-Token": plexToken },
       timeout: 12000
     });

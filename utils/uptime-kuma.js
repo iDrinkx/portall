@@ -1,4 +1,5 @@
 const { io } = require("socket.io-client");
+const { validateTrustedServiceUrl, resolveAndValidateHostname } = require("./network-url");
 
 const CACHE_TTL_MS = 5 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
@@ -510,7 +511,18 @@ function buildNormalizedStatus(privateData = {}) {
 }
 
 async function getPublicStatusPageSummary({ baseUrl, username = "", password = "" }) {
-  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  let normalizedBaseUrl;
+  try {
+    normalizedBaseUrl = validateTrustedServiceUrl(normalizeBaseUrl(baseUrl));
+    if (normalizedBaseUrl) await resolveAndValidateHostname(normalizedBaseUrl);
+  } catch (error) {
+    return {
+      enabled: false,
+      services: [],
+      summary: { total: 0, up: 0, down: 0, maintenance: 0, pending: 0 },
+      privateError: error.message
+    };
+  }
 
   if (!normalizedBaseUrl || !username || !password) {
     return { enabled: false, services: [], summary: { total: 0, up: 0, down: 0, maintenance: 0, pending: 0 } };

@@ -1,4 +1,4 @@
-const fetch = require("node-fetch");
+const { safeFetchConfiguredUrl } = require("./network-url");
 const { getPlexJoinDate } = require("./plex");
 const SessionStatsCache = require("./session-stats-cache-db");  // 🗄️ Utiliser SQLite
 const TautulliEvents = require("./tautulli-events");  // 📢 EventEmitter pour notifier clients
@@ -132,7 +132,7 @@ async function getTautulliUserInfo(username, TAUTULLI_URL, TAUTULLI_API_KEY) {
       logT.warn(`getTautulliUserInfo DB: ${err.message}`);
     }
 
-    const res = await fetch(
+    const res = await safeFetchConfiguredUrl(
       `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_user&user=${encodeURIComponent(username)}`,
       { headers: { Accept: "application/json" } }
     );
@@ -211,7 +211,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
     const tautulliUsers = [];
     
     try {
-      const usersRes = await fetch(
+      const usersRes = await safeFetchConfiguredUrl(
         `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_users`,
         { headers: { Accept: "application/json" } }
       );
@@ -269,7 +269,7 @@ async function scanTautulliHistoryForAllUsers(TAUTULLI_URL, TAUTULLI_API_KEY) {
     
     while (true) {
       try {
-        const histRes = await fetch(
+        const histRes = await safeFetchConfiguredUrl(
           `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_history&start=${pageIndex}&length=${pageSize}`,
           { headers: { Accept: "application/json" } }
         );
@@ -551,7 +551,7 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
     }
 
     if (!tautulliUsers.length) {
-      const usersRes = await fetch(
+      const usersRes = await safeFetchConfiguredUrl(
         `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_users`,
         { headers: { Accept: "application/json" } }
       );
@@ -639,7 +639,7 @@ async function syncTautulliHistoryToDatabase(maxSessions = 5000, forceFullSync =
             offset: pageIndex
           });
         } else {
-          const histRes = await fetch(
+          const histRes = await safeFetchConfiguredUrl(
             `${TAUTULLI_URL}/api/v2?apikey=${TAUTULLI_API_KEY}&cmd=get_history&start=${pageIndex}&length=${currentBatchSize}`,
             { headers: { Accept: "application/json" } }
           );

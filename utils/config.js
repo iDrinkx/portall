@@ -1,4 +1,5 @@
 const { AppSettingQueries } = require("./database");
+const { validateTrustedServiceUrl } = require("./network-url");
 
 const CONFIG_PREFIX = "config_";
 
@@ -87,7 +88,8 @@ function normalizeValue(field, value) {
   if (field.type === "boolean") {
     return value === true || value === "true" || value === "1" ? "true" : "false";
   }
-  return String(value == null ? "" : value).trim();
+  const normalized = String(value == null ? "" : value).trim();
+  return field.type === "url" ? validateTrustedServiceUrl(normalized) : normalized;
 }
 
 function getStoredConfigMap() {
