@@ -1,3 +1,9 @@
+## [1.42.16](https://github.com/iDrinkx/portall/compare/v1.42.15...v1.42.16) (2026-09-10)
+
+### Corrections de bugs
+
+* **security:** harden runtime and embedded content ([7f177de](https://github.com/iDrinkx/portall/commit/7f177de83effa3c177178293a003e306c6d775b0))
+
 ## [1.42.15](https://github.com/iDrinkx/portall/compare/v1.42.14...v1.42.15) (2026-09-10)
 
 ### Corrections de bugs
