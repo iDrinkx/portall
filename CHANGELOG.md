@@ -1,3 +1,11 @@
+## [1.42.15](https://github.com/iDrinkx/portall/compare/v1.42.14...v1.42.15) (2026-09-10)
+
+### Corrections de bugs
+
+* **security:** harden proxy trust and IPv6 validation ([4fca2c7](https://github.com/iDrinkx/portall/commit/4fca2c706169a1607a8587e469d43a09e398c243))
+* **security:** harden web requests and browser protections ([b432e50](https://github.com/iDrinkx/portall/commit/b432e502ff36ead1d81eed85dafc36b1fe613858))
+* **security:** include trust proxy configuration helper ([896f465](https://github.com/iDrinkx/portall/commit/896f465a1bf4ed4fc4740998302e8e890c875aca))
+
 ## [1.42.14](https://github.com/iDrinkx/portall/compare/v1.42.13...v1.42.14) (2026-09-10)
 
 ### Corrections de bugs
