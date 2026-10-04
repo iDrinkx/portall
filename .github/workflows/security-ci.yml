@@ -46,18 +46,29 @@ jobs:
           SETUP_TOKEN="$(openssl rand -hex 32)"
           CONFIG_DIR="$(mktemp -d)"
           CONTAINER=portall-security-test-runner
-          trap 'docker logs "$CONTAINER" > docker-security.log 2>&1 || true; docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; rm -rf "$CONFIG_DIR"' EXIT
+          trap 'docker logs "$CONTAINER" > docker-security.log 2>&1 || true; docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; sudo rm -rf "$CONFIG_DIR"' EXIT
 
           docker run -d --name "$CONTAINER" -p 127.0.0.1::3000 \
             -e NODE_ENV=production -e PORT=3000 -e PUID=10001 -e PGID=10001 \
-            -e SESSION_SECRET -e CREDENTIALS_ENCRYPTION_KEY -e SETUP_TOKEN \
+            -e SESSION_SECRET="$SESSION_SECRET" \
+            -e CREDENTIALS_ENCRYPTION_KEY="$CREDENTIALS_ENCRYPTION_KEY" \
+            -e SETUP_TOKEN="$SETUP_TOKEN" \
             -v "$CONFIG_DIR:/config" portall-security-test
 
           PORT="$(docker port "$CONTAINER" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          READY=0
           for _ in {1..30}; do
-            if curl -fsS -D headers.txt -o body.html "http://127.0.0.1:$PORT/setup"; then break; fi
+            if curl -fsS -D headers.txt -o body.html "http://127.0.0.1:$PORT/setup"; then
+              READY=1
+              break
+            fi
             sleep 1
           done
+          if [ "$READY" -ne 1 ]; then
+            echo "Portall failed to become ready"
+            docker logs "$CONTAINER"
+            exit 1
+          fi
           test -s headers.txt
           grep -qi '^content-security-policy:' headers.txt
           grep -qi '^x-content-type-options: nosniff' headers.txt
