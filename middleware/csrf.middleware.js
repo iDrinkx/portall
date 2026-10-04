@@ -18,7 +18,7 @@ function secureEqual(left, right) {
 function requireCsrfToken(req, res, next) {
   if (req.path === "/api/setup" || req.path === "/api/setup/diagnostics") return next();
   if (!UNSAFE_METHODS.has(req.method) || !req.session?.user) return next();
-  if (secureEqual(req.get("X-CSRF-Token"), req.session.csrfToken)) return next();
+  if (secureEqual(req.get("X-CSRF-Token") || req.body?._csrf, req.session.csrfToken)) return next();
   return res.status(403).json({ error: "Invalid request token" });
 }
 

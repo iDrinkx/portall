@@ -13,6 +13,17 @@ function isBlockedIpv6(hostname) {
   const value = String(hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
   if (value === "::") return true;
   if (value === "::1") return false;
+  // RFC 6052 local-use NAT64 prefix and IPv4-mapped IPv6 must not bypass
+  // the IPv4 metadata/link-local policy.
+  if (/^64:ff9b:1:/i.test(value)) return true;
+  const mappedIpv4 = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (mappedIpv4) return isBlockedIpv4(mappedIpv4[1]);
+  const mappedHex = value.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (mappedHex) {
+    const high = Number.parseInt(mappedHex[1], 16);
+    const low = Number.parseInt(mappedHex[2], 16);
+    return isBlockedIpv4(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+  }
 
   const firstHextet = Number.parseInt(value.split(":", 1)[0], 16);
   if (!Number.isInteger(firstHextet)) return true;

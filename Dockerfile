@@ -15,8 +15,7 @@ WORKDIR /app
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends gosu \
-  && rm -rf /var/lib/apt/lists/* \
-  && npm install -g npm@11.19.1
+  && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY --from=dependencies /app/node_modules ./node_modules

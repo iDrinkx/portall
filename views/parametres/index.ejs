@@ -1366,14 +1366,14 @@
     let editingCardId = null;
     let canCreate = true;
     let dashboardLayoutInFlight = false;
-    let siteBackgroundFileDataUrl = <%- JSON.stringify(siteBackground && String(siteBackground.customUrl || "").startsWith("data:image/") ? siteBackground.customUrl : "").replace(/<\//g, "<\\/") %>;
+    let siteBackgroundFileDataUrl = <%- safeJsonForScript(siteBackground && String(siteBackground.customUrl || "").startsWith("data:image/") ? siteBackground.customUrl : "") %>;
     let siteBackgroundCustomSource = siteBackgroundFileDataUrl ? "file" : "url";
     const SITE_BACKGROUND_RECOMMENDED_MAX_BYTES = 8 * 1024 * 1024;
-    let dashboardBuiltinItems = <%- JSON.stringify(dashboardBuiltinItems || []).replace(/<\//g, "<\\/") %>;
-    let dashboardLayoutItems = <%- JSON.stringify(dashboardLayoutItems || []).replace(/<\//g, "<\\/") %>;
-    let dashboardSectionItems = <%- JSON.stringify(dashboardSectionItems || []).replace(/<\//g, "<\\/") %>;
-    let dashboardCustomCardItems = <%- JSON.stringify(dashboardCustomCards || []).replace(/<\//g, "<\\/") %>;
-    let dashboardHtmlBlockItems = <%- JSON.stringify((dashboardCustomHtmlBlocks && dashboardCustomHtmlBlocks.length ? dashboardCustomHtmlBlocks : [{ id: "block-1", html: dashboardCustomHtmlRaw || "" }]) || []).replace(/<\//g, "<\\/") %>;
+    let dashboardBuiltinItems = <%- safeJsonForScript(dashboardBuiltinItems || []) %>;
+    let dashboardLayoutItems = <%- safeJsonForScript(dashboardLayoutItems || []) %>;
+    let dashboardSectionItems = <%- safeJsonForScript(dashboardSectionItems || []) %>;
+    let dashboardCustomCardItems = <%- safeJsonForScript(dashboardCustomCards || []) %>;
+    let dashboardHtmlBlockItems = <%- safeJsonForScript((dashboardCustomHtmlBlocks && dashboardCustomHtmlBlocks.length ? dashboardCustomHtmlBlocks : [{ id: "block-1", html: dashboardCustomHtmlRaw || "" }]) || []) %>;
     const backgroundPresetLabels = {
       particles: "<%= t('settings.background.presets.particles') %>",
       aurora: "<%= t('settings.background.presets.aurora') %>",
@@ -1414,7 +1414,7 @@
       const tests = Array.isArray(diagnostics && diagnostics.tests) ? diagnostics.tests : [];
       if (!tests.length) {
         configDiagnosticsState.textContent = "Aucun test lance pour le moment.";
-        configDiagnosticsList.innerHTML = "";
+        configDiagnosticsList.replaceChildren();
         return;
       }
 
@@ -1423,18 +1423,17 @@
         ? "Toutes les connexions testees sont operationnelles."
         : okCount + "/" + tests.length + " connexions valides. Les autres demandent une correction.";
 
-      configDiagnosticsList.innerHTML = tests.map(function (test) {
+      const fragment = document.createDocumentFragment();
+      tests.forEach(function (test) {
         const ok = !!test.ok;
-        return `
-          <div class="config-diagnostics-card ${ok ? "is-ok" : "is-error"}">
-            <div class="config-diagnostics-head">
-              <div class="config-diagnostics-title">${escHtml(test.label || "Service")}</div>
-              <div class="config-diagnostics-badge ${ok ? "is-ok" : "is-error"}">${ok ? "Connexion OK" : "Erreur"}</div>
-            </div>
-            <div class="config-diagnostics-message">${escHtml(test.message || (ok ? "Connexion OK" : "Verification impossible"))}</div>
-          </div>
-        `;
-      }).join("");
+        const card = document.createElement("div"); card.className = "config-diagnostics-card " + (ok ? "is-ok" : "is-error");
+        const head = document.createElement("div"); head.className = "config-diagnostics-head";
+        const title = document.createElement("div"); title.className = "config-diagnostics-title"; title.textContent = String(test.label || "Service");
+        const badge = document.createElement("div"); badge.className = "config-diagnostics-badge " + (ok ? "is-ok" : "is-error"); badge.textContent = ok ? "Connexion OK" : "Erreur";
+        const message = document.createElement("div"); message.className = "config-diagnostics-message"; message.textContent = String(test.message || (ok ? "Connexion OK" : "Verification impossible"));
+        head.append(title, badge); card.append(head, message); fragment.append(card);
+      });
+      configDiagnosticsList.replaceChildren(fragment);
     }
 
     function updateUptimeProviderFields() {
@@ -1502,17 +1501,17 @@
       const blocks = Array.isArray(dashboardHtmlBlockItems) && dashboardHtmlBlockItems.length
         ? dashboardHtmlBlockItems
         : [{ id: "block-1", html: "" }];
-      dashboardHtmlBlocks.innerHTML = blocks.map(function (block, index) {
-        return `
-          <div class="dashboard-html-block" data-dashboard-html-block data-block-id="${escAttr(block.id || ("block-" + (index + 1)))}">
-            <div class="dashboard-html-block-head">
-              <div class="dashboard-html-block-title">Bloc ${index + 1}</div>
-              <button class="dashboard-html-block-remove" type="button" data-remove-dashboard-html-block="${escAttr(block.id || ("block-" + (index + 1)))}"><%= t("settings.dashboardHtml.removeBlock") %></button>
-            </div>
-            <textarea spellcheck="false" autocomplete="off">${escHtml(block.html || "")}</textarea>
-          </div>
-        `;
-      }).join("");
+      const fragment = document.createDocumentFragment();
+      blocks.forEach(function (block, index) {
+        const id = String(block.id || ("block-" + (index + 1))).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || ("block-" + (index + 1));
+        const item = document.createElement("div"); item.className = "dashboard-html-block"; item.dataset.dashboardHtmlBlock = ""; item.dataset.blockId = id;
+        const head = document.createElement("div"); head.className = "dashboard-html-block-head";
+        const title = document.createElement("div"); title.className = "dashboard-html-block-title"; title.textContent = "Bloc " + (index + 1);
+        const remove = document.createElement("button"); remove.className = "dashboard-html-block-remove"; remove.type = "button"; remove.dataset.removeDashboardHtmlBlock = id; remove.textContent = "<%= t('settings.dashboardHtml.removeBlock') %>";
+        const textarea = document.createElement("textarea"); textarea.spellcheck = false; textarea.autocomplete = "off"; textarea.value = String(block.html || "");
+        head.append(title, remove); item.append(head, textarea); fragment.append(item);
+      });
+      dashboardHtmlBlocks.replaceChildren(fragment);
     }
 
     function updateSiteBackgroundUi() {
@@ -1536,10 +1535,17 @@
       return Math.min(1, Math.max(0.01, raw));
     }
 
+    function safeSiteBackgroundUrl(value) {
+      const raw = String(value || "").trim();
+      if (!raw || /[\s"'()\\]/.test(raw)) return "";
+      if (/^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=]+$/i.test(raw)) return raw;
+      return typeof window.safeHttpUrl === "function" ? (window.safeHttpUrl(raw) || "") : "";
+    }
+
     function getSelectedSiteBackgroundUrl() {
       const typedUrl = String((siteBackgroundCustomUrl && siteBackgroundCustomUrl.value) || "").trim();
-      if (siteBackgroundCustomSource === "file" && siteBackgroundFileDataUrl) return siteBackgroundFileDataUrl;
-      return typedUrl || siteBackgroundFileDataUrl || "";
+      if (siteBackgroundCustomSource === "file" && siteBackgroundFileDataUrl) return safeSiteBackgroundUrl(siteBackgroundFileDataUrl);
+      return safeSiteBackgroundUrl(typedUrl || siteBackgroundFileDataUrl);
     }
 
     function renderSiteBackgroundPreview() {
@@ -1565,7 +1571,10 @@
         siteBackgroundPreview.style.setProperty("--site-bg-preview-image", selectedUrl ? "url('" + selectedUrl.replace(/'/g, "\\'") + "')" : "none");
       }
       if (siteBackgroundPreviewModeLabel) {
-        siteBackgroundPreviewModeLabel.innerHTML = "<strong><%= t('settings.background.previewMode', { mode: '__MODE__' }) %></strong>".replace("__MODE__", escHtml(presetLabel));
+        siteBackgroundPreviewModeLabel.replaceChildren();
+        const strong = document.createElement("strong");
+        strong.textContent = "<%= t('settings.background.previewMode', { mode: '__MODE__' }) %>".replace("__MODE__", String(presetLabel));
+        siteBackgroundPreviewModeLabel.append(strong);
       }
       if (siteBackgroundPreviewOpacityLabel) {
         siteBackgroundPreviewOpacityLabel.textContent = "<%= t('settings.background.previewOpacity', { percent: '__PERCENT__' }) %>".replace("__PERCENT__", String(opacityPercent));
@@ -1578,24 +1587,24 @@
     function renderDashboardLayoutList() {
       if (!dashboardLayoutList) return;
 
-      dashboardLayoutList.innerHTML = dashboardLayoutItems.map(function (item, index) {
+      const fragment = document.createDocumentFragment();
+      dashboardLayoutItems.forEach(function (item, index) {
         const isFirst = index === 0;
         const isLast = index === dashboardLayoutItems.length - 1;
-        return `<div class="builtin-card-row" data-layout-id="${escAttr(item.id)}">
-          <div class="dash-card-meta">
-            <div class="dash-card-main">${escHtml(item.label)}</div>
-            <div class="dash-card-sub">${escHtml(item.category)} · ${escHtml(item.description || "")}</div>
-          </div>
-          <div class="builtin-card-actions">
-            <label class="switch" aria-label="Activer ou desactiver ${escAttr(item.label)}">
-              <input type="checkbox" data-layout-enabled ${item.enabled ? "checked" : ""}>
-              <span class="slider"></span>
-            </label>
-            <button class="builtin-card-order-btn" type="button" data-layout-move="up" ${isFirst ? "disabled" : ""}><%= t("settings.dashboardBuiltins.up") %></button>
-            <button class="builtin-card-order-btn" type="button" data-layout-move="down" ${isLast ? "disabled" : ""}><%= t("settings.dashboardBuiltins.down") %></button>
-          </div>
-        </div>`;
-      }).join("");
+        const row = document.createElement("div"); row.className = "builtin-card-row";
+        row.dataset.layoutId = String(item.id || "").replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 160);
+        const meta = document.createElement("div"); meta.className = "dash-card-meta";
+        const main = document.createElement("div"); main.className = "dash-card-main"; main.textContent = String(item.label || "");
+        const sub = document.createElement("div"); sub.className = "dash-card-sub"; sub.textContent = String(item.category || "") + " · " + String(item.description || ""); meta.append(main, sub);
+        const actions = document.createElement("div"); actions.className = "builtin-card-actions";
+        const label = document.createElement("label"); label.className = "switch"; label.setAttribute("aria-label", "Activer ou desactiver " + String(item.label || ""));
+        const enabled = document.createElement("input"); enabled.type = "checkbox"; enabled.dataset.layoutEnabled = ""; enabled.checked = item.enabled !== false;
+        const slider = document.createElement("span"); slider.className = "slider"; label.append(enabled, slider);
+        const up = document.createElement("button"); up.className = "builtin-card-order-btn"; up.type = "button"; up.dataset.layoutMove = "up"; up.disabled = isFirst; up.textContent = "<%= t(\"settings.dashboardBuiltins.up\") %>";
+        const down = document.createElement("button"); down.className = "builtin-card-order-btn"; down.type = "button"; down.dataset.layoutMove = "down"; down.disabled = isLast; down.textContent = "<%= t(\"settings.dashboardBuiltins.down\") %>";
+        actions.append(label, up, down); row.append(meta, actions); fragment.append(row);
+      });
+      dashboardLayoutList.replaceChildren(fragment);
     }
 
     function getDashboardLayoutCatalog() {
@@ -1755,14 +1764,14 @@
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
 
-      colorSelect.innerHTML = (data.availableColors || [])
-        .map(c => `<option value="${c.key}">${c.name}</option>`)
-        .join("");
+      const colorOptions = document.createDocumentFragment();
+      (data.availableColors || []).forEach(function (color) { const option = document.createElement("option"); option.value = String(color.key || ""); option.textContent = String(color.name || color.key || ""); colorOptions.append(option); });
+      colorSelect.replaceChildren(colorOptions);
 
       const currentIntegration = cardIntegrationKeyInput.value || "custom";
-      cardIntegrationKeyInput.innerHTML = (data.integrations || [])
-        .map(i => `<option value="${escHtml(i.key)}" ${i.available === false ? "disabled" : ""}>${escHtml(i.label)}${i.available === false ? " (non configure)" : ""}</option>`)
-        .join("");
+      const integrationOptions = document.createDocumentFragment();
+      (data.integrations || []).forEach(function (integration) { const option = document.createElement("option"); option.value = String(integration.key || ""); option.disabled = integration.available === false; option.textContent = String(integration.label || integration.key || "") + (option.disabled ? " (non configure)" : ""); integrationOptions.append(option); });
+      cardIntegrationKeyInput.replaceChildren(integrationOptions);
       if (Array.from(cardIntegrationKeyInput.options).some(opt => opt.value === currentIntegration)) {
         cardIntegrationKeyInput.value = currentIntegration;
       }
@@ -1772,32 +1781,18 @@
       updateActionAvailability();
       dashboardCustomCardItems = (data.cards || []).map(function (card) { return { ...card }; });
 
-      dashCardsList.innerHTML = dashboardCustomCardItems.map((card) => {
-        const colorName = colorsByKey[card.colorKey] || card.colorKey;
-        return `<div class="dash-card-row" data-card-id="${card.id}">
-          <div class="dash-card-meta">
-            <div class="dash-card-main">${escHtml(card.icon || "✨")} ${escHtml(card.title)} · ${escHtml(colorName)}</div>
-            <div class="dash-card-sub">${escHtml(card.label)} · ${escHtml(card.description)}${(card.integrationKey || "custom") === "custom" && card.url ? " · " + escHtml(card.url) : ""}</div>
-          </div>
-	          <div class="dash-card-actions">
-	            <button
-              class="dash-card-edit"
-              data-edit-card-id="${card.id}"
-              data-edit-label="${escHtml(card.label)}"
-              data-edit-title="${escHtml(card.title)}"
-              data-edit-description="${escHtml(card.description)}"
-              data-edit-url="${escHtml(card.url)}"
-              data-edit-color-key="${escHtml(card.colorKey)}"
-              data-edit-integration-key="${escHtml(card.integrationKey || "custom")}"
-              data-edit-open-in-iframe="${card.openInIframe ? "1" : "0"}"
-              data-edit-open-in-new-tab="${card.openInNewTab ? "1" : "0"}"
-              data-edit-icon="${escHtml(card.icon || "✨")}"
-              type="button"
-            >Modifier</button>
-            <button class="dash-card-delete" data-delete-card-id="${card.id}" type="button">Supprimer</button>
-          </div>
-        </div>`;
-      }).join("");
+      const cards = document.createDocumentFragment();
+      dashboardCustomCardItems.forEach(function (card) {
+        const id = String(Number(card.id)); if (!/^\d+$/.test(id)) return;
+        const row=document.createElement("div"); row.className="dash-card-row"; row.dataset.cardId=id;
+        const meta=document.createElement("div"); meta.className="dash-card-meta";
+        const main=document.createElement("div"); main.className="dash-card-main"; main.textContent=`${String(card.icon||"✨")} ${String(card.title||"")} · ${String(colorsByKey[card.colorKey]||card.colorKey||"")}`;
+        const sub=document.createElement("div"); sub.className="dash-card-sub"; sub.textContent=[card.label,card.description,(card.integrationKey||"custom")==="custom" ? (window.safeHttpUrl(card.url) || "") : ""].filter(Boolean).map(String).join(" · "); meta.append(main,sub);
+        const actions=document.createElement("div"); actions.className="dash-card-actions";
+        const edit=document.createElement("button"); edit.className="dash-card-edit"; edit.type="button"; Object.assign(edit.dataset,{editCardId:id,editLabel:String(card.label||""),editTitle:String(card.title||""),editDescription:String(card.description||""),editUrl:window.safeHttpUrl(card.url)||"",editColorKey:String(card.colorKey||""),editIntegrationKey:String(card.integrationKey||"custom"),editOpenInIframe:card.openInIframe?"1":"0",editOpenInNewTab:card.openInNewTab?"1":"0",editIcon:String(card.icon||"✨")}); edit.textContent="Modifier";
+        const remove=document.createElement("button"); remove.className="dash-card-delete"; remove.type="button"; remove.dataset.deleteCardId=id; remove.textContent="Supprimer"; actions.append(edit,remove); row.append(meta,actions); cards.append(row);
+      });
+      dashCardsList.replaceChildren(cards);
 
       if ((data.availableColors || []).length === 0) {
         dashCardState.textContent = "Toutes les couleurs disponibles sont déjà utilisées.";
@@ -1821,7 +1816,7 @@
 
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
-        state.innerHTML = `<%- t("settings.state.current", { state: "__STATE__" }) %>`.replace("__STATE__", data.enabled ? "<%= t('settings.state.enabled') %>" : "<%= t('settings.state.disabled') %>");
+        state.textContent = "<%= t('settings.state.current', { state: '__STATE__' }) %>".replace("__STATE__", data.enabled ? "<%= t('settings.state.enabled') %>" : "<%= t('settings.state.disabled') %>");
       } catch (_) {
         toggle.checked = !enabled;
       } finally {
@@ -1847,7 +1842,7 @@
 
           if (!resp.ok) throw new Error("HTTP " + resp.status);
           const data = await resp.json();
-          navSubscriptionPillState.innerHTML = `<%- t("settings.state.current", { state: "__STATE__" }) %>`.replace("__STATE__", data.enabled ? "<%= t('settings.state.enabled') %>" : "<%= t('settings.state.disabled') %>");
+          navSubscriptionPillState.textContent = "<%= t('settings.state.current', { state: '__STATE__' }) %>".replace("__STATE__", data.enabled ? "<%= t('settings.state.enabled') %>" : "<%= t('settings.state.disabled') %>");
         } catch (_) {
           navSubscriptionPillToggle.checked = !enabled;
         } finally {

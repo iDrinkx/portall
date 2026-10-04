@@ -42,7 +42,7 @@ Ajouter `SESSION_SECRET` et `SETUP_TOKEN` :
 
 ```yaml
 environment:
-  SESSION_SECRET: "change-me-to-a-secure-key"
+  SESSION_SECRET: "${SESSION_SECRET:?set a 32+ character random value in .env}"
   SETUP_TOKEN: "${SETUP_TOKEN}"
 ```
 
@@ -107,12 +107,12 @@ services:
     environment:
       PUID: "99"
       PGID: "100"
-      SESSION_SECRET: "change-me-to-a-secure-key"
+      SESSION_SECRET: "${SESSION_SECRET:?set a 32+ character random value in .env}"
       SETUP_TOKEN: "${SETUP_TOKEN}"
       COOKIE_SECURE: "true"   # HTTPS via reverse proxy
     volumes:
       - /mnt/user/appdata/portall/config:/config
-      - /mnt/user/appdata/tautulli:/tautulli-data  # optionnel
+      - /mnt/user/appdata/tautulli:/tautulli-data:ro  # optionnel, lecture seule
     restart: unless-stopped
 ```
 
@@ -388,3 +388,4 @@ docker-compose up -d
 
 Le code source principal de portall est ce dépôt GitHub.
 Pour toute suggestion ou bug, ouvrez une issue ou contactez l'auteur.
+> **Clé de chiffrement :** configurez `CREDENTIALS_ENCRYPTION_KEY` avec une clé aléatoire de 32 octets (base64 ou hexadécimale) et sauvegardez-la. La changer sans migration rend les secrets SQLite existants illisibles.

@@ -2,7 +2,10 @@
 const router = express.Router();
 const fetch = require("node-fetch");
 const crypto = require("crypto");
-const { createProxyMiddleware } = require("http-proxy-middleware");
+const {
+  encryptCredentialSecret,
+  decryptCredentialSecret
+} = require("../utils/credential-crypto");
 const log = require("../utils/logger");
 const logRomm = log.create("[RomM]");
 
@@ -32,7 +35,8 @@ const {
   getBackgroundAchievementRefreshStatus
 } = require("../utils/achievement-state");
 const { getConfigSections, getConfigValue, getEditableConfigValues, saveEditableConfig } = require("../utils/config");
-const { safeFetchConfiguredUrl, validateTrustedServiceUrl, resolveAndValidateHostname } = require("../utils/network-url");
+const { safeFetchConfiguredUrl } = require("../utils/network-url");
+const { authenticateJellyfin, refreshJellyfinSessionAuth } = require("../utils/jellyfin-auth");
 const { normalizeEmbedUrl } = require("../utils/embed-url");
 const {
   getDashboardBuiltinAdminItems,
@@ -462,35 +466,6 @@ function buildJellyfinProxyUrl(publicUrl, basePath = "") {
   }
 }
 
-function getCredentialEncryptionKey() {
-  const seed = String(process.env.SESSION_SECRET || "portall-default").trim();
-  return crypto.createHash("sha256").update(seed).digest();
-}
-
-function encryptCredentialSecret(secret) {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", getCredentialEncryptionKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(String(secret || ""), "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("base64")}.${tag.toString("base64")}.${encrypted.toString("base64")}`;
-}
-
-function decryptCredentialSecret(payload) {
-  if (!payload || typeof payload !== "string") return "";
-  const parts = payload.split(".");
-  if (parts.length !== 3) return "";
-  try {
-    const iv = Buffer.from(parts[0], "base64");
-    const tag = Buffer.from(parts[1], "base64");
-    const data = Buffer.from(parts[2], "base64");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", getCredentialEncryptionKey(), iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
-  } catch (_) {
-    return "";
-  }
-}
-
 function getOrCreateDbUser(sessionUser) {
   if (!sessionUser?.username) return null;
   return UserQueries.upsert(
@@ -506,8 +481,18 @@ function getUserServiceCredential(sessionUser, serviceKey) {
   if (!dbUser?.id) return null;
   const row = UserServiceCredentialQueries.getByUserAndService(dbUser.id, serviceKey);
   if (!row) return null;
-  const password = decryptCredentialSecret(row.secretEncrypted);
+  const decrypted = decryptCredentialSecret(row.secretEncrypted, {
+    legacySessionSecret: process.env.SESSION_SECRET
+  });
+  const password = decrypted.value;
   if (!row.username || !password) return null;
+  if (decrypted.legacy) {
+    try {
+      UserServiceCredentialQueries.upsert(dbUser.id, serviceKey, row.username, encryptCredentialSecret(password), null);
+    } catch (_) {
+      // The credential remains readable during migration; do not log its value.
+    }
+  }
   return { username: row.username, password };
 }
 
@@ -567,31 +552,6 @@ function findRommCsrfCookie(setCookies = []) {
   });
   if (heuristic) return { name: getSetCookieName(heuristic), raw: heuristic };
   return null;
-}
-
-async function authenticateJellyfin(username, password) {
-  const jellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
-  if (!jellyfinUrl || !username || !password) return null;
-  try {
-    const deviceId = `portall-${crypto.randomUUID()}`;
-    const authResp = await safeFetchConfiguredUrl(`${jellyfinUrl}/Users/AuthenticateByName`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "X-Emby-Authorization": `MediaBrowser Client="PlexPortal", Device="Web", DeviceId="${deviceId}", Version="1.0.0"`
-      },
-      body: JSON.stringify({ Username: username, Pw: password })
-    });
-    if (!authResp.ok) return null;
-    const payload = await authResp.json();
-    const accessToken = String(payload?.AccessToken || "").trim();
-    const userId = String(payload?.User?.Id || "").trim();
-    if (!accessToken) return null;
-    return { accessToken, userId, deviceId };
-  } catch (_) {
-    return null;
-  }
 }
 
 async function loginRommAndGetSessionCookies(username, password) {
@@ -921,23 +881,6 @@ async function grabKomgaCookieForUser(res, sessionUser) {
   }
 }
 
-async function refreshJellyfinSessionAuth(session, sessionUser) {
-  const cred = getUserServiceCredential(sessionUser, "jellyfin");
-  if (!cred?.username || !cred?.password) return { ok: false, needsSetup: true };
-  const auth = await authenticateJellyfin(cred.username, cred.password);
-  if (!auth?.accessToken) {
-    clearUserServiceCredential(sessionUser, "jellyfin");
-    return { ok: false, needsSetup: true };
-  }
-  session.jellyfinAuth = {
-    accessToken: auth.accessToken,
-    userId: auth.userId,
-    deviceId: auth.deviceId,
-    refreshedAt: Date.now()
-  };
-  return { ok: true, needsSetup: false };
-}
-
 async function grabRommCookieForUser(res, sessionUser) {
   const rommUrl = getConfigValue("ROMM_URL", "").replace(/\/$/, "");
   const rommPublicUrl = getConfigValue("ROMM_PUBLIC_URL", "").trim();
@@ -1057,59 +1000,9 @@ async function openCardByModel(req, res, card) {
   });
 }
 
-function buildJellyfinAuthorizationHeader(jellyfinAuth) {
-  const token = String(jellyfinAuth?.accessToken || "").trim();
-  const deviceId = String(jellyfinAuth?.deviceId || "portall-proxy").trim();
-  if (!token) return "";
-  return `MediaBrowser Token="${token}", Client="PlexPortal", Device="Web", DeviceId="${deviceId}", Version="1.0.0"`;
-}
-
 router.use("/jellyfin-proxy", requireAuth, async (req, res, next) => {
-  const configuredJellyfinUrl = getConfigValue("JELLYFIN_URL", "").replace(/\/$/, "");
-  if (!configuredJellyfinUrl) {
-    return res.status(503).send("Jellyfin non configure cote serveur");
-  }
-
-  let jellyfinUrl;
-  try {
-    jellyfinUrl = validateTrustedServiceUrl(configuredJellyfinUrl);
-    await resolveAndValidateHostname(jellyfinUrl);
-  } catch (_) {
-    return res.status(503).send("Jellyfin URL non autorisee");
-  }
-
-  const existingAuth = req.session?.jellyfinAuth;
-  if (!existingAuth?.accessToken) {
-    const result = await refreshJellyfinSessionAuth(req.session, req.session.user);
-    if (!result.ok) {
-      return res.status(401).send("Connexion Jellyfin requise");
-    }
-  }
-
-  return createProxyMiddleware({
-    target: jellyfinUrl,
-    changeOrigin: true,
-    ws: true,
-    pathRewrite: { "^/jellyfin-proxy": "" },
-    cookieDomainRewrite: { "*": "" },
-    onProxyReq(proxyReq, proxyReqReq) {
-      const jellyfinAuth = proxyReqReq.session?.jellyfinAuth;
-      const token = String(jellyfinAuth?.accessToken || "").trim();
-      const userId = String(jellyfinAuth?.userId || "").trim();
-      const authHeader = buildJellyfinAuthorizationHeader(jellyfinAuth);
-      if (token) {
-        proxyReq.setHeader("X-Emby-Token", token);
-        proxyReq.setHeader("X-MediaBrowser-Token", token);
-      }
-      if (userId) {
-        proxyReq.setHeader("X-MediaBrowser-UserId", userId);
-      }
-      if (authHeader) {
-        proxyReq.setHeader("Authorization", authHeader);
-        proxyReq.setHeader("X-Emby-Authorization", authHeader);
-      }
-    }
-  })(req, res, next);
+  if (!req.app.locals.jellyfinProxy) return next(new Error("Jellyfin proxy unavailable"));
+  return req.app.locals.jellyfinProxy.handleHttp(req, res);
 });
 
 /* ===============================
@@ -1831,8 +1724,9 @@ router.post("/api/cache/invalidate", requireAuth, (req, res) => {
 =============================== */
 
 // Endpoint pour récupérer tous les utilisateurs (utilisé par cron job au démarrage)
-router.get("/api/all-users", async (req, res) => {
+router.get("/api/all-users", requireAuth, requireAdmin, sensitiveApiLimiter, async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store");
     const baseUrl = process.env.SEERR_URL || "http://localhost:5055";
     const apiKey = process.env.SEERR_API_KEY;
     
@@ -2625,8 +2519,16 @@ function plusDaysISO(iso, n) {
 }
 
 router.get("/api/calendar", requireAuth, async (req, res) => {
-  const start = req.query.start || todayISO();
-  const end   = req.query.end   || plusDaysISO(start, 30);
+  const start = String(req.query.start || todayISO());
+  const end = String(req.query.end || plusDaysISO(start, 30));
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  const startDate = new Date(`${start}T00:00:00.000Z`);
+  const endDate = new Date(`${end}T00:00:00.000Z`);
+  if (!isoDate.test(start) || !isoDate.test(end) || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())
+    || startDate.toISOString().slice(0, 10) !== start || endDate.toISOString().slice(0, 10) !== end
+    || endDate < startDate || (endDate - startDate) / 86400000 > 93) {
+    return res.status(400).json({ error: "Invalid calendar date range" });
+  }
   const cacheKey = `calendar:${start}:${end}`;
 
   try {
@@ -2849,7 +2751,7 @@ router.get('/api/version-badge.svg', (_, res) => {
  * Lance une maintenance manuelle de la base de données
  * (nettoyage des anciennes données, optimisation)
  */
-router.post('/api/maintenance/database', requireAuth, async (req, res) => {
+router.post('/api/maintenance/database', requireAuth, requireAdmin, sensitiveApiLimiter, async (req, res) => {
   try {
     const logMaint = log.create('[API-Maintenance]');
     logMaint.info('Maintenance manuelle lancée par', req.session.user?.username || 'unknown');
@@ -2865,7 +2767,7 @@ router.post('/api/maintenance/database', requireAuth, async (req, res) => {
     log.create('[API-Maintenance]').error('Erreur maintenance:', err.message);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la maintenance: ' + err.message
+      error: 'Database maintenance failed'
     });
   }
 });

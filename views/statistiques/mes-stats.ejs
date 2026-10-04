@@ -554,6 +554,10 @@
      HELPERS
   ───────────────────────────────────────────────────────────────── */
   const fmtH = h => h >= 1 ? h.toFixed(1) + 'h' : Math.round(h * 60) + 'min';
+  // Titles and genres come from upstream media services; never interpolate them as HTML.
+  const escapeHtml = value => String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   /* ─────────────────────────────────────────────────────────────────
      RENDER OVERVIEW
@@ -575,7 +579,7 @@
     const el = document.getElementById('playMethodList');
     if (!el) return;
     if (!pm || pm.total === 0) {
-      el.innerHTML = '<div class="ms-genres-empty">' + I18N.noData + '</div>';
+      const empty = document.createElement('div'); empty.className = 'ms-genres-empty'; empty.textContent = I18N.noData; el.replaceChildren(empty);
       return;
     }
     const methods = [
@@ -583,23 +587,7 @@
       { label: 'Direct Stream', key: 'directStream', color: '#3B82F6', icon: '💧', desc: 'Recontenant' },
       { label: isEnglish ? 'Transcode' : 'Transcodage', key: 'transcode', color: '#f97316', icon: '⚙️', desc: 'Conversion vidéo' },
     ];
-    el.innerHTML = methods.map(m => {
-      const d = pm[m.key] || { count: 0, pct: 0 };
-      return `
-        <div class="ms-play-method-item">
-          <div class="ms-play-method-header">
-            <div class="ms-play-method-left">
-              <div class="ms-play-method-dot" style="background:${m.color}"></div>
-              <span>${m.icon} ${m.label}</span>
-              <span class="ms-play-method-count">${d.count.toLocaleString(isEnglish ? 'en-US' : 'fr-FR')} ${isEnglish ? 'plays' : 'lectures'}</span>
-            </div>
-            <span style="font-size:13px;font-weight:700;color:${m.color}">${d.pct}%</span>
-          </div>
-          <div class="ms-play-method-bar">
-            <div class="ms-play-method-fill" style="background:${m.color};width:0" data-w="${d.pct}%"></div>
-          </div>
-        </div>`;
-    }).join('');
+    const fragment = document.createDocumentFragment(); methods.forEach(m => { const d = pm[m.key] || {}; const count = Number(d.count); const pct = Math.max(0, Math.min(100, Number(d.pct) || 0)); const item = document.createElement('div'); item.className = 'ms-play-method-item'; const header = document.createElement('div'); header.className = 'ms-play-method-header'; const left = document.createElement('div'); left.className = 'ms-play-method-left'; const dot = document.createElement('div'); dot.className = 'ms-play-method-dot'; dot.style.backgroundColor = m.color; const label = document.createElement('span'); label.textContent = `${m.icon} ${m.label}`; const value = document.createElement('span'); value.className = 'ms-play-method-count'; value.textContent = `${Number.isFinite(count) ? count.toLocaleString(isEnglish ? 'en-US' : 'fr-FR') : 0} ${isEnglish ? 'plays' : 'lectures'}`; const percent = document.createElement('span'); percent.style.cssText = `font-size:13px;font-weight:700;color:${m.color}`; percent.textContent = `${pct}%`; left.append(dot,label,value); header.append(left,percent); const bar = document.createElement('div'); bar.className='ms-play-method-bar'; const fill=document.createElement('div'); fill.className='ms-play-method-fill'; fill.style.backgroundColor=m.color; fill.dataset.w=`${pct}%`; bar.append(fill); item.append(header,bar); fragment.append(item); }); el.replaceChildren(fragment);
     // Animate bars
     setTimeout(() => {
       el.querySelectorAll('.ms-play-method-fill').forEach(b => {
@@ -640,12 +628,7 @@
 
     // Legend manuelle
     const legendEl = document.getElementById('donutLegend');
-    legendEl.innerHTML = labels.map((l, i) => `
-      <div class="ms-legend-item">
-        <div class="ms-legend-dot" style="background:${colors[i]}"></div>
-        <span>${l}</span>
-        <span class="ms-legend-pct">${total > 0 ? Math.round(data[i] / total * 100) : 0}%</span>
-      </div>`).join('');
+    const legend = document.createDocumentFragment(); labels.forEach((label, i) => { const item=document.createElement('div'); item.className='ms-legend-item'; const dot=document.createElement('div'); dot.className='ms-legend-dot'; dot.style.backgroundColor=colors[i]; const text=document.createElement('span'); text.textContent=label; const pct=document.createElement('span'); pct.className='ms-legend-pct'; pct.textContent=`${total > 0 ? Math.round(data[i] / total * 100) : 0}%`; item.append(dot,text,pct); legend.append(item); }); legendEl.replaceChildren(legend);
   }
 
   /* ─────────────────────────────────────────────────────────────────
@@ -653,31 +636,11 @@
   ───────────────────────────────────────────────────────────────── */
   function renderTop10(topContent) {
     const el = document.getElementById('top10List');
-    if (!topContent.length) {
-      el.innerHTML = '<div class="ms-genres-empty">' + I18N.noContent + '</div>';
-      return;
-    }
+    if (!topContent.length) { const empty=document.createElement('div'); empty.className='ms-genres-empty'; empty.textContent=I18N.noContent; el.replaceChildren(empty); return; }
     const medals = ['gold', 'silver', 'bronze'];
     const maxH = topContent[0]?.hours || 1;
 
-    el.innerHTML = topContent.map((item, i) => {
-      const pct = Math.max(4, (item.hours / maxH) * 100);
-      const color = item.type === 'movie' ? C.movies : C.series;
-      const rankClass = medals[i] || '';
-      const rankLabel = i < 3
-        ? ['🥇','🥈','🥉'][i]
-        : `#${i + 1}`;
-      return `
-        <div class="ms-top-item">
-          <div class="ms-top-rank ${rankClass}">${rankLabel}</div>
-          <div class="ms-top-bar-wrap">
-            <div class="ms-top-bar-fill" data-pct="${pct}"
-                 style="background: linear-gradient(90deg, ${color}55, ${color}99); width: 0"></div>
-            <div class="ms-top-bar-label">${item.title}</div>
-          </div>
-          <div class="ms-top-hours">${item.hours.toFixed(1)}h</div>
-        </div>`;
-    }).join('');
+    const fragment=document.createDocumentFragment(); topContent.forEach((item,i)=>{const hours=Number(item.hours);const pct=Math.max(4,Math.min(100,(Number.isFinite(hours)?hours:0)/maxH*100));const color=item.type==='movie'?C.movies:C.series;const row=document.createElement('div');row.className='ms-top-item';const rank=document.createElement('div');rank.className=`ms-top-rank ${medals[i]||''}`;rank.textContent=i<3?['🥇','🥈','🥉'][i]:`#${i+1}`;const wrap=document.createElement('div');wrap.className='ms-top-bar-wrap';const fill=document.createElement('div');fill.className='ms-top-bar-fill';fill.dataset.pct=String(pct);fill.style.background=`linear-gradient(90deg, ${color}55, ${color}99)`;const label=document.createElement('div');label.className='ms-top-bar-label';label.textContent=String(item.title||'');wrap.append(fill,label);const amount=document.createElement('div');amount.className='ms-top-hours';amount.textContent=`${Number.isFinite(hours)?hours.toFixed(1):'0.0'}h`;row.append(rank,wrap,amount);fragment.append(row);});el.replaceChildren(fragment);
 
     // Animate bars
     requestAnimationFrame(() => {
@@ -692,25 +655,9 @@
   ───────────────────────────────────────────────────────────────── */
   function renderGenres(genres, elId) {
     const el = document.getElementById(elId);
-    if (!genres.length) {
-      el.innerHTML = '<div class="ms-genres-empty">' + I18N.noGenre + '</div>';
-      return;
-    }
+    if (!genres.length) { const empty=document.createElement('div');empty.className='ms-genres-empty';empty.textContent=I18N.noGenre;el.replaceChildren(empty);return; }
     const maxH = genres[0]?.hours || 1;
-    el.innerHTML = genres.map((g, i) => {
-      const pct = Math.max(3, (g.hours / maxH) * 100);
-      const color = C.genres[i % C.genres.length];
-      return `
-        <div class="ms-genre-item">
-          <div class="ms-genre-header">
-            <span class="ms-genre-name">${g.name}</span>
-            <span class="ms-genre-hours">${g.hours.toFixed(1)}h</span>
-          </div>
-          <div class="ms-genre-bar">
-            <div class="ms-genre-fill" data-pct="${pct}" style="background:${color}; width:0"></div>
-          </div>
-        </div>`;
-    }).join('');
+    const fragment=document.createDocumentFragment();genres.forEach((g,i)=>{const hours=Number(g.hours);const pct=Math.max(3,Math.min(100,(Number.isFinite(hours)?hours:0)/maxH*100));const item=document.createElement('div');item.className='ms-genre-item';const header=document.createElement('div');header.className='ms-genre-header';const name=document.createElement('span');name.className='ms-genre-name';name.textContent=String(g.name||'');const amount=document.createElement('span');amount.className='ms-genre-hours';amount.textContent=`${Number.isFinite(hours)?hours.toFixed(1):'0.0'}h`;header.append(name,amount);const bar=document.createElement('div');bar.className='ms-genre-bar';const fill=document.createElement('div');fill.className='ms-genre-fill';fill.dataset.pct=String(pct);fill.style.backgroundColor=C.genres[i%C.genres.length];bar.append(fill);item.append(header,bar);fragment.append(item);});el.replaceChildren(fragment);
 
     requestAnimationFrame(() => {
       el.querySelectorAll('.ms-genre-fill').forEach(bar => {

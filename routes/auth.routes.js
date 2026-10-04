@@ -174,6 +174,10 @@ router.post("/api/setup/diagnostics", setupLimiter, requireSetupToken, async (re
 });
 
 router.get("/login", authLimiter, ensureSetupComplete, async (req, res) => {
+  if (!req.appUrl) {
+    logAuth.error("APP_URL is required in production before starting Plex authentication");
+    return res.status(503).send("Public application URL is not configured");
+  }
   try {
     const response = await fetchWithTimeoutAndRetry("https://plex.tv/api/v2/pins?strong=true", {
       method: "POST",
@@ -255,6 +259,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   const persistedAdminUserId = String(AppSettingQueries.get("admin_user_id", "") || "").trim();
   const adminLookupToken = String(runtimePlexToken || configuredPlexToken || "").trim();
   const plexServerToken = String(configuredPlexToken || runtimePlexToken || authToken || "").trim();
+  let verifiedOwnerId = null;
 
   try {
     const userId = Number(user.id);
@@ -263,6 +268,7 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
     }
 
     const ownerId = await getServerOwnerId(adminLookupToken);
+    verifiedOwnerId = ownerId;
     if (ownerId && ownerId === userId) {
       authorizedByPlex = true;
       isAdmin = true;
@@ -289,22 +295,34 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   }
 
   if (persistedAdminUserId) {
-    if (Number(persistedAdminUserId) === Number(user.id)) {
-      isAdmin = true;
-    }
+    isAdmin = Number.isSafeInteger(Number(persistedAdminUserId))
+      && Number(persistedAdminUserId) === Number(user.id);
   } else {
-    AppSettingQueries.set("admin_user_id", String(user.id));
-    isAdmin = true;
-    logAuth.warn(`Aucun admin persiste — ${getSafeUserLabel(user)} defini comme admin principal`);
+    // Bootstrap is deliberately fail-closed: a Plex sharee may authenticate,
+    // but only the verified server owner may establish the initial admin.
+    if (Number.isSafeInteger(Number(verifiedOwnerId)) && Number(verifiedOwnerId) === Number(user.id)) {
+      AppSettingQueries.set("admin_user_id", String(user.id));
+      isAdmin = true;
+      logAuth.info(`Admin principal initialise par le proprietaire ${getSafeUserLabel(user)}`);
+    } else {
+      isAdmin = false;
+      logAuth.warn(`Bootstrap admin refuse pour ${getSafeUserLabel(user)}`);
+    }
   }
 
   logAuth.info(`Session ouverte pour ${getSafeUserLabel(user)}`);
 
-  req.session.user = user;
-  req.session.user.joinedAtTimestamp = user.joinedAt;
-  req.session.user.isAdmin = isAdmin;
+  // Prevent session fixation: discard the anonymous session and only recreate
+  // the authentication state that is required after the Plex callback.
+  try {
+    await new Promise((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
+  } catch (err) {
+    logAuth.error("Regeneration de session impossible:", err.message);
+    return res.redirect((req.basePath || "") + "/?error=session_unavailable");
+  }
+  req.session.user = { ...user, joinedAtTimestamp: user.joinedAt, isAdmin };
   req.session.plexToken = authToken;
-  delete req.session.pinId;
+  req.session.csrfToken = require("crypto").randomBytes(32).toString("base64url");
 
   if (isAdmin && authToken) {
     try {
@@ -365,8 +383,15 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
   }
 });
 
-router.get("/logout", (req, res) => {
+router.get("/logout", (req, res) => res.redirect(req.basePath + "/dashboard"));
+
+router.post("/logout", (req, res) => {
   req.session.destroy(() => {
+    res.clearCookie("portall.sid", {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax"
+    });
     res.redirect(req.basePath + "/");
   });
 });

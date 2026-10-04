@@ -27,7 +27,15 @@ function sanitizeCustomUrl(value) {
   const raw = String(value == null ? "" : value).trim();
   if (!raw) return "";
   if (/^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\s]+$/.test(raw)) return raw.replace(/\s+/g, "");
-  if (/^https?:\/\//i.test(raw)) return raw;
+  // The value is later embedded in a CSS url(...); reject CSS delimiters even
+  // though the protocol itself is valid.
+  if (/[\s"'()\\]/.test(raw)) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.href;
+  } catch (_) {
+    return "";
+  }
   return "";
 }
 

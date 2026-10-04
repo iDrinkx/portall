@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { isSecretAppSettingKey, isEncryptedSecret, encryptSecret, decryptSecret } = require('./config-secret-crypto');
 
 // 🗄️ Utiliser le dossier /config pour la persistance (volumes Docker/Unraid)
 const defaultDbPath = '/config/portall.db';
@@ -65,6 +66,7 @@ function initDatabase() {
     
     // Exécuter les migrations
     runMigrations();
+    migrateLegacyConfigurationSecrets();
     
     return db;
   } catch (err) {
@@ -1258,7 +1260,8 @@ const AppSettingQueries = {
   get(key, defaultValue = null) {
     const db = getDb();
     const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(key);
-    return row ? row.value : defaultValue;
+    if (!row) return defaultValue;
+    return readAppSettingValue(key, row.value);
   },
 
   listPrefix(prefix) {
@@ -1268,7 +1271,7 @@ const AppSettingQueries = {
       FROM app_settings
       WHERE key LIKE ?
       ORDER BY key ASC
-    `).all(`${prefix}%`);
+    `).all(`${prefix}%`).map(row => ({ ...row, value: readAppSettingValue(row.key, row.value) }));
   },
 
   set(key, value) {
@@ -1279,7 +1282,7 @@ const AppSettingQueries = {
       ON CONFLICT(key) DO UPDATE SET
         value = excluded.value,
         updated_at = CURRENT_TIMESTAMP
-    `).run(key, String(value));
+    `).run(key, writeAppSettingValue(key, value));
   },
 
   getBool(key, defaultValue = false) {
@@ -1296,6 +1299,49 @@ const AppSettingQueries = {
     return this.set(key, enabled ? "1" : "0");
   }
 };
+
+function writeAppSettingValue(key, value) {
+  const normalized = String(value == null ? "" : value);
+  return isSecretAppSettingKey(key) ? encryptSecret(normalized) : normalized;
+}
+
+function readAppSettingValue(key, value) {
+  if (!isSecretAppSettingKey(key)) return value;
+  if (isEncryptedSecret(value)) return decryptSecret(value);
+  const encrypted = encryptSecret(value);
+  if (decryptSecret(encrypted) !== value) {
+    throw new Error("Unable to decrypt stored configuration secret; verify CREDENTIALS_ENCRYPTION_KEY");
+  }
+  getDb().transaction(() => {
+    getDb().prepare(`UPDATE app_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ? AND value = ?`)
+      .run(encrypted, key, value);
+  })();
+  return value;
+}
+
+function migrateLegacyConfigurationSecrets() {
+  const rows = db.prepare(`SELECT key, value FROM app_settings`).all()
+    .filter(row => isSecretAppSettingKey(row.key));
+  if (!rows.length) return;
+
+  let migrated = 0;
+  db.transaction(() => {
+    const update = db.prepare(`UPDATE app_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?`);
+    for (const row of rows) {
+      if (isEncryptedSecret(row.value)) {
+        decryptSecret(row.value);
+        continue;
+      }
+      const encrypted = encryptSecret(row.value);
+      if (decryptSecret(encrypted) !== row.value) {
+        throw new Error("Unable to decrypt stored configuration secret; verify CREDENTIALS_ENCRYPTION_KEY");
+      }
+      update.run(encrypted, row.key);
+      migrated += 1;
+    }
+  })();
+  if (migrated) require('./logger').create('[DB]').info('secret configuration migrated');
+}
 
 /**
  * Dashboard custom cards queries (admin configurable)

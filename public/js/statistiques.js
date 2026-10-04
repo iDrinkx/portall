@@ -11,6 +11,57 @@
   const userId = document.body.getAttribute("data-user-id") || "guest";
   const SWR_KEY = 'stats_html_snap:' + userId;
 
+  function finiteNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function statRow(label, value) {
+    const row = document.createElement("div");
+    row.className = "subscription-row";
+    const labelEl = document.createElement("span");
+    labelEl.className = "label";
+    labelEl.textContent = label;
+    const valueEl = document.createElement("span");
+    valueEl.className = "value";
+    valueEl.textContent = value;
+    row.append(labelEl, valueEl);
+    return row;
+  }
+
+  function renderStats(tautulliData, seerrData) {
+    const fragment = document.createDocumentFragment();
+    if (tautulliData) {
+      const section = document.createElement("div");
+      section.style.cssText = "margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #333";
+      section.append(statRow(`📅 ${isEnglish ? "Member since" : "Membre depuis"}`, tautulliData.joined));
+      section.append(statRow(`🕒 ${isEnglish ? "Last activity" : "Dernière activité"}`, tautulliData.last));
+      fragment.append(section);
+    }
+    if (seerrData) {
+      const section = document.createElement("div");
+      const heading = document.createElement("h4");
+      heading.style.marginBottom = "10px";
+      const icon = document.createElement("img");
+      icon.src = `${basePath}/img/seerr-icon.svg`;
+      icon.alt = "Seerr";
+      icon.style.cssText = "width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:3px";
+      heading.append(icon, document.createTextNode(` ${isEnglish ? "Content requests" : "Demandes de contenu"}`));
+      section.append(heading);
+      section.append(statRow(`📊 ${isEnglish ? "Total requests" : "Total demandes"}`, finiteNumber(seerrData.total)));
+      section.append(statRow(`🔄 ${isEnglish ? "Pending" : "En attente"}`, finiteNumber(seerrData.pending)));
+      section.append(statRow(`✅ ${isEnglish ? "Approved" : "Approuvées"}`, finiteNumber(seerrData.approved)));
+      fragment.append(section);
+    }
+    if (!tautulliData && !seerrData) {
+      const empty = document.createElement("p");
+      empty.textContent = isEnglish ? "No data available." : "Aucune donnée disponible.";
+      fragment.append(empty);
+    }
+    container.replaceChildren(fragment);
+    container.classList.remove("skel");
+  }
+
   /* ===============================
      � DATE UTILITIES
   =============================== */
@@ -75,9 +126,8 @@
     const raw = localStorage.getItem(SWR_KEY);
     if (raw) {
       const snap = JSON.parse(raw);
-      if (snap.savedAt && Date.now() - snap.savedAt < SWR_TTL && snap.html) {
-        container.innerHTML = snap.html;
-        container.classList.remove('skel');
+      if (snap.savedAt && Date.now() - snap.savedAt < SWR_TTL && snap.data) {
+        renderStats(snap.data.tautulliData || null, snap.data.seerrData || null);
       }
     }
   } catch (_) {}
@@ -200,17 +250,19 @@
       html = `<p>${isEnglish ? "No data available." : "Aucune donnée disponible."}</p>`;
     }
 
-    container.innerHTML = html;
-    container.classList.remove('skel');
+    renderStats(tautulliData, seerrData);
 
     // 💾 Persister pour la prochaine visite (stale-while-revalidate)
     try {
-      localStorage.setItem(SWR_KEY, JSON.stringify({ html, savedAt: Date.now() }));
+      localStorage.setItem(SWR_KEY, JSON.stringify({ data: { tautulliData, seerrData }, savedAt: Date.now() }));
     } catch (_) {}
 
   } catch (err) {
     console.error("Stats loading error:", err);
-    container.innerHTML = `<p>${isEnglish ? "Error while loading statistics." : "Erreur lors du chargement des statistiques."}</p>`;
+    container.replaceChildren();
+    const error = document.createElement("p");
+    error.textContent = isEnglish ? "Error while loading statistics." : "Erreur lors du chargement des statistiques.";
+    container.append(error);
   }
 
 });
