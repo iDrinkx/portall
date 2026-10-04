@@ -1,8 +1,32 @@
 # 📦 Configuration Unraid - portall
 
+## ⚠️ Mise à jour depuis une version antérieure à 1.42.18
+
+La production requiert `SESSION_SECRET`, `CREDENTIALS_ENCRYPTION_KEY` et `APP_URL`. Gardez votre `SESSION_SECRET`, générez une seule clé de chiffrement avec `openssl rand -hex 32`, définissez l’URL publique exacte puis recréez le conteneur. Les secrets SQLite existants sont migrés vers AES-256-GCM; les sessions plaintext sont invalidées et peuvent demander une reconnexion Plex unique. Ne régénérez jamais la clé de chiffrement à chaque démarrage.
+
+## Templates Unraid : variables du conteneur
+
+Avec l’interface Docker Unraid, aucun fichier `.env` n’est nécessaire. Ajoutez directement `SESSION_SECRET` (valeur forte existante), `CREDENTIALS_ENCRYPTION_KEY` (nouvelle clé hexadécimale de 64 caractères), `APP_URL` (`https://portall.example.com`), `SETUP_TOKEN`, `TRUST_PROXY=1` et `COOKIE_SECURE=true` aux Container Variables.
+
+Après l’ajout d’une variable au template, cliquez sur **APPLY** pour recréer le conteneur : un simple restart n’injecte pas une nouvelle variable.
+
+## Réseau et port
+
+Mode recommandé : placez NPM et Portall sur le même réseau Docker personnalisé. Dans NPM, utilisez `Forward Hostname = portall` et `Forward Port = 3000`; aucun port hôte Portall n’est alors nécessaire.
+
+```text
+Internet → Cloudflare éventuel → NPM / CrowdSec → réseau Docker privé → portall:3000
+```
+
+Mode compatibilité : publier un port hôte (`4000:3000` ou `3000:3000`) fonctionne, mais permet l’accès direct depuis les réseaux joignant ce port et peut contourner NPM/CrowdSec.
+
+## Mise à jour de l’image
+
+Utilisez **Docker → Check for Updates → Update**, ou l’outil natif d’auto-update Unraid s’il est activé. Le `pull_policy: always` de Compose récupère `latest` lors de l’application/recréation du service ; il ne crée pas de mise à jour périodique autonome.
+
 Guide spécifique pour configurer portall sur **Unraid** avec **ngx proxy manager**.
 
-> ✨ **NOUVEAU**: L'app détecte automatiquement la configuration via les headers du reverse proxy!
+> En production, configurez explicitement `APP_URL`; les headers du reverse proxy ne servent pas à reconstruire l’URL publique.
 
 ---
 
@@ -48,10 +72,7 @@ environment:
 
 Définissez `SETUP_TOKEN` dans le fichier `.env` avec une valeur aléatoire longue (par exemple `openssl rand -hex 32`). Il protège uniquement les API de configuration initiale : ce n'est pas un token Plex.
 
-L'app détectera automatiquement:
-- La présence du reverse proxy via les headers `X-Forwarded-*`
-- L'URL publique via `X-Forwarded-Host`
-- Le chemin de base via `X-Forwarded-Prefix`
+Définissez `APP_URL` avec l’URL publique exacte. Les headers `X-Forwarded-*` sont utilisés pour le chemin de base et le contexte proxy, jamais pour reconstruire l’URL publique en production.
 
 Les connexions Plex, Seerr, Tautulli, Wizarr, Radarr, Sonarr, Komga, Jellyfin et RomM peuvent ensuite être renseignées via le setup web puis `Parametres > Connexions`.
 

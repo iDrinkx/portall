@@ -1,5 +1,18 @@
 # 🚀 Installation portall - Guide pas à pas
 
+## ⚠️ Mise à jour depuis une version antérieure à 1.42.18
+
+En production, définissez `SESSION_SECRET`, `CREDENTIALS_ENCRYPTION_KEY` et `APP_URL`. Conservez votre `SESSION_SECRET`, générez une seule fois la clé de chiffrement avec `openssl rand -hex 32`, puis recréez le conteneur. Les secrets SQLite sont migrés vers AES-256-GCM; les anciennes sessions plaintext sont invalidées et peuvent demander une reconnexion Plex unique. Ne régénérez jamais cette clé à chaque redémarrage.
+
+## Mise à jour de l’image
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+`pull_policy: always` vérifie `latest` lors de l’application/recréation du service selon Compose ; ce n’est pas une mise à jour périodique autonome.
+
 ## 📋 Prérequis
 
 - ✅ Docker installé ([Installer Docker](https://docs.docker.com/get-docker/))
@@ -21,10 +34,7 @@ SESSION_SECRET: "${SESSION_SECRET:?set a 32+ character random value in .env}"
 
 **C'est tout ce qui est obligatoire au bootstrap.**
 
-L'app détecte automatiquement:
-- ✅ Si elle est en local ou derrière un reverse proxy
-- ✅ L'URL publique (via headers du reverse proxy)
-- ✅ Le chemin de base (via headers du reverse proxy)
+En production, définissez `APP_URL` avec l’URL publique exacte. L’application utilise les headers du reverse proxy pour le chemin de base, mais ne reconstruit jamais l’URL publique depuis ces headers.
 
 Les URLs/tokens Plex, Seerr, Tautulli, Radarr, Sonarr, Komga, Jellyfin, RomM et Wizarr ne sont plus obligatoirement définis dans le compose.
 Ils peuvent être saisis au premier lancement via le setup web.
@@ -93,9 +103,9 @@ docker-compose down
 
 > ℹ️ Une fois que ça fonctionne en local, vous pouvez passer à la production
 
-### 1. Aucune modification du docker-compose.yml!
+### 1. Configurer les variables de production
 
-L'app détecte automatiquement le reverse proxy. ✅
+Définissez `SESSION_SECRET`, `CREDENTIALS_ENCRYPTION_KEY` et `APP_URL` avant de recréer le conteneur. ✅
 
 ### 2. Configurer le reverse proxy (ngx proxy manager)
 

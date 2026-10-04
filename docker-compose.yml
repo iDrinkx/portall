@@ -3,6 +3,7 @@ version: '3.8'
 services:
   portall:
     image: ghcr.io/idrinkx/portall:latest
+    pull_policy: always
     container_name: portall
     ports:
       - "3000:3000"
@@ -17,15 +18,15 @@ services:
       DEBUG: "false"
 
       # Obligatoire: remplacez par une vraie clé longue et aléatoire
-      SESSION_SECRET: "${SESSION_SECRET}"
-      CREDENTIALS_ENCRYPTION_KEY: "${CREDENTIALS_ENCRYPTION_KEY}"
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET is required}"
+      CREDENTIALS_ENCRYPTION_KEY: "${CREDENTIALS_ENCRYPTION_KEY:?CREDENTIALS_ENCRYPTION_KEY is required}"
 
       # Requis uniquement pendant la configuration initiale (définir dans .env)
-      SETUP_TOKEN: "${SETUP_TOKEN}"
+      SETUP_TOKEN: "${SETUP_TOKEN:-}"
 
       # Optionnel: overrides du portail si besoin
-      APP_URL: ""
-      BASE_PATH: ""
+      APP_URL: "${APP_URL:?APP_URL is required in production}"
+      BASE_PATH: "${BASE_PATH:-}"
     volumes:
       # Logo et fichiers de config
       - ./config:/config

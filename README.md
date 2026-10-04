@@ -7,6 +7,19 @@ Tableau de bord compagnon non officiel pour les utilisateurs de Plex.
 
 Application web pour gérer votre accès Plex, afficher abonnements, statistiques de visionnage, et accéder à Seerr via SSO intégré.
 
+## ⚠️ Mise à jour depuis une version antérieure à 1.42.18
+
+En production, le conteneur requiert `SESSION_SECRET`, `CREDENTIALS_ENCRYPTION_KEY` et `APP_URL`. Ne changez pas votre `SESSION_SECRET` existant; générez une seule `CREDENTIALS_ENCRYPTION_KEY` avec `openssl rand -hex 32`, définissez l’URL publique exacte puis recréez le conteneur. Les secrets SQLite sont migrés vers AES-256-GCM et une reconnexion Plex unique peut être nécessaire car les anciennes sessions plaintext sont invalidées. Ne régénérez jamais la clé de chiffrement à chaque démarrage.
+
+## Mise à jour de l’image
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+`pull_policy: always` vérifie `latest` lors de l’application/recréation du service selon Compose ; ce n’est pas une mise à jour périodique autonome.
+
 ---
 
 ## 📦 Dernière Version & Changelog
@@ -34,9 +47,9 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 
 📅 **Calendrier des sorties** : Sorties films/séries à venir depuis Radarr et Sonarr (4 vues : semaine, mois, jour, liste)
 
-🔄 **Reverse Proxy Automatique** : Détection auto via headers `X-Forwarded-*`
+🔄 **Reverse Proxy** : Détection du chemin via headers `X-Forwarded-*`; `APP_URL` reste explicite en production
 
-⚡ **Configuration Minimale** : Juste `SESSION_SECRET` en obligatoire
+⚡ **Configuration production** : `SESSION_SECRET`, `CREDENTIALS_ENCRYPTION_KEY` et `APP_URL`
 
 🟢 **Carte Uptime Kuma sur la page de connexion** : Affichage compact des services avant login Plex via l'API privée Kuma
 
@@ -73,7 +86,7 @@ Application web pour gérer votre accès Plex, afficher abonnements, statistique
 ### Production (Unraid + ngx proxy manager)
 
 ```bash
-# L'app détecte automatiquement le reverse proxy via X-Forwarded-*
+# Définissez SESSION_SECRET, CREDENTIALS_ENCRYPTION_KEY et APP_URL dans .env
 docker compose up -d
 # Accès : https://portall.votredomaine.com
 ```
@@ -197,6 +210,8 @@ Le modèle actuel est:
 Variables de bootstrap typiques:
 
 - `SESSION_SECRET`
+- `CREDENTIALS_ENCRYPTION_KEY` (clé AES-256-GCM stable)
+- `APP_URL` (URL publique exacte obligatoire en production)
 - `SETUP_TOKEN` (uniquement pour les API de configuration initiale)
 - `PORT`
 - `COOKIE_SECURE`
@@ -237,7 +252,9 @@ services:
     ports:
       - "4000:3000"
     environment:
-      SESSION_SECRET: "change-me"
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET is required}"
+      CREDENTIALS_ENCRYPTION_KEY: "${CREDENTIALS_ENCRYPTION_KEY:?CREDENTIALS_ENCRYPTION_KEY is required}"
+      APP_URL: "${APP_URL:?APP_URL is required in production}"
       SETUP_TOKEN: "${SETUP_TOKEN}"
       NODE_ENV: "production"
       COOKIE_SECURE: "true"
@@ -247,7 +264,7 @@ services:
       - proxy
     volumes:
       - /chemin/appdata/portall/config:/config
-      - /chemin/appdata/tautulli:/tautulli-data
+      - /chemin/appdata/tautulli:/tautulli-data:ro
 
 networks:
   proxy:
@@ -315,12 +332,11 @@ Aucun header X-Forwarded-*
 ### Derrière ngx proxy manager / Traefik
 ```
 X-Forwarded-Proto: https
-X-Forwarded-Host: portall.votredomaine.com
 X-Forwarded-Prefix: /
- https://portall.votredomaine.com   (auto-détecté)
+ APP_URL=https://portall.votredomaine.com
 ```
 
-Aucune configuration manuelle requise. 
+En production, `APP_URL` doit être configurée explicitement : elle n’est jamais reconstruite depuis `Host` ou `X-Forwarded-Host`.
 
 ---
 
@@ -360,7 +376,7 @@ Pour toute suggestion ou bug, ouvrez une issue ou contactez l'auteur.
 ##  Support & FAQ
 
 **Q : Que modifier pour passer du local à la production ?**
-R : Rien côté app. Configurez ngx proxy manager pour pointer vers portall, les headers `X-Forwarded-*` sont auto-détectés.
+R : Définissez l’`APP_URL` publique exacte, puis configurez ngx proxy manager pour pointer vers Portall. Les headers `X-Forwarded-*` servent au chemin de base, pas à reconstruire l’URL publique en production.
 
 **Q : Seerr ne charge pas dans l'iframe ?**
 R : Vérifiez que `SEERR_PUBLIC_URL` et l'URL du portail partagent le même domaine parent (`.votredomaine.com`). HTTPS requis.

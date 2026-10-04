@@ -1600,8 +1600,8 @@
         const label = document.createElement("label"); label.className = "switch"; label.setAttribute("aria-label", "Activer ou desactiver " + String(item.label || ""));
         const enabled = document.createElement("input"); enabled.type = "checkbox"; enabled.dataset.layoutEnabled = ""; enabled.checked = item.enabled !== false;
         const slider = document.createElement("span"); slider.className = "slider"; label.append(enabled, slider);
-        const up = document.createElement("button"); up.className = "builtin-card-order-btn"; up.type = "button"; up.dataset.layoutMove = "up"; up.disabled = isFirst; up.textContent = "<%= t(\"settings.dashboardBuiltins.up\") %>";
-        const down = document.createElement("button"); down.className = "builtin-card-order-btn"; down.type = "button"; down.dataset.layoutMove = "down"; down.disabled = isLast; down.textContent = "<%= t(\"settings.dashboardBuiltins.down\") %>";
+        const up = document.createElement("button"); up.className = "builtin-card-order-btn"; up.type = "button"; up.dataset.layoutMove = "up"; up.disabled = isFirst; up.textContent = "<%= t("settings.dashboardBuiltins.up") %>";
+        const down = document.createElement("button"); down.className = "builtin-card-order-btn"; down.type = "button"; down.dataset.layoutMove = "down"; down.disabled = isLast; down.textContent = "<%= t("settings.dashboardBuiltins.down") %>";
         actions.append(label, up, down); row.append(meta, actions); fragment.append(row);
       });
       dashboardLayoutList.replaceChildren(fragment);
