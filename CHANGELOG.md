@@ -4,6 +4,15 @@
 
 * **ui:** restore custom logo asset ([cf458d8](https://github.com/iDrinkx/portall/commit/cf458d86a7833e202121c6ae57dca6086a960bb3))
 
+## [1.42.18](https://github.com/iDrinkx/portall/compare/v1.42.17...v1.42.18) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** pass secrets to Docker smoke test ([ad26c11](https://github.com/iDrinkx/portall/commit/ad26c114d4ea5f6771457c989e5f253ad038fbbd))
+* **security:** harden Portall for public deployment ([ff8b401](https://github.com/iDrinkx/portall/commit/ff8b4015c9989bb7bbd63a533b6f125a29f943ff))
+* **security:** harden Portall for public deployment ([04dc01a](https://github.com/iDrinkx/portall/commit/04dc01a3f48fc8511474aac3d389405b9607afa2))
+
 ## [1.42.16](https://github.com/iDrinkx/portall/compare/v1.42.15...v1.42.16) (2026-09-10)
 
 ### Corrections de bugs
