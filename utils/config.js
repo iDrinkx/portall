@@ -125,8 +125,15 @@ function getConfigValue(key, defaultValue = "") {
   } catch (_) {
     stored = null;
   }
-  if (stored !== null && stored !== undefined) return stored;
   const envValue = process.env[key];
+  const hasNonEmptyValue = value => value !== null && value !== undefined && String(value).trim() !== "";
+
+  // A legacy empty SQLite setting must not mask an explicit Docker value.
+  // Preserve the original value once selected; trimming is only used to
+  // determine precedence.
+  if (hasNonEmptyValue(stored)) return stored;
+  if (hasNonEmptyValue(envValue)) return envValue;
+  if (stored !== null && stored !== undefined) return stored;
   return envValue !== undefined ? envValue : defaultValue;
 }
 
