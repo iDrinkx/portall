@@ -4,6 +4,14 @@
 
 * **ui:** restore custom logo asset ([cf458d8](https://github.com/iDrinkx/portall/commit/cf458d86a7833e202121c6ae57dca6086a960bb3))
 
+## [1.42.19](https://github.com/iDrinkx/portall/compare/v1.42.18...v1.42.19) (2026-10-04)
+
+
+### Bug Fixes
+
+* **config:** preserve environment config and repair settings view ([731aa1b](https://github.com/iDrinkx/portall/commit/731aa1b4007cb325828cee4f42f9a0d8f557939a))
+* **config:** preserve environment config and repair settings view ([db00200](https://github.com/iDrinkx/portall/commit/db0020064d69d79049bdab04e1a0f625bfadfa9d))
+
 ## [1.42.18](https://github.com/iDrinkx/portall/compare/v1.42.17...v1.42.18) (2026-10-04)
 
 
