@@ -444,11 +444,18 @@
         const response = await fetch((window.APP_BASE_PATH || '') + '/api/changelog');
         if (!response.ok) throw new Error('Failed to fetch changelog');
         const markdown = await response.text();
-        changelogBody.innerHTML = '<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; line-height: 1.6;">' +
-                                  markdown.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-                                  '</pre>';
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.overflowWrap = 'break-word';
+        pre.style.fontSize = '0.9em';
+        pre.style.lineHeight = '1.6';
+        pre.textContent = markdown;
+        changelogBody.replaceChildren(pre);
       } catch (err) {
-        changelogBody.innerHTML = '<p style="color: #e74c3c;"><%= t("dashboard.html.footer.error") %></p>';
+        const error = document.createElement('p');
+        error.style.color = '#e74c3c';
+        error.textContent = '<%= t("dashboard.html.footer.error") %>';
+        changelogBody.replaceChildren(error);
       }
     }
 

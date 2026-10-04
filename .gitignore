@@ -1,6 +1,11 @@
 node_modules/
+.npm-cache/
 .env
 .env.*
 !.env.example
 !config/.env.example
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
 .DS_Store

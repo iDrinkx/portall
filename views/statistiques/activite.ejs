@@ -201,7 +201,11 @@
       const messageDiv = document.getElementById("activityMessage");
 
       if (!data || !data.user) {
-        messageDiv.innerHTML = `<div class="activity-error">❌ Impossible de récupérer les informations d'activité</div>`;
+        messageDiv.replaceChildren();
+        const error = document.createElement("div");
+        error.className = "activity-error";
+        error.textContent = "❌ Impossible de récupérer les informations d'activité";
+        messageDiv.append(error);
         return;
       }
 
@@ -217,16 +221,28 @@
         ? `${formatRelativeTime(data.user.lastActivityAt)} (${formatFullDate(data.user.lastActivityAt)})`
         : "Aucune activité enregistrée";
 
-      messageDiv.innerHTML = `
-        <p><strong>ℹ️ Information:</strong></p>
-        <p>Tautulli fournit uniquement la date de dernière activité via son API publique.</p>
-        <p>L'historique détaillé des contenus regardés n'est pas disponible.</p>
-        <div class="info-badge">📌 Dernière activité: ${lastActivityDate}</div>
-      `;
+      messageDiv.replaceChildren();
+      const info = document.createElement("p");
+      const strong = document.createElement("strong");
+      strong.textContent = "ℹ️ Information:";
+      info.append(strong);
+      const source = document.createElement("p");
+      source.textContent = "Tautulli fournit uniquement la date de dernière activité via son API publique.";
+      const detail = document.createElement("p");
+      detail.textContent = "L'historique détaillé des contenus regardés n'est pas disponible.";
+      const badge = document.createElement("div");
+      badge.className = "info-badge";
+      badge.textContent = `📌 Dernière activité: ${lastActivityDate}`;
+      messageDiv.append(info, source, detail, badge);
 
     } catch (err) {
       console.error("Activity load error:", err);
-      document.getElementById("activityMessage").innerHTML = `<div class="activity-error">❌ Erreur lors du chargement de l'activité</div>`;
+      const message = document.getElementById("activityMessage");
+      message.replaceChildren();
+      const error = document.createElement("div");
+      error.className = "activity-error";
+      error.textContent = "❌ Erreur lors du chargement de l'activité";
+      message.append(error);
     }
   });
 </script>

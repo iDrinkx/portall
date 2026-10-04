@@ -16,9 +16,7 @@
 Ouvrir le fichier et changer **SESSION_SECRET**:
 
 ```yaml
-SESSION_SECRET: "change-me-to-a-secure-key"
-        ↓
-SESSION_SECRET: "my-super-secret-key-12345"
+SESSION_SECRET: "${SESSION_SECRET:?set a 32+ character random value in .env}"
 ```
 
 **C'est tout ce qui est obligatoire au bootstrap.**
@@ -207,3 +205,4 @@ En cas de problème:
 1. Vérifier les logs: `docker-compose logs -f`
 2. Consulter [DOCKER.md](./DOCKER.md)
 3. Ouvrir une issue sur GitHub
+> **Clé de chiffrement :** définissez `CREDENTIALS_ENCRYPTION_KEY` sur une clé aléatoire de 32 octets (base64 ou hexadécimale) et conservez-la stable. La modifier sans migration rend les secrets SQLite existants illisibles. Après cette mise à jour, les anciennes sessions SQLite non chiffrées sont invalidées : une reconnexion unique est nécessaire.

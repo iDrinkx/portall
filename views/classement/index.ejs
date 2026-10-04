@@ -649,12 +649,15 @@
       if (image.nextElementSibling) image.nextElementSibling.style.display = 'flex';
     }
     if (image.matches('.lb-preview-avatar') && image.parentElement) {
-      image.parentElement.innerHTML = '<span class="lb-preview-value lb-preview-value--muted">?</span>';
+      const fallback = document.createElement('span');
+      fallback.className = 'lb-preview-value lb-preview-value--muted';
+      fallback.textContent = '?';
+      image.parentElement.replaceChildren(fallback);
     }
   }, true);
 (function () {
-  const ME = '<%= user.username %>';
-  const ME_THUMB = <%- JSON.stringify((user && user.thumb) ? user.thumb : '').replace(/</g, "\\u003c") %>;
+  const ME = <%- safeJsonForScript(user && user.username ? user.username : '') %>;
+  const ME_THUMB = <%- safeJsonForScript((user && user.thumb) ? user.thumb : '') %>;
   var usersByName = {};
   var previewModal = document.getElementById('lbPreviewModal');
   var previewBody = document.getElementById('lbPreviewBody');
@@ -669,6 +672,19 @@
       .replace(/'/g, '&#39;');
   }
 
+  function safeHttpUrl(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.origin);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+      return url.href;
+    } catch (_) { return ''; }
+  }
+
+  function safeColor(value, fallback = '#ffffff') {
+    const color = String(value || '');
+    return /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(color) ? color : fallback;
+  }
+
   function _grad(c) {
     return 'conic-gradient(from -90deg, ' + c + '2e 0deg, ' + c + ' 90deg, ' + c + 'cc 180deg, ' + c + ' 270deg, ' + c + '2e 360deg)';
   }
@@ -681,25 +697,28 @@
     var initials = (user.username || '?').charAt(0).toUpperCase();
     // Augmenter l'intensité du glow sur mobile
     var isMobile = window.innerWidth <= 720;
+    var rankColor = safeColor(user.rank && user.rank.color);
+    var rankBgColor = safeColor(user.rank && user.rank.bgColor, '#111111');
+    var rankBorderColor = safeColor(user.rank && user.rank.borderColor);
     var glow = isMobile
-      ? 'drop-shadow(0 0 16px ' + user.rank.color + 'ff) drop-shadow(0 0 32px ' + user.rank.color + '88) drop-shadow(0 0 48px ' + user.rank.color + '44)'
-      : 'drop-shadow(0 0 9px ' + user.rank.color + 'cc) drop-shadow(0 0 22px ' + user.rank.color + '55)';
-    var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
+      ? 'drop-shadow(0 0 16px ' + rankColor + 'ff) drop-shadow(0 0 32px ' + rankColor + '88) drop-shadow(0 0 48px ' + rankColor + '44)'
+      : 'drop-shadow(0 0 9px ' + rankColor + 'cc) drop-shadow(0 0 22px ' + rankColor + '55)';
+    var effectiveThumb = safeHttpUrl(user.thumb || (isMe ? ME_THUMB : ''));
     var imgPart  = effectiveThumb
       ? '<img src="' + effectiveThumb + '" class="lb-pod-img" alt="" loading="lazy" style="filter:' + glow + '">'
-        + '<div class="lb-pod-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
-      : '<div class="lb-pod-placeholder" style="filter:' + glow + '">' + initials + '</div>';
+        + '<div class="lb-pod-placeholder" style="display:none;filter:' + glow + '">' + escHtml(initials) + '</div>'
+      : '<div class="lb-pod-placeholder" style="filter:' + glow + '">' + escHtml(initials) + '</div>';
 
     return '<div class="lb-podium-card lb-podium-card--' + rank + '" data-lb-user="' + escHtml(user.username) + '">'
       + '<span class="lb-podium-medal">' + medal + '</span>'
       + '<div class="lb-pod-avatar-wrap">'
-        + '<div class="lb-pod-ring" style="background:' + _grad(user.rank.color) + '"></div>'
+        + '<div class="lb-pod-ring" style="background:' + _grad(rankColor) + '"></div>'
         + imgPart
         + '<div class="lb-pod-level">' + user.level + '</div>'
       + '</div>'
       + '<div class="lb-pod-username' + (isMe ? ' lb-pod-username--me' : '') + '">' + escHtml(user.username) + '</div>'
-      + '<span class="lb-pod-rank-badge" style="background:' + user.rank.bgColor + ';color:' + user.rank.color + ';border:1px solid ' + user.rank.borderColor + '40">'
-        + user.rank.icon + ' ' + user.rank.name
+      + '<span class="lb-pod-rank-badge" style="background:' + rankBgColor + ';color:' + rankColor + ';border:1px solid ' + rankBorderColor + '40">'
+        + escHtml((user.rank.icon || '') + ' ' + (user.rank.name || ''))
       + '</span>'
       + '<div class="lb-pod-hours">Nv.\u00a0' + user.level + '</div>'
       + '<div class="lb-pod-hours-lbl">' + user.totalXp + '\u00a0XP</div>'
@@ -711,9 +730,11 @@
     var initials = (user.username || '?').charAt(0).toUpperCase();
     // Augmenter l'intensité du glow sur mobile
     var isMobile = window.innerWidth <= 720;
+    var rankColor = safeColor(user.rank && user.rank.color);
+    var rankBgColor = safeColor(user.rank && user.rank.bgColor, '#111111');
     var glow = isMobile
-      ? 'drop-shadow(0 0 14px ' + user.rank.color + 'ff) drop-shadow(0 0 28px ' + user.rank.color + '88) drop-shadow(0 0 40px ' + user.rank.color + '44)'
-      : 'drop-shadow(0 0 8px ' + user.rank.color + 'cc) drop-shadow(0 0 18px ' + user.rank.color + '55)';
+      ? 'drop-shadow(0 0 14px ' + rankColor + 'ff) drop-shadow(0 0 28px ' + rankColor + '88) drop-shadow(0 0 40px ' + rankColor + '44)'
+      : 'drop-shadow(0 0 8px ' + rankColor + 'cc) drop-shadow(0 0 18px ' + rankColor + '55)';
     var posHtml;
     if      (pos === 0) posHtml = '<span class="lb-pos lb-pos-1">\uD83E\uDD47</span>';
     else if (pos === 1) posHtml = '<span class="lb-pos lb-pos-2">\uD83E\uDD48</span>';
@@ -722,23 +743,23 @@
 
     var statHtml = mode === 'hours'
       ? '<div class="lb-row-stat"><div class="lb-row-stat-main">' + hrs(user.totalHours) + '</div><div class="lb-row-stat-sub">heures</div></div>'
-      : '<div class="lb-row-stat"><div class="lb-row-level" style="background:' + user.rank.bgColor + ';color:' + user.rank.color + '">Nv.\u00a0' + user.level + '</div></div>';
+      : '<div class="lb-row-stat"><div class="lb-row-level" style="background:' + rankBgColor + ';color:' + rankColor + '">Nv.\u00a0' + user.level + '</div></div>';
 
-    var effectiveThumb = user.thumb || (isMe ? ME_THUMB : '');
+    var effectiveThumb = safeHttpUrl(user.thumb || (isMe ? ME_THUMB : ''));
     var imgPart = effectiveThumb
       ? '<img src="' + effectiveThumb + '" class="lb-row-avatar" width="40" height="40" alt="" loading="lazy" style="filter:' + glow + '">'
-        + '<div class="lb-row-placeholder" style="display:none;filter:' + glow + '">' + initials + '</div>'
-      : '<div class="lb-row-placeholder" style="filter:' + glow + '">' + initials + '</div>';
+        + '<div class="lb-row-placeholder" style="display:none;filter:' + glow + '">' + escHtml(initials) + '</div>'
+      : '<div class="lb-row-placeholder" style="filter:' + glow + '">' + escHtml(initials) + '</div>';
 
     return '<div class="lb-row' + (isMe ? ' lb-row--me' : '') + '" data-lb-user="' + escHtml(user.username) + '">'
       + posHtml
       + '<div class="lb-row-avatar-wrap">'
-        + '<div class="lb-row-ring" style="background:' + _grad(user.rank.color) + '"></div>'
+        + '<div class="lb-row-ring" style="background:' + _grad(rankColor) + '"></div>'
         + imgPart
       + '</div>'
       + '<div class="lb-row-info">'
         + '<div class="lb-row-name">' + escHtml(user.username) + '</div>'
-        + '<div class="lb-row-meta" style="color:' + user.rank.color + ';font-weight:700">' + escHtml(user.rank.icon + ' ' + user.rank.name) + '</div>'
+        + '<div class="lb-row-meta" style="color:' + rankColor + ';font-weight:700">' + escHtml((user.rank.icon || '') + ' ' + (user.rank.name || '')) + '</div>'
       + '</div>'
       + statHtml
     + '</div>';
@@ -755,7 +776,15 @@
       html += '<div class="lb-row-sep"><span class="lb-row-sep-label">Votre position</span><span class="lb-row-sep-dots">\u00b7 \u00b7 \u00b7</span></div>';
       html += rankRow(list[myPos], myPos, mode);
     }
-    document.getElementById(containerId).innerHTML = html;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const fragment = document.createDocumentFragment();
+    slice.forEach(function(user, index) { fragment.append(createRankingRow(user, index + startFrom, mode)); });
+    if (myPos >= startFrom + pageSize) {
+      const separator = document.createElement('div'); separator.className = 'lb-row-sep'; separator.textContent = 'Votre position · · ·'; fragment.append(separator);
+      fragment.append(createRankingRow(list[myPos], myPos, mode));
+    }
+    container.replaceChildren(fragment);
   }
 
   function renderPodium(byHours) {
@@ -763,11 +792,35 @@
     // Ordre visuel podium : 2e (gauche) - 1er (centre) - 3e (droite)
     var visual = [top3[1], top3[0], top3[2]];
     var ranks  = [2, 1, 3];
-    var html   = '';
-    for (var i = 0; i < visual.length; i++) {
-      if (visual[i]) html += podiumCard(visual[i], ranks[i]);
-    }
-    document.getElementById('lbPodium').innerHTML = html;
+    const container = document.getElementById('lbPodium');
+    if (!container) return;
+    const fragment = document.createDocumentFragment();
+    for (var i = 0; i < visual.length; i++) if (visual[i]) fragment.append(createPodiumCard(visual[i], ranks[i]));
+    container.replaceChildren(fragment);
+  }
+
+  function avatarNode(user, isMe, className) {
+    const url = safeHttpUrl(user.thumb || (isMe ? ME_THUMB : ''));
+    if (url) { const image = document.createElement('img'); image.className = className; image.src = url; image.alt = ''; image.loading = 'lazy'; return image; }
+    const fallback = document.createElement('div'); fallback.className = className + '-placeholder'; fallback.textContent = String(user.username || '?').charAt(0).toUpperCase(); return fallback;
+  }
+  function createRankingRow(user, position, mode) {
+    const isMe = user.username === ME, rank = user.rank || {}, color = safeColor(rank.color), bg = safeColor(rank.bgColor, '#111111');
+    const row = document.createElement('div'); row.className = 'lb-row' + (isMe ? ' lb-row--me' : ''); row.dataset.lbUser = String(user.username || '');
+    const pos = document.createElement('span'); pos.className = 'lb-pos'; pos.textContent = position < 3 ? ['🥇','🥈','🥉'][position] : `#${position + 1}`;
+    const avatar = document.createElement('div'); avatar.className = 'lb-row-avatar-wrap'; avatar.append(avatarNode(user, isMe, 'lb-row-avatar'));
+    const info = document.createElement('div'); info.className = 'lb-row-info'; const name = document.createElement('div'); name.className = 'lb-row-name'; name.textContent = user.username || ''; const meta = document.createElement('div'); meta.className = 'lb-row-meta'; meta.style.color = color; meta.textContent = `${rank.icon || ''} ${rank.name || ''}`; info.append(name, meta);
+    const stat = document.createElement('div'); stat.className = 'lb-row-stat'; stat.style.backgroundColor = mode === 'hours' ? '' : bg; stat.textContent = mode === 'hours' ? `${hrs(user.totalHours)} heures` : `Nv. ${Number(user.level) || 1}`;
+    row.append(pos, avatar, info, stat); return row;
+  }
+  function createPodiumCard(user, position) {
+    const rank = user.rank || {}, color = safeColor(rank.color), bg = safeColor(rank.bgColor, '#111111'), isMe = user.username === ME;
+    const card = document.createElement('div'); card.className = `lb-podium-card lb-podium-card--${position}`; card.dataset.lbUser = String(user.username || '');
+    const medal = document.createElement('span'); medal.className = 'lb-podium-medal'; medal.textContent = ['','🥇','🥈','🥉'][position];
+    const avatar = document.createElement('div'); avatar.className = 'lb-pod-avatar-wrap'; avatar.append(avatarNode(user, isMe, 'lb-pod-img'));
+    const name = document.createElement('div'); name.className = 'lb-pod-username'; name.textContent = user.username || '';
+    const badge = document.createElement('span'); badge.className = 'lb-pod-rank-badge'; badge.style.backgroundColor = bg; badge.style.color = color; badge.textContent = `${rank.icon || ''} ${rank.name || ''}`;
+    card.append(medal, avatar, name, badge); return card;
   }
 
   function renderPreview(user) {
@@ -778,23 +831,20 @@
     var totalXp = Number(user.totalXp || 0).toLocaleString('fr-FR');
     var badgeCount = Number(user.badgeCount || 0).toLocaleString('fr-FR');
     var totalHours = Math.round(user.totalHours || 0).toLocaleString('fr-FR');
-    var effectiveThumb = user.thumb || (user.username === ME ? ME_THUMB : '');
-    var avatarHtml = effectiveThumb
-      ? '<img class="lb-preview-avatar" src="' + effectiveThumb + '" alt="" loading="lazy">'
-      : '<span class="lb-preview-value lb-preview-value--muted" style="font-size:36px">' + escHtml((user.username || '?').charAt(0).toUpperCase()) + '</span>';
-
-    previewBody.innerHTML =
-      '<div class="lb-preview-profile-card">'
-        + '<div class="lb-preview-avatar-col">' + avatarHtml + '</div>'
-        + '<div class="lb-preview-main">'
-          + '<div class="lb-preview-meta-row">'
-            + '<span class="lb-preview-chip lb-preview-chip--rank" style="color:' + escHtml(rank.color || '#fff') + ';border-color:' + escHtml((rank.borderColor || '#fff')) + '66;background:' + escHtml((rank.bgColor || 'rgba(255,255,255,0.08)')) + '"><span>Niv. ' + level + '</span><span class="lb-preview-rank-sep">•</span><span>' + escHtml((rank.icon || '🏅') + ' ' + (rank.name || 'Rang')) + '</span></span>'
-            + '<span class="lb-preview-chip lb-preview-chip--hours">' + totalHours + ' H</span>'
-            + '<span class="lb-preview-chip lb-preview-chip--succes">🏆 ' + badgeCount + '</span>'
-            + '<span class="lb-preview-chip lb-preview-chip--xp">' + totalXp + ' XP</span>'
-          + '</div>'
-        + '</div>'
-      + '</div>';
+    var effectiveThumb = safeHttpUrl(user.thumb || (user.username === ME ? ME_THUMB : ''));
+    var previewColor = safeColor(rank.color);
+    var previewBorderColor = safeColor(rank.borderColor);
+    var previewBgColor = safeColor(rank.bgColor, '#111111');
+    const card = document.createElement('div'); card.className = 'lb-preview-profile-card';
+    const avatarColumn = document.createElement('div'); avatarColumn.className = 'lb-preview-avatar-col';
+    if (effectiveThumb) { const image = document.createElement('img'); image.className = 'lb-preview-avatar'; image.src = effectiveThumb; image.alt = ''; image.loading = 'lazy'; avatarColumn.append(image); }
+    else { const fallback = document.createElement('span'); fallback.className = 'lb-preview-value lb-preview-value--muted'; fallback.style.fontSize = '36px'; fallback.textContent = (user.username || '?').charAt(0).toUpperCase(); avatarColumn.append(fallback); }
+    const main = document.createElement('div'); main.className = 'lb-preview-main';
+    const meta = document.createElement('div'); meta.className = 'lb-preview-meta-row';
+    const rankChip = document.createElement('span'); rankChip.className = 'lb-preview-chip lb-preview-chip--rank'; rankChip.style.color = previewColor; rankChip.style.borderColor = previewBorderColor; rankChip.style.backgroundColor = previewBgColor; rankChip.textContent = `Niv. ${level} • ${(rank.icon || '🏅')} ${(rank.name || 'Rang')}`;
+    meta.append(rankChip);
+    [['lb-preview-chip lb-preview-chip--hours', `${totalHours} H`], ['lb-preview-chip lb-preview-chip--succes', `🏆 ${badgeCount}`], ['lb-preview-chip lb-preview-chip--xp', `${totalXp} XP`]].forEach(function(item) { const chip = document.createElement('span'); chip.className = item[0]; chip.textContent = item[1]; meta.append(chip); });
+    main.append(meta); card.append(avatarColumn, main); previewBody.replaceChildren(card);
 
     previewModal.classList.add('lb-preview-modal--open');
     previewModal.setAttribute('aria-hidden', 'false');

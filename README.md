@@ -291,7 +291,7 @@ GET  /calendrier                Calendrier des sorties Radarr + Sonarr (auth req
 # Auth
 GET  /login                     Initie l'auth Plex OAuth
 GET  /auth-complete             Callback Plex OAuth
-GET  /logout                    Déconnexion
+POST /logout                    Déconnexion (CSRF requis)
 
 # APIs JSON
 GET  /api/subscription          Infos abonnement Wizarr

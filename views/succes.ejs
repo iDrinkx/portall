@@ -864,7 +864,7 @@
       card.addEventListener('click', function() { openModal(card); });
     });
     var successRefreshMeta = {
-      updatedAt: <%- JSON.stringify(successRefreshMeta?.updatedAt || null) %>,
+      updatedAt: <%- safeJsonForScript(successRefreshMeta?.updatedAt || null) %>,
       ttlMs: <%= Number(successRefreshMeta?.ttlMs || 0) %>,
       needsRefresh: <%= successRefreshMeta?.needsRefresh ? 'true' : 'false' %>,
       running: <%= successRefreshMeta?.running ? 'true' : 'false' %>
@@ -935,33 +935,9 @@
         return;
       }
 
-      var modalBody = document.getElementById('succesModalBody');
-      if (!modalBody) {
-        window.location.reload();
-        return;
-      }
-
-      window.__portallSuccessEmbedReloadInFlight = true;
-      fetch(successBasePath + '/succes?embed=1')
-        .then(function(r) { return r.text(); })
-        .then(function(html) {
-          modalBody.innerHTML = html;
-          modalBody.removeAttribute('style');
-          modalBody.style.overflowX = 'hidden';
-          modalBody.dataset.loaded = '1';
-          modalBody.querySelectorAll('script').forEach(function(s) {
-            var ns = document.createElement('script');
-            ns.textContent = s.textContent;
-            s.replaceWith(ns);
-          });
-          window.__portallSuccessLastEmbedReloadAt = Date.now();
-        })
-        .catch(function() {
-          window.location.reload();
-        })
-        .finally(function() {
-          window.__portallSuccessEmbedReloadInFlight = false;
-        });
+      // An embedded document cannot be safely replaced with fetched HTML.
+      // Reload its own authenticated view instead of parsing/re-executing it.
+      window.location.reload();
     }
 
     function stopSuccessStatusPolling() {
@@ -1056,25 +1032,7 @@
               return;
             }
 
-            var modalBody = document.getElementById('succesModalBody');
-            if (!modalBody) {
-              window.location.reload();
-              return;
-            }
-
-            return fetch(successBasePath + '/succes?embed=1')
-              .then(function(r) { return r.text(); })
-              .then(function(html) {
-                modalBody.innerHTML = html;
-                modalBody.removeAttribute('style');
-                modalBody.style.overflowX = 'hidden';
-                modalBody.dataset.loaded = '1';
-                modalBody.querySelectorAll('script').forEach(function(s) {
-                  var ns = document.createElement('script');
-                  ns.textContent = s.textContent;
-                  s.replaceWith(ns);
-                });
-              });
+            window.location.reload();
           })
           .catch(function() {
             successAutoRefreshPending = false;
@@ -1172,7 +1130,12 @@
       'color:#E5A00D', 'display:flex', 'align-items:center', 'gap:8px',
       'box-shadow:0 4px 20px rgba(0,0,0,.5)', 'transition:opacity .4s ease'
     ].join(';');
-    loadingBanner.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">âŸ³</span> <%= t("success.loadingProgress") %>';
+    const loadingIcon = document.createElement('span');
+    loadingIcon.style.animation = 'spin 1s linear infinite';
+    loadingIcon.style.display = 'inline-block';
+    loadingIcon.textContent = 'âŸ³';
+    const loadingText = document.createTextNode(' <%= t("success.loadingProgress") %>');
+    loadingBanner.append(loadingIcon, loadingText);
     document.body.appendChild(loadingBanner);
 
     function hideBanner() {
@@ -1303,7 +1266,7 @@
           card.classList.remove('locked');
           card.classList.add('unlocked');
           // Mettre Ã  jour les data attributes pour le modal
-          const dateLabel = <%- JSON.stringify(t("success.unlockedOn", { date: "__DATE__" })) %>.replace('__DATE__', date);
+          const dateLabel = <%- safeJsonForScript(t("success.unlockedOn", { date: "__DATE__" })) %>.replace('__DATE__', date);
           const unlockedDesc = card.dataset.descUnlocked || card.dataset.desc || '';
           card.dataset.desc = unlockedDesc;
           card.dataset.date = dateLabel;

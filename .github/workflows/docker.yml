@@ -4,25 +4,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'package-lock.json'
-      - 'README.md'
-      - '.github/workflows/docker.yml'
-      - 'server.js'
-      - 'config/**'
-      - 'middleware/**'
-      - 'public/**'
-      - 'src/**'
-      - 'views/**'
-      - 'utils/**'
-      - 'routes/**'
-      - 'package.json'
   release:
     types:
       - published

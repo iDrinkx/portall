@@ -87,6 +87,9 @@ async function main() {
   assertRejected("http://[fe80::1]/");
   assertRejected("http://[fe90::1]/");
   assertRejected("http://[febf::1]/");
+  assertRejected("http://[64:ff9b:1::1]/");
+  assertRejected("http://[::ffff:169.254.169.254]/");
+  assertRejected("http://[::ffff:a9fe:a9fe]/");
   // fec0::/10 is not fe80::/10 link-local and is allowed by the stated policy.
   assert.ok(validateTrustedServiceUrl("http://[fec0::1]/"));
   assertRejected("http://[ff02::1]/");

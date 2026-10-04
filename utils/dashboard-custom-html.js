@@ -27,20 +27,19 @@ function parseDashboardCustomHtmlBlocks(rawValue) {
 }
 
 function sanitizeDashboardCustomHtml(input) {
-  let html = String(input == null ? "" : input).trim();
+  const html = String(input == null ? "" : input).trim();
   if (!html) return "";
 
-  html = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    .replace(/<(object|embed|applet|meta|base|form)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
-    .replace(/<(object|embed|applet|meta|base|form)\b[^>]*\/?>/gi, "")
-    .replace(/\s+on[a-z]+\s*=\s*(["'])[\s\S]*?\1/gi, "")
-    .replace(/\s+on[a-z]+\s*=\s*([^\s>]+)/gi, "")
-    .replace(/\s+(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, " $1=\"#\"")
-    .replace(/\s+srcdoc\s*=\s*(["'])[\s\S]*?\1/gi, "");
-
-  return html;
+  // No HTML parser is available in the server runtime. Escaping the complete
+  // block is intentionally conservative: it preserves administrator input as
+  // visible text while making malformed/encoded HTML, CSS URLs and all URL
+  // schemes non-executable. Raw mode is not exposed by this application.
+  return html
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function getDashboardCustomHtmlRaw() {

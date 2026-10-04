@@ -1,4 +1,5 @@
 const session = require("express-session");
+const { isEncryptedSecret, encryptSecret, decryptSecret } = require("./config-secret-crypto");
 
 const TABLE_NAME = "http_sessions";
 
@@ -53,11 +54,20 @@ class SQLiteSessionStore extends session.Store {
       const row = this.getStatement.get(sid, Date.now());
       if (!row) return callback(null, null);
 
-      try {
-        return callback(null, JSON.parse(row.session_json));
-      } catch (error) {
+      // Pre-encryption sessions are intentionally invalidated. Sessions are
+      // disposable, and treating legacy JSON as data would retain sensitive
+      // tokens at rest indefinitely.
+      if (!isEncryptedSecret(row.session_json)) {
         this.destroyStatement.run(sid);
-        return callback(error);
+        return callback(null, null);
+      }
+
+      try {
+        return callback(null, JSON.parse(decryptSecret(row.session_json)));
+      } catch (_) {
+        // A changed key or tampered payload invalidates only this session.
+        this.destroyStatement.run(sid);
+        return callback(null, null);
       }
     } catch (error) {
       return callback(error);
@@ -66,7 +76,7 @@ class SQLiteSessionStore extends session.Store {
 
   set(sid, sessionData, callback = () => {}) {
     try {
-      this.setStatement.run(sid, JSON.stringify(sessionData), this.getExpiry(sessionData));
+      this.setStatement.run(sid, encryptSecret(JSON.stringify(sessionData)), this.getExpiry(sessionData));
       return callback(null);
     } catch (error) {
       return callback(error);

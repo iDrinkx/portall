@@ -19,14 +19,14 @@
 
   function getSummaryMeta(data) {
     if (!data) {
-      return { label: "", className: "issues", icon: "!" };
+      return { label: "", className: "issues", iconKey: "issues" };
     }
 
     if (data.overall === "operational") {
       return {
         label: t("login.status.allOperational"),
         className: "operational",
-        icon: "&#10003;"
+        iconKey: "check"
       };
     }
 
@@ -34,18 +34,14 @@
       return {
         label: "En maintenance",
         className: "maintenance",
-        icon: `
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M21.2 7.4a5.7 5.7 0 0 1-7.6 5.4L7 19.4a1.8 1.8 0 0 1-2.5 0l-.9-.9a1.8 1.8 0 0 1 0-2.5l6.6-6.6a5.7 5.7 0 0 1 5.4-7.6l-2.8 2.8 1.8 1.8L17.4 3a5.7 5.7 0 0 1 3.8 4.4Z" fill="currentColor"/>
-          </svg>
-        `
+        iconKey: "maintenance"
       };
     }
 
     return {
       label: t("login.status.someIssues"),
       className: "issues",
-      icon: "!"
+      iconKey: "issues"
     };
   }
 
@@ -57,6 +53,17 @@
     if (statusClassName === "maintenance") return "En maintenance";
     if (statusClassName === "down") return "Hors ligne";
     return "Indisponible";
+  }
+
+  function getSafeStatusClass(statusClassName) {
+    return ["operational", "pending", "maintenance", "down"].includes(statusClassName)
+      ? statusClassName
+      : "unknown";
+  }
+
+  function getSafeTagColor(value) {
+    const color = String(value || "").trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : "#64748b";
   }
 
   function getServiceLogo(service) {
@@ -150,7 +157,7 @@
     <span
       class="login-status-summary__icon login-status-summary__icon--<%= summaryMeta.className %>"
       aria-hidden="true"
-    ><%- summaryMeta.icon %></span>
+    ><% if (summaryMeta.iconKey === "maintenance") { %><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.2 7.4a5.7 5.7 0 0 1-7.6 5.4L7 19.4a1.8 1.8 0 0 1-2.5 0l-.9-.9a1.8 1.8 0 0 1 0-2.5l6.6-6.6a5.7 5.7 0 0 1 5.4-7.6l-2.8 2.8 1.8 1.8L17.4 3a5.7 5.7 0 0 1 3.8 4.4Z" fill="currentColor"/></svg><% } else if (summaryMeta.iconKey === "check") { %>&#10003;<% } else { %>!<% } %></span>
     <div class="login-status-summary__text">
       <h2 id="login-status-heading"><%= summaryMeta.label %></h2>
       <% if (statusData.description) { %>
@@ -184,6 +191,7 @@
 
       <% statusData.services.forEach(service => { %>
       <% const serviceLogo = getServiceLogo(service); %>
+      <% const serviceStatusClass = getSafeStatusClass(service?.status?.className); %>
       <article class="login-status-item">
         <div class="login-status-item__row">
           <div class="login-status-item__meta">
@@ -196,7 +204,7 @@
                   class="<%= serviceLogo.className %>"
                 />
                 <% if (service.tags && service.tags.length) { %>
-                <span class="login-status-item__tag" style="background-color: <%= service.tags[0].color %>;"><%= service.tags[0].name %></span>
+                <span class="login-status-item__tag" style="background-color: <%= getSafeTagColor(service.tags[0].color) %>;"><%= service.tags[0].name %></span>
                 <% } %>
               </span>
               <% } else { %>
@@ -206,16 +214,16 @@
             <% if (!serviceLogo && service.tags && service.tags.length) { %>
             <div class="login-status-item__tags">
               <% service.tags.slice(0, 3).forEach(tag => { %>
-              <span class="login-status-item__tag" style="background-color: <%= tag.color %>;"><%= tag.name %></span>
+              <span class="login-status-item__tag" style="background-color: <%= getSafeTagColor(tag.color) %>;"><%= tag.name %></span>
               <% }) %>
             </div>
             <% } %>
           </div>
 
           <div class="login-status-item__state-block">
-            <span class="login-status-state login-status-state--<%= service.status.className %>">
+            <span class="login-status-state login-status-state--<%= serviceStatusClass %>">
               <span class="login-status-state__dot" aria-hidden="true"></span>
-              <span><%= getServiceStateLabel(service.status.className) %></span>
+              <span><%= getServiceStateLabel(serviceStatusClass) %></span>
             </span>
             <% if (service.statusChangedAt) { %>
             <div class="login-status-item__since"><%= formatSince(service.statusChangedAt) %></div>

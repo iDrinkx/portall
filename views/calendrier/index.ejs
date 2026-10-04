@@ -1264,6 +1264,41 @@
     return `${day[0].toUpperCase() + day.slice(1)}` + (isToday ? ' (aujourd\'hui)' : '');
   }
 
+  // Calendar data originates from external services and is always untrusted.
+  function escapeHtml(value) {
+    const node = document.createElement('span');
+    node.textContent = String(value == null ? '' : value);
+    return node.innerHTML;
+  }
+
+  function safeImageUrl(value) {
+    const safeUrl = typeof window.safeHttpUrl === 'function' ? window.safeHttpUrl(value) : null;
+    if (safeUrl) return safeUrl;
+    try {
+      const url = new URL(String(value || ''));
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function normalizeEventId(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function findEventById(eventId) {
+    const normalizedId = normalizeEventId(eventId);
+    return allEvents.find(event => normalizeEventId(event.id) === normalizedId);
+  }
+
+  function addEventDetailsListener(element, eventId) {
+    element.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const calendarEvent = findEventById(eventId);
+      if (calendarEvent) showEventDetails(calendarEvent);
+    });
+  }
+
   // ========== FETCH & CACHE ==========
 
   async function loadCalendarData() {
@@ -1280,7 +1315,7 @@
       render();
     } catch (err) {
       console.error('Calendar fetch failed:', err);
-      elView.innerHTML = `<div class="cal-error">❌ Erreur: ${err.message}</div>`;
+      elView.innerHTML = '<div class="cal-error">❌ Erreur de chargement du calendrier</div>';
     }
   }
 
@@ -1316,7 +1351,8 @@
     const end = getWeekEnd(currentDate);
     elTitle.textContent = formatDateRange(start, end);
 
-    let html = '<div class="cal-grid-week">';
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid-week';
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
@@ -1324,24 +1360,31 @@
       const isToday = iso === todayISO();
       const evts = eventsByDate[iso] || [];
 
-      html += `<div class="cal-day-col">
-        <div class="cal-day-header ${isToday ? 'today' : ''}">
-          ${dayFormat.format(d).toUpperCase()}
-        </div>`;
+      const column = document.createElement('div');
+      column.className = 'cal-day-col';
+      const header = document.createElement('div');
+      header.className = 'cal-day-header';
+      header.classList.toggle('today', isToday);
+      header.textContent = dayFormat.format(d).toUpperCase();
+      column.appendChild(header);
 
       evts.slice(0, 4).forEach(evt => {
-        html += renderEventCard(evt);
+        column.appendChild(createWeekEventCard(evt));
       });
 
       if (evts.length > 4) {
-        html += `<div class="cal-more" data-date="${iso}" style="cursor: pointer;">+${evts.length - 4} en plus</div>`;
+        const more = document.createElement('div');
+        more.className = 'cal-more';
+        more.dataset.date = iso;
+        more.style.cursor = 'pointer';
+        more.textContent = `+${evts.length - 4} en plus`;
+        more.addEventListener('click', () => showDayOverlay(iso));
+        column.appendChild(more);
       }
 
-      html += '</div>';
+      grid.appendChild(column);
     }
-    html += '</div>';
-    elView.innerHTML = html;
-    attachEventListeners();
+    elView.replaceChildren(grid);
   }
 
   function renderMois() {
@@ -1357,17 +1400,23 @@
     const firstDay = start.getDay();
     const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
 
-    let html = '<div class="cal-grid-month">';
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid-month';
 
     // Headers jours
     const dayHeaders = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
-    dayHeaders.forEach(d => {
-      html += `<div style="text-align:center; font-weight:700; color:var(--muted); padding:8px; font-size:11px;">${d}</div>`;
+    dayHeaders.forEach(dayHeader => {
+      const header = document.createElement('div');
+      header.style.cssText = 'text-align:center; font-weight:700; color:var(--muted); padding:8px; font-size:11px;';
+      header.textContent = dayHeader;
+      grid.appendChild(header);
     });
 
     // Cellules vides avant le 1er
     for (let i = 1; i < firstDay; i++) {
-      html += '<div class="cal-month-cell other-month"></div>';
+      const emptyCell = document.createElement('div');
+      emptyCell.className = 'cal-month-cell other-month';
+      grid.appendChild(emptyCell);
     }
 
     // Jours du mois
@@ -1377,25 +1426,38 @@
       const isToday = iso === todayISO();
       const evts = eventsByDate[iso] || [];
 
-      html += `<div class="cal-month-cell ${isToday ? 'today' : ''}" data-month-cell data-date="${iso}">
-        <div class="cal-month-day">${day}</div>
-        <div class="cal-month-events">`;
+      const cell = document.createElement('div');
+      cell.className = 'cal-month-cell';
+      cell.classList.toggle('today', isToday);
+      cell.dataset.monthCell = '';
+      cell.dataset.date = iso;
+      cell.addEventListener('click', () => showDayOverlay(iso));
+      const dayNumber = document.createElement('div');
+      dayNumber.className = 'cal-month-day';
+      dayNumber.textContent = String(day);
+      const eventList = document.createElement('div');
+      eventList.className = 'cal-month-events';
+      cell.append(dayNumber, eventList);
 
       evts.slice(0, 3).forEach(evt => {
-        const cls = evt.available ? 'available' : '';
-        html += `<div class="cal-month-event-mini ${cls}">• ${evt.title}</div>`;
+        const event = document.createElement('div');
+        event.className = 'cal-month-event-mini';
+        event.classList.toggle('available', Boolean(evt.available));
+        event.textContent = `• ${String(evt.title == null ? '' : evt.title)}`;
+        eventList.appendChild(event);
       });
 
       if (evts.length > 3) {
-        html += `<div class="cal-month-event-mini">+${evts.length - 3}</div>`;
+        const more = document.createElement('div');
+        more.className = 'cal-month-event-mini';
+        more.textContent = `+${evts.length - 3}`;
+        eventList.appendChild(more);
       }
 
-      html += '</div></div>';
+      grid.appendChild(cell);
     }
 
-    html += '</div>';
-    elView.innerHTML = html;
-    attachEventListeners();
+    elView.replaceChildren(grid);
   }
 
   function renderMoisMobile() {
@@ -1403,7 +1465,8 @@
     elTitle.textContent = monthFormat.format(currentDate).toUpperCase();
 
     const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-    let html = '<div class="cal-week-list">';
+    const weekList = document.createElement('div');
+    weekList.className = 'cal-week-list';
 
     let currentWeek = [];
     let weekStart = null;
@@ -1422,14 +1485,12 @@
 
       // Fin de semaine (DIM) ou dernier jour du mois
       if (dayOfWeek === 0 || day === daysInMonth) {
-        html += renderWeekBlock(weekStart, currentWeek);
+        weekList.appendChild(renderWeekBlock(weekStart, currentWeek));
         currentWeek = [];
       }
     }
 
-    html += '</div>';
-    elView.innerHTML = html;
-    attachEventListeners();
+    elView.replaceChildren(weekList);
   }
 
   function renderWeekBlock(weekStart, days) {
@@ -1437,31 +1498,49 @@
     weekEnd.setDate(weekEnd.getDate() + 6);
     const weekLabel = `${weekStart.getDate()} - ${weekEnd.getDate()} ${monthFormat.format(weekStart).split(' ')[0]}`;
 
-    let html = `<div class="cal-week-block">
-      <div class="cal-week-header">Semaine du ${weekLabel}</div>`;
+    const block = document.createElement('div');
+    block.className = 'cal-week-block';
+    const header = document.createElement('div');
+    header.className = 'cal-week-header';
+    header.textContent = `Semaine du ${weekLabel}`;
+    block.appendChild(header);
 
     days.forEach(({ date, iso, day, evts }) => {
       const dayName = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][date.getDay()];
       const isToday = iso === todayISO();
 
-      html += `<div class="cal-week-day ${isToday ? 'today' : ''}">
-        <div class="cal-week-day-label">${dayName} ${day}</div>
-        <div class="cal-week-day-events">`;
+      const weekDay = document.createElement('div');
+      weekDay.className = 'cal-week-day';
+      weekDay.classList.toggle('today', isToday);
+      const label = document.createElement('div');
+      label.className = 'cal-week-day-label';
+      label.textContent = `${dayName} ${day}`;
+      const eventList = document.createElement('div');
+      eventList.className = 'cal-week-day-events';
+      weekDay.append(label, eventList);
 
       if (evts.length === 0) {
-        html += '<div style="font-size:10px; color:var(--muted);">-</div>';
+        const empty = document.createElement('div');
+        empty.style.cssText = 'font-size:10px; color:var(--muted);';
+        empty.textContent = '-';
+        eventList.appendChild(empty);
       } else {
         evts.forEach(evt => {
-          const cls = evt.available ? 'available' : '';
-          html += `<div class="cal-week-event ${cls}" data-event-id="${evt.id}" style="cursor: pointer;">✓ ${evt.title}</div>`;
+          const event = document.createElement('div');
+          event.className = 'cal-week-event';
+          event.classList.toggle('available', Boolean(evt.available));
+          event.dataset.eventId = normalizeEventId(evt.id);
+          event.style.cursor = 'pointer';
+          event.textContent = `✓ ${String(evt.title == null ? '' : evt.title)}`;
+          addEventDetailsListener(event, evt.id);
+          eventList.appendChild(event);
         });
       }
 
-      html += '</div></div>';
+      block.appendChild(weekDay);
     });
 
-    html += '</div>';
-    return html;
+    return block;
   }
 
   function renderJour() {
@@ -1475,27 +1554,12 @@
       return;
     }
 
-    let html = '<div class="cal-day-detail">';
+    const detail = document.createElement('div');
+    detail.className = 'cal-day-detail';
     evts.forEach(evt => {
-      html += `<div class="cal-event-card" data-event-id="${evt.id}">
-        ${evt.thumb ? `<div class="cal-event-card-thumb"><img src="${evt.thumb}" alt="${evt.title}"></div>` : ''}
-        <div class="cal-event-card-content">
-          <div class="cal-event-card-title">${evt.title}</div>
-          ${evt.subtitle ? `<div class="cal-event-card-sub">${evt.subtitle}</div>` : ''}
-          <div class="cal-event-card-meta">
-            ${evt.runtime ? `${evt.runtime} min` : ''} • ${evt.source === 'radarr' ? '🎬 Film' : '📺 Série'}
-          </div>
-          <div class="cal-event-card-footer">
-            <span class="cal-badge ${evt.available ? 'cal-badge--available' : 'cal-badge--unreleased'}">
-              ${evt.available ? '✓ Disponible' : '○ Non dispo'}
-            </span>
-          </div>
-        </div>
-      </div>`;
+      detail.appendChild(createDayEventCard(evt));
     });
-    html += '</div>';
-    elView.innerHTML = html;
-    attachEventListeners();
+    elView.replaceChildren(detail);
   }
 
   function renderListe() {
@@ -1506,44 +1570,130 @@
       return;
     }
 
-    let html = `<table class="cal-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th class="cal-table-type">Type</th>
-          <th>Titre</th>
-          <th>Épisode</th>
-          <th style="width:60px;">Durée</th>
-          <th class="cal-table-available">Disponible</th>
-        </tr>
-      </thead>
-      <tbody>`;
+    const table = document.createElement('table');
+    table.className = 'cal-table';
+    const tableHead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    [
+      ['Date', ''],
+      ['Type', 'cal-table-type'],
+      ['Titre', ''],
+      ['Épisode', ''],
+      ['Durée', ''],
+      ['Disponible', 'cal-table-available']
+    ].forEach(([label, className], index) => {
+      const header = document.createElement('th');
+      header.className = className;
+      if (index === 4) header.style.width = '60px';
+      header.textContent = label;
+      headerRow.appendChild(header);
+    });
+    tableHead.appendChild(headerRow);
+    const tableBody = document.createElement('tbody');
+    table.append(tableHead, tableBody);
 
     allEvents.forEach(evt => {
-      html += `<tr data-event-id="${evt.id}" style="cursor: pointer;">
-        <td>${dayFormat.format(isoToDate(evt.date))}</td>
-        <td class="cal-table-type">${evt.type === 'movie' ? '🎬' : '📺'}</td>
-        <td><strong>${evt.title}</strong></td>
-        <td>${evt.subtitle || '—'}</td>
-        <td>${evt.runtime || '—'}</td>
-        <td>${evt.available ? '✓ Oui' : '○ Non'}</td>
-      </tr>`;
+      const row = document.createElement('tr');
+      row.dataset.eventId = normalizeEventId(evt.id);
+      row.style.cursor = 'pointer';
+      const date = document.createElement('td');
+      date.textContent = dayFormat.format(isoToDate(evt.date));
+      const type = document.createElement('td');
+      type.className = 'cal-table-type';
+      type.textContent = evt.type === 'movie' ? '🎬' : '📺';
+      const title = document.createElement('td');
+      const titleStrong = document.createElement('strong');
+      titleStrong.textContent = String(evt.title == null ? '' : evt.title);
+      title.appendChild(titleStrong);
+      const subtitle = document.createElement('td');
+      subtitle.textContent = evt.subtitle ? String(evt.subtitle) : '—';
+      const duration = document.createElement('td');
+      duration.textContent = formatEventDuration(evt.duration ?? evt.runtime) || '—';
+      const availability = document.createElement('td');
+      availability.textContent = evt.available ? '✓ Oui' : '○ Non';
+      row.append(date, type, title, subtitle, duration, availability);
+      addEventDetailsListener(row, evt.id);
+      tableBody.appendChild(row);
     });
 
-    html += '</tbody></table>';
-    elView.innerHTML = html;
-    attachEventListeners();
+    elView.replaceChildren(table);
   }
 
-  function renderEventCard(evt) {
-    return `<div class="cal-event cal-event--${evt.type === 'movie' ? 'movie' : 'episode'}" data-event-id="${evt.id}">
-      <span class="cal-event-time">${evt.type === 'movie' ? '🎬' : '📺'}</span>
-      <div class="cal-event-title">${evt.title}</div>
-      ${evt.subtitle ? `<div class="cal-event-sub">${evt.subtitle}</div>` : ''}
-      <span class="cal-badge ${evt.available ? 'cal-badge--available' : 'cal-badge--unreleased'}">
-        ${evt.available ? '✓ Dispo' : '○ Non'}
-      </span>
-    </div>`;
+  function formatEventDuration(value) {
+    const duration = Number(value);
+    return Number.isFinite(duration) && duration >= 0 ? `${Math.round(duration)} min` : '';
+  }
+
+  function createDayEventCard(evt) {
+    const card = document.createElement('div');
+    card.className = 'cal-event-card';
+    card.dataset.eventId = normalizeEventId(evt.id);
+
+    const thumb = safeImageUrl(evt.thumb);
+    if (thumb) {
+      const thumbContainer = document.createElement('div');
+      thumbContainer.className = 'cal-event-card-thumb';
+      const image = document.createElement('img');
+      image.src = thumb;
+      image.alt = String(evt.title == null ? '' : evt.title);
+      thumbContainer.appendChild(image);
+      card.appendChild(thumbContainer);
+    }
+
+    const content = document.createElement('div');
+    content.className = 'cal-event-card-content';
+    const title = document.createElement('div');
+    title.className = 'cal-event-card-title';
+    title.textContent = String(evt.title == null ? '' : evt.title);
+    content.appendChild(title);
+    if (evt.subtitle) {
+      const subtitle = document.createElement('div');
+      subtitle.className = 'cal-event-card-sub';
+      subtitle.textContent = String(evt.subtitle);
+      content.appendChild(subtitle);
+    }
+    const meta = document.createElement('div');
+    meta.className = 'cal-event-card-meta';
+    const duration = formatEventDuration(evt.duration ?? evt.runtime);
+    meta.textContent = `${duration ? `${duration} • ` : ''}${evt.source === 'radarr' ? '🎬 Film' : '📺 Série'}`;
+    const footer = document.createElement('div');
+    footer.className = 'cal-event-card-footer';
+    const badge = document.createElement('span');
+    badge.className = `cal-badge ${evt.available ? 'cal-badge--available' : 'cal-badge--unreleased'}`;
+    badge.textContent = evt.available ? '✓ Disponible' : '○ Non dispo';
+    footer.appendChild(badge);
+    content.append(meta, footer);
+    card.appendChild(content);
+    addEventDetailsListener(card, evt.id);
+    return card;
+  }
+
+  function createWeekEventCard(evt) {
+    const card = document.createElement('div');
+    card.className = `cal-event cal-event--${evt.type === 'movie' ? 'movie' : 'episode'}`;
+    card.dataset.eventId = normalizeEventId(evt.id);
+
+    const icon = document.createElement('span');
+    icon.className = 'cal-event-time';
+    icon.textContent = evt.type === 'movie' ? '🎬' : '📺';
+    const title = document.createElement('div');
+    title.className = 'cal-event-title';
+    title.textContent = String(evt.title == null ? '' : evt.title);
+    card.append(icon, title);
+
+    if (evt.subtitle) {
+      const subtitle = document.createElement('div');
+      subtitle.className = 'cal-event-sub';
+      subtitle.textContent = String(evt.subtitle);
+      card.appendChild(subtitle);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = `cal-badge ${evt.available ? 'cal-badge--available' : 'cal-badge--unreleased'}`;
+    badge.textContent = evt.available ? '✓ Dispo' : '○ Non';
+    card.appendChild(badge);
+    addEventDetailsListener(card, evt.id);
+    return card;
   }
 
   // ========== EVENT LISTENERS ==========
@@ -1603,7 +1753,7 @@
     const runtime = event.runtime ? `${event.runtime} min` : '';
     const available = event.available;
     const type = event.type === 'movie' ? '🎬 Film' : '📺 Série';
-    const thumb = event.thumb || '';
+    const thumb = safeImageUrl(event.thumb);
 
     // Remplir le modal
     document.getElementById('calModalTitle').textContent = title;
@@ -1712,44 +1862,23 @@
     document.getElementById('calDayOverlayTitle').textContent = dayLabel.toUpperCase();
     document.getElementById('calDayOverlaySubtitle').textContent = `${evts.length} événement${evts.length > 1 ? 's' : ''}`;
 
-    let content = '';
+    const content = document.getElementById('calDayOverlayContent');
     if (evts.length === 0) {
-      content = '<div style="padding: 20px; text-align: center; color: var(--muted);">Aucun événement ce jour-là</div>';
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding: 20px; text-align: center; color: var(--muted);';
+      empty.textContent = 'Aucun événement ce jour-là';
+      content.replaceChildren(empty);
     } else {
-      evts.forEach(evt => {
-        content += `<div class="cal-event-card" data-event-id="${evt.id}" style="cursor: pointer; margin-bottom: 12px;">
-          ${evt.thumb ? `<div class="cal-event-card-thumb"><img src="${evt.thumb}" alt="${evt.title}"></div>` : ''}
-          <div class="cal-event-card-content">
-            <div class="cal-event-card-title">${evt.title}</div>
-            ${evt.subtitle ? `<div class="cal-event-card-sub">${evt.subtitle}</div>` : ''}
-            <div class="cal-event-card-meta">
-              ${evt.runtime ? `${evt.runtime} min` : ''} • ${evt.source === 'radarr' ? '🎬 Film' : '📺 Série'}
-            </div>
-            <div class="cal-event-card-footer">
-              <span class="cal-badge ${evt.available ? 'cal-badge--available' : 'cal-badge--unreleased'}">
-                ${evt.available ? '✓ Disponible' : '○ Non dispo'}
-              </span>
-            </div>
-          </div>
-        </div>`;
+      const cards = evts.map(evt => {
+        const card = createDayEventCard(evt);
+        card.style.cursor = 'pointer';
+        card.style.marginBottom = '12px';
+        return card;
       });
+      content.replaceChildren(...cards);
     }
 
-    document.getElementById('calDayOverlayContent').innerHTML = content;
     document.getElementById('calDayOverlay').classList.add('active');
-
-    // Re-attacher les event listeners pour les events dans l'overlay
-    document.querySelectorAll('#calDayOverlayContent [data-event-id]').forEach(el => {
-      el.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const eventId = this.dataset.eventId;
-        const event = allEvents.find(e => e.id === eventId);
-        if (event) {
-          // Garder l'overlay jour ouvert, afficher la modal détails par-dessus
-          showEventDetails(event);
-        }
-      });
-    });
   }
 
   // ========== INIT ==========

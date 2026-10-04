@@ -1556,7 +1556,7 @@
 <script nonce="<%= cspNonce %>">
   // ─── Système de rangs et niveaux ───────────────────────────────────
   const XP_PAR_NIVEAU = 1000;
-  const XP_SYSTEM = <%- JSON.stringify({ranks: XP_SYSTEM.ranks}) %>;
+  const XP_SYSTEM = <%- safeJsonForScript({ranks: XP_SYSTEM.ranks}) %>;
   XP_SYSTEM.badges = XP_SYSTEM.ranks; // backward-compat
   XP_SYSTEM.getLevel          = function(xp) { return Math.floor((xp || 0) / XP_PAR_NIVEAU) + 1; };
   XP_SYSTEM.getRankByLevel    = function(lvl) { return this.ranks.find(r => lvl >= r.minLevel && lvl <= r.maxLevel) || this.ranks[this.ranks.length - 1]; };
@@ -1607,21 +1607,40 @@
     }
   }
 
+  // Ranks are resolved from the server-provided XP_SYSTEM constants, never
+  // from the mutable API/localStorage snapshot.
+  function setXpBadge(element, level) {
+    if (!element) return null;
+    const safeLevel = Math.max(1, Number.parseInt(level, 10) || 1);
+    const rank = XP_SYSTEM.getRankByLevel(safeLevel);
+    const number = document.createElement("span");
+    number.className = "xp-level-num";
+    number.textContent = `Niv. ${safeLevel}`;
+    const separator = document.createElement("span");
+    separator.className = "xp-rank-sep";
+    separator.textContent = "•";
+    const name = document.createElement("span");
+    name.className = "xp-rank-name";
+    name.textContent = `${rank.icon} ${rank.name}`;
+    element.replaceChildren(number, separator, name);
+    element.style.background = rank.bgColor;
+    element.style.color = rank.color;
+    element.style.borderColor = rank.borderColor;
+    element.style.boxShadow = `0 0 10px ${rank.color}55`;
+    element.classList.remove("xp-skel");
+    return rank;
+  }
+
   function applyXpDisplay(snap) {
     if (!snap || !snap.level) return; // invalider ancien format sans level
-    const r         = snap.rank;
+    const r         = XP_SYSTEM.getRankByLevel(Math.max(1, Number.parseInt(snap.level, 10) || 1));
     const xpBadgeEl = document.getElementById("xpBadge");
     const xpAmountEl= document.getElementById("xpAmount");
     const xpBarFill = document.getElementById("xpBarFill");
     const xpNeededEl= document.getElementById("xpNeeded");
 
     if (xpBadgeEl) {
-      xpBadgeEl.innerHTML = `<span class="xp-level-num">Niv.\u00a0${snap.level}</span><span class="xp-rank-sep">•</span><span class="xp-rank-name">${r.icon} ${r.name}</span>`;
-      xpBadgeEl.style.background  = r.bgColor;
-      xpBadgeEl.style.color       = r.color;
-      xpBadgeEl.style.borderColor = r.borderColor;
-      xpBadgeEl.style.boxShadow   = `0 0 10px ${r.color}55`;
-      xpBadgeEl.classList.remove("xp-skel");
+      setXpBadge(xpBadgeEl, snap.level);
     }
     if (xpAmountEl) {
       xpAmountEl.textContent = `${(snap.totalXp || 0).toLocaleString("fr-FR")} XP`;
@@ -1999,11 +2018,19 @@
       el.className = "badge-item";
       el.dataset.rankIdx = idx;
       el.style.color = rank.color; // used by currentColor in .unlocked CSS
-      el.innerHTML = `
-        <div class="badge-icon" style="color:${rank.color};filter:drop-shadow(0 0 6px ${rank.color}88);">${rank.icon}</div>
-        <div class="badge-name" style="color:${rank.color};">${rank.name}</div>
-        <div class="badge-range">Niv.\u00a0${rank.minLevel}${rank.maxLevel < 9999 ? '\u2013' + rank.maxLevel : '+'}</div>
-      `;
+      const icon = document.createElement("div");
+      icon.className = "badge-icon";
+      icon.style.color = rank.color;
+      icon.style.filter = `drop-shadow(0 0 6px ${rank.color}88)`;
+      icon.textContent = rank.icon;
+      const name = document.createElement("div");
+      name.className = "badge-name";
+      name.style.color = rank.color;
+      name.textContent = rank.name;
+      const range = document.createElement("div");
+      range.className = "badge-range";
+      range.textContent = `Niv. ${rank.minLevel}${rank.maxLevel < 9999 ? `–${rank.maxLevel}` : "+"}`;
+      el.append(icon, name, range);
       container.appendChild(el);
     });
   }
@@ -2383,7 +2410,7 @@
         return;
       }
       const currentLevel = freshXpSnap.level;
-      const rank = freshXpSnap.rank;
+      const rank = XP_SYSTEM.getRankByLevel(Math.max(1, Number.parseInt(freshXpSnap.level, 10) || 1));
       const progress = {
         level: freshXpSnap.level,
         progressPercent: freshXpSnap.progressPercent,
@@ -2398,12 +2425,7 @@
       const xpBadgeEl  = document.getElementById("xpBadge");
       const xpAmountEl = document.getElementById("xpAmount");
       if (xpBadgeEl) {
-        xpBadgeEl.innerHTML = `<span class="xp-level-num">Niv.\u00a0${currentLevel}</span><span class="xp-rank-sep">•</span><span class="xp-rank-name">${rank.icon} ${rank.name}</span>`;
-        xpBadgeEl.style.background  = rank.bgColor;
-        xpBadgeEl.style.color       = rank.color;
-        xpBadgeEl.style.borderColor = rank.borderColor;
-        xpBadgeEl.style.boxShadow   = `0 0 10px ${rank.color}55`;
-        xpBadgeEl.classList.remove("xp-skel");
+        setXpBadge(xpBadgeEl, currentLevel);
       }
       if (xpAmountEl) {
         xpAmountEl.textContent = `${freshXpSnap.totalXp.toLocaleString("fr-FR")} XP`;
@@ -2563,7 +2585,7 @@
             if (formulaTotalEl) formulaTotalEl.style.display = "none";
             
             // Update badge and avatar color
-            const newBadge = freshXpSnap.rank;
+            const newBadge = XP_SYSTEM.getRankByLevel(Math.max(1, Number.parseInt(freshXpSnap.level, 10) || 1));
             const wrapperEl2 = document.getElementById("avatarWrapper");
             const xpBadgeEl = document.getElementById("xpBadge");
             
@@ -2577,11 +2599,7 @@
               wrapperEl2.style.filter = `drop-shadow(0 0 9px ${_c}cc) drop-shadow(0 0 20px ${_c}66)`;
             }
             if (xpBadgeEl) {
-              xpBadgeEl.innerHTML = `<span class="xp-level-num">Niv.\u00a0${freshXpSnap.level}</span><span class="xp-rank-sep">•</span><span class="xp-rank-name">${newBadge.icon} ${newBadge.name}</span>`;
-              xpBadgeEl.style.background = newBadge.bgColor;
-              xpBadgeEl.style.color = newBadge.color;
-              xpBadgeEl.style.borderColor = newBadge.borderColor;
-              xpBadgeEl.classList.remove("xp-skel");
+              setXpBadge(xpBadgeEl, freshXpSnap.level);
             }
 
             const xpAmountEl2 = document.getElementById("xpAmount");
@@ -2645,20 +2663,21 @@
         const isLastPlayed = !d.playing && !!d.lastPlayed;
 
         // Fond flouté = même image que l'affiche
-        if (d.thumb) {
-          document.getElementById("npBg").style.backgroundImage = `url('${d.thumb}')`;
+        const safeThumb = typeof window.safeHttpUrl === "function" ? window.safeHttpUrl(d.thumb) : null;
+        if (safeThumb) {
+          document.getElementById("npBg").style.backgroundImage = `url("${safeThumb}")`;
         } else {
           document.getElementById("npBg").style.backgroundImage = "none";
         }
 
         // Affiche
         const img = document.getElementById("npThumb");
-        if (d.thumb) {
+        if (safeThumb) {
           img.onerror = () => {
             img.removeAttribute("src");
             img.style.display = "none";
           };
-          img.src = d.thumb;
+          img.src = safeThumb;
           img.style.display = "";
         } else {
           img.removeAttribute("src");
@@ -2800,18 +2819,13 @@
 
       // Rang + niveau courant + barre XP
       const currentLevel = xpSnap.level;
-      const currentRank  = xpSnap.rank;
+      const currentRank  = XP_SYSTEM.getRankByLevel(Math.max(1, Number.parseInt(xpSnap.level, 10) || 1));
       const progress     = { level: xpSnap.level, progressPercent: xpSnap.progressPercent, xpNeeded: xpSnap.xpNeeded };
       const xpBadgeEl    = el("xpBadge");
       const xpAmountEl   = el("xpAmount");
       applyRankGlow(currentRank.color);
       if (xpBadgeEl) {
-        xpBadgeEl.innerHTML     = `<span class="xp-level-num">Niv.\u00a0${currentLevel}</span><span class="xp-rank-sep">•</span><span class="xp-rank-name">${currentRank.icon} ${currentRank.name}</span>`;
-        xpBadgeEl.style.background  = currentRank.bgColor;
-        xpBadgeEl.style.color       = currentRank.color;
-        xpBadgeEl.style.borderColor = currentRank.borderColor;
-        xpBadgeEl.style.boxShadow   = `0 0 10px ${currentRank.color}55`;
-        xpBadgeEl.classList.remove("xp-skel");
+        setXpBadge(xpBadgeEl, currentLevel);
       }
       if (xpAmountEl) {
         xpAmountEl.textContent = `${xpSnap.totalXp.toLocaleString("fr-FR")} XP`;
@@ -2874,26 +2888,8 @@
     const modal = document.getElementById('succesModal');
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    const body = document.getElementById('succesModalBody');
-    if (body.dataset.loaded) return;
     const base = window.APP_BASE_PATH || '';
-    fetch(base + '/succes?embed=1')
-      .then(r => r.text())
-      .then(html => {
-        body.innerHTML = html;
-        // Reset complet du style inline — laisse le CSS de succes.ejs prendre le relais
-        body.removeAttribute('style');
-        body.style.overflowX = 'hidden';
-        body.dataset.loaded = '1';
-        // re-run scripts inside the loaded HTML
-        body.querySelectorAll('script').forEach(s => {
-          const ns = document.createElement('script');
-          ns.nonce = "<%= cspNonce %>";
-          ns.textContent = s.textContent;
-          s.replaceWith(ns);
-        });
-      })
-      .catch(() => { body.textContent = 'Erreur de chargement.'; });
+    window.location.assign(base + '/succes');
   }
   function closeSuccesModal() {
     document.getElementById('succesModal').classList.remove('active');

@@ -3,6 +3,18 @@
  * le comportement de l'app si elle est derrière un reverse proxy
  */
 
+function normalizePublicAppUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password) return "";
+    return url.toString().replace(/\/$/, "");
+  } catch (_) {
+    return "";
+  }
+}
+
 function reverseProxyMiddleware(req, res, next) {
   const socketProtocol = req.socket?.encrypted ? "https" : "http";
   const trustedForwardedHeaders = req.protocol !== socketProtocol || (req.ips || []).length > 0;
@@ -41,13 +53,14 @@ function reverseProxyMiddleware(req, res, next) {
   // Construire l'URL publique pour Plex callback
   // ============================================
   
-  let appUrl = process.env.APP_URL;
+  let appUrl = normalizePublicAppUrl(process.env.APP_URL);
 
   if (!appUrl) {
-    // Reconstruire depuis les headers du reverse proxy
-    appUrl = `${forwarded.proto}://${forwarded.host}${basePath}`;
-    
-    // Exemple result: https://example.com/portall
+    // A Plex callback is security-sensitive. In production it must never be
+    // derived from a client-controlled Host/X-Forwarded-Host header.
+    if (process.env.NODE_ENV !== "production") {
+      appUrl = normalizePublicAppUrl(`${forwarded.proto}://${forwarded.host}${basePath}`);
+    }
   }
 
   // ============================================
@@ -75,3 +88,4 @@ function reverseProxyMiddleware(req, res, next) {
 }
 
 module.exports = reverseProxyMiddleware;
+module.exports.normalizePublicAppUrl = normalizePublicAppUrl;

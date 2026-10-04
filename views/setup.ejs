@@ -6,7 +6,7 @@
   <title><%= t("setup.title") %></title>
   <script nonce="<%= cspNonce %>">
     window.APP_LOCALE = "<%= locale || 'fr' %>";
-    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}).replace(/</g, "\\u003c") %>;
+    window.APP_RUNTIME_TEXT_MAP = <%- safeJsonForScript(runtimeTextMap || {}) %>;
   </script>
   <style>
     :root {
@@ -467,7 +467,7 @@
         const tests = Array.isArray(diagnostics && diagnostics.tests) ? diagnostics.tests : [];
         if (!tests.length) {
           diagnosticsState.textContent = "<%= t('setup.diagnostics.empty') %>";
-          diagnosticsList.innerHTML = "";
+          diagnosticsList.replaceChildren();
           return;
         }
 
@@ -482,21 +482,30 @@
           diagnosticsState.textContent = "<%= t('setup.diagnostics.blocking', { count: '__COUNT__' }) %>".replace("__COUNT__", String(blockingErrors));
         }
 
-        diagnosticsList.innerHTML = tests.map(function (test) {
+        const fragment = document.createDocumentFragment();
+        tests.forEach(function (test) {
           const tone = test.ok ? (test.optional ? "warning" : "ok") : (test.blocking ? "error" : "warning");
           const badge = test.ok
             ? (test.optional ? "<%= t('setup.diagnostics.badge.optional') %>" : "<%= t('setup.diagnostics.badge.ok') %>")
             : (test.blocking ? "Erreur" : "<%= t('setup.diagnostics.badge.optional') %>");
-          return `
-            <div class="setup-diagnostics-card is-${tone}">
-              <div class="setup-diagnostics-head">
-                <div class="setup-diagnostics-title">${escHtml(test.label || "Service")}</div>
-                <div class="setup-diagnostics-badge is-${tone}">${badge}</div>
-              </div>
-              <div class="setup-diagnostics-message">${escHtml(test.message || "")}</div>
-            </div>
-          `;
-        }).join("");
+          const card = document.createElement("div");
+          card.className = "setup-diagnostics-card is-" + tone;
+          const head = document.createElement("div");
+          head.className = "setup-diagnostics-head";
+          const title = document.createElement("div");
+          title.className = "setup-diagnostics-title";
+          title.textContent = String(test.label || "Service");
+          const badgeElement = document.createElement("div");
+          badgeElement.className = "setup-diagnostics-badge is-" + tone;
+          badgeElement.textContent = badge;
+          const message = document.createElement("div");
+          message.className = "setup-diagnostics-message";
+          message.textContent = String(test.message || "");
+          head.append(title, badgeElement);
+          card.append(head, message);
+          fragment.append(card);
+        });
+        diagnosticsList.replaceChildren(fragment);
       }
 
       async function runDiagnostics() {
@@ -515,7 +524,7 @@
           renderDiagnostics(data);
         } catch (error) {
           diagnosticsState.textContent = error.message || "<%= t('setup.diagnostics.error') %>";
-          diagnosticsList.innerHTML = "";
+          diagnosticsList.replaceChildren();
         } finally {
           if (diagnosticsBtn) diagnosticsBtn.disabled = false;
         }

@@ -10,8 +10,20 @@
   <script nonce="<%= cspNonce %>">
     window.APP_BASE_PATH = "<%= basePath %>";
     window.APP_LOCALE = "<%= locale || 'fr' %>";
-    window.APP_RUNTIME_TEXT_MAP = <%- JSON.stringify(runtimeTextMap || {}).replace(/</g, "\\u003c") %>;
-    window.APP_SITE_BACKGROUND = <%- JSON.stringify(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }).replace(/</g, "\\u003c") %>;
+    window.APP_RUNTIME_TEXT_MAP = <%- safeJsonForScript(runtimeTextMap || {}) %>;
+    window.APP_SITE_BACKGROUND = <%- safeJsonForScript(siteBackground || { mode: "particles", customUrl: "", customOpacity: 0.34 }) %>;
+    window.safeHttpUrl = function safeHttpUrl(value, options) {
+      const allowRelative = Boolean(options && options.allowRelative);
+      const raw = String(value == null ? "" : value).trim();
+      if (!raw) return null;
+      const relative = !/^[a-z][a-z0-9+.-]*:/i.test(raw) && !raw.startsWith("//");
+      if (relative && !allowRelative) return null;
+      try {
+        const url = new URL(raw, window.location.origin);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+        return url.href;
+      } catch (_) { return null; }
+    };
     window.PORTALL_CSRF_TOKEN = "<%= csrfToken || '' %>";
     const originalFetch = window.fetch.bind(window);
     window.fetch = function (input, init) {
@@ -68,7 +80,7 @@
       <% if (navSubscriptionPillEnabled) { %>
         <a href="<%= basePath %>/profil" class="nav-sub-pill" id="navSubPill">&#x2014;</a>
       <% } %>
-      <a class="logout-btn" href="<%= basePath %>/logout"><%= t("nav.logout") %></a>
+      <form method="post" action="<%= basePath %>/logout" class="logout-btn"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= t("nav.logout") %></button></form>
     </div>
 
     <% if (navSubscriptionPillEnabled) { %>
@@ -96,7 +108,7 @@
     <% if (user.isAdmin) { %>
       <a href="<%= basePath %>/parametres" class="nav-link-settings"><%= t("nav.settings") %> ⚙️</a>
     <% } %>
-    <a href="<%= basePath %>/logout" class="logout-mobile"><%= t("nav.logout") %></a>
+    <form method="post" action="<%= basePath %>/logout" class="logout-mobile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit"><%= t("nav.logout") %></button></form>
   </div>
 <% } %>
 

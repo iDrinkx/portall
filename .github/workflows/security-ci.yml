@@ -1,0 +1,77 @@
+name: Security CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm audit --omit=dev --audit-level=low
+      - run: node --test
+      - run: git diff --check
+
+      - name: Build runtime image
+        run: docker build --no-cache -t portall-security-test .
+
+      - name: Verify runtime image contents
+        run: |
+          docker run --rm --entrypoint sh portall-security-test -c '
+            test ! -e /app/.env &&
+            test ! -e /app/.git &&
+            test ! -e /app/config/portall-test.db &&
+            ! npm ls semantic-release @semantic-release/npm --omit=dev
+          '
+
+      - name: Start and smoke-test runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          CREDENTIALS_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          SETUP_TOKEN="$(openssl rand -hex 32)"
+          CONFIG_DIR="$(mktemp -d)"
+          CONTAINER=portall-security-test-runner
+          trap 'docker logs "$CONTAINER" > docker-security.log 2>&1 || true; docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; rm -rf "$CONFIG_DIR"' EXIT
+
+          docker run -d --name "$CONTAINER" -p 127.0.0.1::3000 \
+            -e NODE_ENV=production -e PORT=3000 -e PUID=10001 -e PGID=10001 \
+            -e SESSION_SECRET -e CREDENTIALS_ENCRYPTION_KEY -e SETUP_TOKEN \
+            -v "$CONFIG_DIR:/config" portall-security-test
+
+          PORT="$(docker port "$CONTAINER" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          for _ in {1..30}; do
+            if curl -fsS -D headers.txt -o body.html "http://127.0.0.1:$PORT/setup"; then break; fi
+            sleep 1
+          done
+          test -s headers.txt
+          grep -qi '^content-security-policy:' headers.txt
+          grep -qi '^x-content-type-options: nosniff' headers.txt
+          grep -qi '^referrer-policy:' headers.txt
+          grep -qi '^permissions-policy:' headers.txt
+          for path in /.env /.git/HEAD /config/portall.db /.ssh/id_ed25519; do
+            status="$(curl -sS -o probe.body -w '%{http_code}' "http://127.0.0.1:$PORT$path")"
+            test "$status" != 200
+          done
+          test "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" = true
+          test "$(docker exec "$CONTAINER" sh -c "awk '/^Uid:/{print \$2}' /proc/1/status")" = 10001
+          sleep 5
+          test "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" = true
+          docker logs "$CONTAINER" > docker-security.log 2>&1
+          ! grep -F -- "$SESSION_SECRET" docker-security.log
+          ! grep -F -- "$CREDENTIALS_ENCRYPTION_KEY" docker-security.log
+          ! grep -F -- "$SETUP_TOKEN" docker-security.log

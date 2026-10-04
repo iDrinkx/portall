@@ -1,4 +1,5 @@
-﻿const express = require("express");
+const express = require("express");
+const http = require("http");
 const session = require("express-session");
 const expressLayouts = require("express-ejs-layouts");
 const fetch = require("node-fetch");
@@ -23,10 +24,14 @@ const SQLiteSessionStore = require("./utils/sqlite-session-store");
 const { safeFetchConfiguredUrl } = require("./utils/network-url");
 const helmet = require("helmet");
 const crypto = require("crypto");
+const { safeJsonForScript } = require("./utils/safe-json");
 const { ensureCsrfToken, requireCsrfToken } = require("./middleware/csrf.middleware");
 const { getTrustProxySetting } = require("./utils/trust-proxy");
+const { createJellyfinProxy } = require("./utils/jellyfin-proxy");
+const { resolveSessionSecret } = require("./utils/session-secret");
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const configuredSessionMaxAgeDays = Number(process.env.SESSION_MAX_AGE_DAYS || 30);
 const SESSION_MAX_AGE_DAYS = Number.isFinite(configuredSessionMaxAgeDays) && configuredSessionMaxAgeDays > 0
@@ -176,23 +181,16 @@ app.use((req, res, next) => {
 ========================= */
 
 // ⚠️  SESSION_SECRET check au démarrage
-let SESSION_SECRET = String(process.env.SESSION_SECRET || "").trim();
-let generatedPersistentSessionSecret = false;
-if (!SESSION_SECRET) {
-  SESSION_SECRET = String(AppSettingQueries.get("runtime_session_secret", "") || "").trim();
-  if (!SESSION_SECRET) {
-    SESSION_SECRET = require("crypto").randomBytes(32).toString("hex");
-    AppSettingQueries.set("runtime_session_secret", SESSION_SECRET);
-    generatedPersistentSessionSecret = true;
-  }
+let sessionSecretConfig;
+try {
+  sessionSecretConfig = resolveSessionSecret();
+} catch (error) {
+  console.error(`[SECURITY] ${error.message}`);
+  process.exit(1);
 }
-if (generatedPersistentSessionSecret) {
-  console.warn("[SESSION] SESSION_SECRET absent : un secret stable a été généré et conservé en base.");
-}
-if (SESSION_SECRET === "change-me-to-a-secure-key" || SESSION_SECRET === "monplex-secret-key") {
-  console.warn("\n⚠️  [SÉCURITÉ] SESSION_SECRET non défini ou valeur par défaut détectée !");
-  console.warn("   Définissez une clé aléatoire forte dans docker-compose.yml :\n");
-  console.warn(`   SESSION_SECRET: \"${require('crypto').randomBytes(32).toString('hex')}\"\n`);
+const SESSION_SECRET = sessionSecretConfig.secret;
+if (sessionSecretConfig.ephemeral) {
+  console.warn("[SESSION] SESSION_SECRET absent : secret éphémère utilisé pour cette exécution.");
 }
 
 app.use((req, _res, next) => {
@@ -205,30 +203,54 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use(session({
+const sessionStore = new SQLiteSessionStore({
+  db: require("./utils/database").getDb(),
+  ttlMs: SESSION_MAX_AGE_MS
+});
+const sessionMiddleware = session({
   name: "portall.sid", // Nom unique pour éviter le conflit avec connect.sid de Seerr
   secret: SESSION_SECRET,
-  store: new SQLiteSessionStore({
-    db: require("./utils/database").getDb(),
-    ttlMs: SESSION_MAX_AGE_MS
-  }),
+  store: sessionStore,
   resave: false,
   saveUninitialized: false,
   rolling: true,
   cookie: {
     httpOnly: true,
-    // secure: contrôlé exclusivement par COOKIE_SECURE (true en prod derrière HTTPS, false en local)
-    secure: process.env.COOKIE_SECURE === 'true',
+    // Production cookies must never be sent over HTTP. Local development may
+    // opt in with COOKIE_SECURE=true when testing an HTTPS reverse proxy.
+    secure: process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === 'true',
     sameSite: "lax",
     maxAge: SESSION_MAX_AGE_MS
   }
-}));
+});
+app.use(sessionMiddleware);
+app.locals.jellyfinProxy = createJellyfinProxy({ sessionStore, sessionSecret: SESSION_SECRET });
+server.on("upgrade", (req, socket, head) => {
+  const pathname = String(req.url || "").split("?", 1)[0];
+  if (pathname === "/jellyfin-proxy" || pathname.startsWith("/jellyfin-proxy/")) {
+    app.locals.jellyfinProxy.handleUpgrade(req, socket, head);
+    return;
+  }
+  socket.destroy();
+});
 app.use(ensureCsrfToken);
-app.use(requireCsrfToken);
 
-// 3. Body parsers
-app.use(express.json({ limit: "12mb" }));
-app.use(express.urlencoded({ extended: true, limit: "12mb" }));
+// 3. Body parsers. Jellyfin bodies must remain unread streams for httpxy.
+const jsonParser = express.json({ limit: "1mb" });
+const largeJsonParser = express.json({ limit: "12mb" });
+const urlencodedParser = express.urlencoded({ extended: true, limit: "1mb" });
+app.use((req, res, next) => {
+  if (req.path === "/jellyfin-proxy" || req.path.startsWith("/jellyfin-proxy/")) return next();
+  // A local background-image upload is the sole JSON endpoint that needs to
+  // accept a base64 payload larger than the general API limit.
+  if (req.path === "/api/admin/settings/site-background") return largeJsonParser(req, res, next);
+  return jsonParser(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path === "/jellyfin-proxy" || req.path.startsWith("/jellyfin-proxy/")) return next();
+  return urlencodedParser(req, res, next);
+});
+app.use(requireCsrfToken);
 
 app.use((err, req, res, next) => {
   if (!err) return next();
@@ -287,6 +309,7 @@ app.use(async (req, res, next) => {
   res.locals.locale = getSiteLanguage();
   res.locals.t = createTranslator(res.locals.locale);
   res.locals.runtimeTextMap = getRuntimeTextMap(res.locals.locale);
+  res.locals.safeJsonForScript = safeJsonForScript;
   res.locals.customNavCards = [];
   res.locals.dashboardNavItems = [];
   res.locals.contentClass = "";
@@ -467,7 +490,7 @@ async function loadAllUserStatsFromTautulli() {
 }
 
 // Démarrer le serveur et initialiser le cron job
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   console.log("\n🚀 Server running on port", PORT);
 
   // 🏥 HEALTH CHECK au démarrage
