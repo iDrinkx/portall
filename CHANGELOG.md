@@ -4,6 +4,15 @@
 
 * **ui:** restore custom logo asset ([cf458d8](https://github.com/iDrinkx/portall/commit/cf458d86a7833e202121c6ae57dca6086a960bb3))
 
+## [1.42.20](https://github.com/iDrinkx/portall/compare/v1.42.19...v1.42.20) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ci:** use native OneDev PushRepository type ([7bce81f](https://github.com/iDrinkx/portall/commit/7bce81ff90f3ce25bbd21b4cb6f5cf28dc3d4fe1))
+* **security:** harden Plex auth, Trakt backoff and dependencies ([8b0c43b](https://github.com/iDrinkx/portall/commit/8b0c43b7aab5b72ca3d7d76dadbdb310830d430e))
+* **security:** harden Plex auth, Trakt backoff and dependencies ([7352d77](https://github.com/iDrinkx/portall/commit/7352d779cb31e8cd9a7b489d3ca940b397808e49))
+
 ## [1.42.19](https://github.com/iDrinkx/portall/compare/v1.42.18...v1.42.19) (2026-10-04)
 
 
