@@ -105,7 +105,7 @@ jobs:
 
 - name: Sync GitHub
   steps:
-  - type: PushRepositoryStep
+  - type: PushRepository
     name: Push main to GitHub
     remoteUrl: https://github.com/iDrinkx/portall.git
     userName: iDrinkx
