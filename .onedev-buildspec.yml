@@ -102,3 +102,30 @@ jobs:
   includeUpstreamWhenRebuild: false
   includeDownstreamWhenRebuild: false
   timeout: 900
+
+- name: Sync GitHub
+  steps:
+  - type: PushRepository
+    name: Push main to GitHub
+    remoteUrl: https://github.com/iDrinkx/portall.git
+    userName: iDrinkx
+    passwordSecret: github-sync-token
+    force: false
+    condition: SUCCESSFUL
+    optional: false
+
+  jobDependencies:
+  - jobName: Security CI
+    requireSuccessful: true
+
+  triggers:
+  - type: BranchUpdateTrigger
+    branches: main
+    userMatch: anyone
+
+  retryCondition: never
+  maxAttempts: 1
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 900
