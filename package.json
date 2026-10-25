@@ -1,10 +1,10 @@
 {
   "name": "portall",
   "license": "GPL-3.0-only",
-  "version": "1.42.19",
+  "version": "1.42.20",
   "main": "server.js",
   "engines": {
-    "node": ">=24.15.0 <25"
+    "node": ">=24.22.1 <25"
   },
   "overrides": {
     "tar": "^7.5.22",
@@ -15,7 +15,9 @@
     "path-to-regexp": "0.1.13",
     "picomatch": "^4.0.4",
     "undici": "^8.11.2",
-    "ip-address": "^10.7.3",
+    "ip-address": "^10.7.4",
+    "proxy-addr": "^2.0.8",
+    "body-parser": "^1.20.9",
     "braces": "^3.0.3",
     "micromatch": {
       "picomatch": "^2.3.2"

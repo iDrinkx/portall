@@ -267,6 +267,11 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
       throw new Error("Plex authorization prerequisites are unavailable");
     }
 
+    // Do not allow even the owner to bypass a live confirmation of the
+    // configured Plex server. A connection failure must fail closed.
+    const machineId = await getServerMachineId(plexUrl, plexServerToken, { forceRefresh: true });
+    if (!machineId) throw new Error("Plex server identity is unavailable");
+
     const ownerId = await getServerOwnerId(adminLookupToken);
     verifiedOwnerId = ownerId;
     if (ownerId && ownerId === userId) {
@@ -274,9 +279,6 @@ router.get("/auth-complete", ensureSetupComplete, async (req, res) => {
       isAdmin = true;
       logAuth.info(`Proprietaire du serveur detecte pour user#${userId}`);
     } else {
-      const machineId = await getServerMachineId(plexUrl, plexServerToken);
-      if (!machineId) throw new Error("Plex server identity is unavailable");
-
       const authorizedUsers = await getAuthorizedServerUsers(adminLookupToken, machineId);
       authorizedByPlex = authorizedUsers.some(u => u.id === userId);
       if (!authorizedByPlex) logAuth.warn(`Acces Plex refuse pour user#${userId}`);
