@@ -169,7 +169,11 @@ function parseRetryAfterMs(resp) {
   return 0;
 }
 
-async function getTraktListItems(achievementId) {
+function shouldServeTraktBackoffCache(cacheEntry, now = Date.now()) {
+  return !!cacheEntry && Number(cacheEntry.blockedUntil || 0) > now;
+}
+
+async function getTraktListItems(achievementId, { fetchImpl = fetch } = {}) {
   const traktClientId = String(getConfigValue('TRAKT_CLIENT_ID', '') || '').trim();
   const traktListUrl = TRAKT_LISTS[achievementId];
   if (!traktClientId || !traktListUrl) return null;
@@ -182,7 +186,10 @@ async function getTraktListItems(achievementId) {
   if (cached && (now - cached.ts) < COLLECTION_CACHE_TTL) {
     return cached.items;
   }
-  if (cached && cached.blockedUntil > now && (now - cached.ts) < COLLECTION_CACHE_STALE_TTL) {
+  // A 429 backoff is authoritative even when the cached data is too old to
+  // serve. Retrying while Retry-After is active would turn concurrent refreshes
+  // into a request burst and prolong the upstream rate limit.
+  if (shouldServeTraktBackoffCache(cached, now)) {
     log.warn(`Trakt ${achievementId}: backoff actif apres 429, reutilisation du cache (${cached.items.length} elements)`);
     return cached.items.length ? cached.items : null;
   }
@@ -190,11 +197,10 @@ async function getTraktListItems(achievementId) {
     return traktListInflight[achievementId];
   }
 
-  const apiUrls = await getTraktApiListUrls(traktListUrl);
-  if (!apiUrls.length) return null;
-
   const loadPromise = (async () => {
     try {
+    const apiUrls = await getTraktApiListUrls(traktListUrl);
+    if (!apiUrls.length) return null;
     let items = [];
     let lastError = null;
 
@@ -206,7 +212,7 @@ async function getTraktListItems(achievementId) {
       try {
         while (page <= 10) {
           const separator = apiUrl.includes('?') ? '&' : '?';
-          const resp = await fetch(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
+          const resp = await fetchImpl(`${apiUrl}${separator}page=${page}&limit=${limit}`, {
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
@@ -2651,6 +2657,8 @@ module.exports = {
   getLastPlayedItem,
   getUserDetailedStats,
   getGlobalDetailedStats,
+  getTraktListItems,
+  shouldServeTraktBackoffCache,
   resetCollectionCaches,
   closeTautulliDatabase
 };

@@ -1,0 +1,104 @@
+version: 54
+
+jobs:
+- name: Security CI
+  steps:
+  - type: CheckoutStep
+    name: Checkout code
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+
+  - type: CommandStep
+    name: Node security checks
+    runInContainer: true
+    image: node:24.22.1
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        set -eu
+        npm ci
+        npm audit --audit-level=low
+        npm audit --omit=dev --audit-level=low
+        node --test
+        git diff --check
+    runAs: 0:0
+    useTTY: false
+    condition: SUCCESSFUL
+    optional: false
+
+  - type: BuildImageStep
+    name: Build runtime image
+    buildPath: .
+    dockerfile: Dockerfile
+    output:
+      type: RegistryOutput
+      tags: '@server@/portall/security-ci:@build_number@'
+    registryLogins:
+    - registryUrl: '@server_url@'
+      userName: '@job_token@'
+      passwordSecret: package-token
+    moreOptions: --no-cache
+    condition: SUCCESSFUL
+    optional: false
+
+  - type: RunContainerStep
+    name: Docker runtime security checks
+    image: '@server@/portall/security-ci:@build_number@'
+    registryLogins:
+    - registryUrl: '@server_url@'
+      userName: '@job_token@'
+      passwordSecret: package-token
+    args: >-
+      sh -ec "set -eu;
+      test $(id -u) = 10001;
+      test ! -e /app/.env;
+      test ! -e /app/.git;
+      test ! -e /app/config/portall-test.db;
+      ! npm ls semantic-release @@semantic-release/npm --omit=dev;
+      SESSION_SECRET=$(node -e 'process.stdout.write(require(`crypto`).randomBytes(32).toString(`hex`))');
+      CREDENTIALS_ENCRYPTION_KEY=$(node -e 'process.stdout.write(require(`crypto`).randomBytes(32).toString(`base64`))');
+      SETUP_TOKEN=$(node -e 'process.stdout.write(require(`crypto`).randomBytes(32).toString(`hex`))');
+      export SESSION_SECRET CREDENTIALS_ENCRYPTION_KEY SETUP_TOKEN;
+      node server.js > /tmp/portall-security.log 2>&1 &
+      PID=$!;
+      node -e 'const headers=[`content-security-policy`,`x-content-type-options`,`referrer-policy`,`permissions-policy`];let attempts=30;const check=async()=>{try{const response=await fetch(`http://127.0.0.1:3000/setup`);if(!response.ok)throw new Error(`/setup returned `+response.status);for(const header of headers){if(!response.headers.has(header))throw new Error(`missing header: `+header)}if(response.headers.get(`x-content-type-options`).toLowerCase()!==`nosniff`)throw new Error(`invalid x-content-type-options`)}catch(error){if(--attempts===0){console.error(error);process.exit(1)}await new Promise(resolve=>setTimeout(resolve,1000));return check()}};check()';
+      node -e 'Promise.all([`/.env`,`/.git/HEAD`,`/config/portall.db`,`/.ssh/id_ed25519`].map(async path=>{const response=await fetch(`http://127.0.0.1:3000${path}`,{redirect:`manual`});if(response.status===200)throw new Error(`${path} returned HTTP 200`)})).catch(error=>{console.error(error);process.exit(1)})';
+      kill -0 $PID;
+      sleep 5;
+      kill -0 $PID;
+      ! grep -F -- $SESSION_SECRET /tmp/portall-security.log;
+      ! grep -F -- $CREDENTIALS_ENCRYPTION_KEY /tmp/portall-security.log;
+      ! grep -F -- $SETUP_TOKEN /tmp/portall-security.log;
+      kill $PID;
+      wait $PID || true"
+    envVars:
+    - name: NODE_ENV
+      value: production
+    - name: PORT
+      value: '3000'
+    - name: PUID
+      value: '10001'
+    - name: PGID
+      value: '10001'
+    runAs: 0:0
+    useTTY: false
+    condition: SUCCESSFUL
+    optional: false
+
+  triggers:
+  - type: BranchUpdateTrigger
+    branches: '**'
+    userMatch: anyone
+  - type: PullRequestUpdateTrigger
+
+  retryCondition: never
+  maxAttempts: 1
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 900

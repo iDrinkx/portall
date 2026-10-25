@@ -1,4 +1,4 @@
-FROM node:24.18.0 AS dependencies
+FROM node:24.22.1 AS dependencies
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN apt-get update \
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
-FROM node:24.18.0
+FROM node:24.22.1
 
 WORKDIR /app
 

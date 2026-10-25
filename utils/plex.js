@@ -36,6 +36,8 @@ function getEffectivePlexToken() {
 let _cachedOwnerId   = null;      // ID Plex de l'admin — chargé une seule fois
 let _cachedMachineId = undefined; // undefined = pas encore chargé, null = échec
 let _cachedAuthorizedUsers = null;
+let _cachedOwnerToken = null;
+let _cachedAuthorizedUsersKey = null;
 let _cachedAuthorizedUsersAt = 0;
 const AUTH_USERS_CACHE_TTL_MS = 60 * 1000; // 60s: accélère le login sans dérive longue
 // ────────────────────────────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ const AUTH_USERS_CACHE_TTL_MS = 60 * 1000; // 60s: accélère le login sans dér
  * Utilise l'API cloud plex.tv — fiable même si le serveur local est en redémarrage.
  */
 async function getServerOwnerId(PLEX_TOKEN) {
-  if (_cachedOwnerId !== null) return _cachedOwnerId;
+  if (_cachedOwnerId !== null && _cachedOwnerToken === PLEX_TOKEN) return _cachedOwnerId;
   const res = await fetchWithTimeout("https://plex.tv/api/v2/user", {
     headers: {
       "X-Plex-Token": PLEX_TOKEN,
@@ -56,6 +58,7 @@ async function getServerOwnerId(PLEX_TOKEN) {
   if (!res.ok) throw new Error(`plex.tv/api/v2/user → HTTP ${res.status}`);
   const data = await res.json();
   _cachedOwnerId = data.id ? parseInt(data.id) : null;
+  _cachedOwnerToken = PLEX_TOKEN;
   logPlex.debug(`Owner ID mis en cache: ${_cachedOwnerId}`);
   return _cachedOwnerId;
 }
@@ -64,8 +67,8 @@ async function getServerOwnerId(PLEX_TOKEN) {
  * Récupère le machineIdentifier du serveur Plex local.
  * Utilisé pour filtrer précisément les accès à CE serveur dans le XML plex.tv.
  */
-async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
-  if (_cachedMachineId !== undefined) return _cachedMachineId;
+async function getServerMachineId(PLEX_URL, PLEX_TOKEN, { forceRefresh = false } = {}) {
+  if (!forceRefresh && _cachedMachineId !== undefined) return _cachedMachineId;
   try {
     const res = await fetchWithTimeout(`${PLEX_URL}/identity`, {
       headers: {
@@ -73,14 +76,18 @@ async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
         "Accept": "application/json"
       }
     }, 4000);
-    if (!res.ok) { _cachedMachineId = null; return null; }
+    if (!res.ok) {
+      if (!forceRefresh) _cachedMachineId = null;
+      return null;
+    }
     const data = await res.json();
-    _cachedMachineId = data.MediaContainer?.machineIdentifier || null;
-    logPlex.debug(`Machine ID mis en cache: ${_cachedMachineId}`);
-    return _cachedMachineId;
+    const machineId = data.MediaContainer?.machineIdentifier || null;
+    if (!forceRefresh) _cachedMachineId = machineId;
+    logPlex.debug(`Machine ID ${forceRefresh ? "verifie" : "mis en cache"}: ${machineId}`);
+    return machineId;
   } catch (e) {
     logPlex.warn('machineIdentifier indisponible:', e.message);
-    _cachedMachineId = null;
+    if (!forceRefresh) _cachedMachineId = null;
     return null;
   }
 }
@@ -96,7 +103,9 @@ async function getServerMachineId(PLEX_URL, PLEX_TOKEN) {
  */
 async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
   const now = Date.now();
-  if (_cachedAuthorizedUsers && (now - _cachedAuthorizedUsersAt) < AUTH_USERS_CACHE_TTL_MS) {
+  const cacheKey = `${PLEX_TOKEN}\u0000${machineId || ""}`;
+  if (_cachedAuthorizedUsers && _cachedAuthorizedUsersKey === cacheKey
+    && (now - _cachedAuthorizedUsersAt) < AUTH_USERS_CACHE_TTL_MS) {
     return _cachedAuthorizedUsers;
   }
 
@@ -146,6 +155,7 @@ async function getAuthorizedServerUsers(PLEX_TOKEN, machineId) {
   logPlex.info(`${authorizedUsers.length} utilisateurs avec accès serveur${machineId ? ` (${machineId.slice(0, 8)}…)` : ''}`);
   _cachedAuthorizedUsers = authorizedUsers;
   _cachedAuthorizedUsersAt = now;
+  _cachedAuthorizedUsersKey = cacheKey;
   return authorizedUsers;
 }
 
