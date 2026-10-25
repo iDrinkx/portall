@@ -1,4 +1,4 @@
-﻿version: 54
+version: 54
 
 jobs:
 - name: Security CI
@@ -102,4 +102,3 @@ jobs:
   includeUpstreamWhenRebuild: false
   includeDownstreamWhenRebuild: false
   timeout: 900
-
